@@ -37,16 +37,6 @@ public class Score {
     public Score() {
     }
 
-    public BigDecimal calculerPerformance() {
-        // logique de calcul à écrire dans le service, pas ici
-        return scorePerformance;
-    }
-
-    public BigDecimal calculerPotentiel() {
-        // logique de calcul à écrire dans le service, pas ici
-        return scorePotentiel;
-    }
-
     public Integer getIdScore() {
         return idScore;
     }
