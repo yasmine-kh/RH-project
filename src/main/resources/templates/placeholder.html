@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${pageTitle} + ' - Talent 360 Bank'">Talent 360 Bank</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar(${activePage})}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1 th:text="${pageTitle}">Page</h1>
+        </header>
+
+        <div class="placeholder-box">
+            <i class="bi bi-tools"></i>
+            <p>Cet ecran sera construit a l'etape suivante, une fois la sidebar et la navigation validees.</p>
+        </div>
+    </main>
+
+</div>
+
+</body>
+</html>
