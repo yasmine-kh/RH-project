@@ -23,8 +23,7 @@ public class UtilisateurRH {
     @Column(nullable = false)
     private String role;
 
-    @OneToMany(mappedBy = "utilisateur")
-    private List<Employe> employes;
+
 
     public UtilisateurRH() {
     }
@@ -69,11 +68,5 @@ public class UtilisateurRH {
         this.role = role;
     }
 
-    public List<Employe> getEmployes() {
-        return employes;
-    }
 
-    public void setEmployes(List<Employe> employes) {
-        this.employes = employes;
-    }
 }

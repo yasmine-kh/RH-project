@@ -13,19 +13,20 @@ import java.util.Objects;
 @Entity
 @Table(name = "employe", indexes = {
         @Index(name = "idx_employe_statut", columnList = "statut"),
-        @Index(name = "idx_employe_manager", columnList = "id_manager")
+        @Index(name = "idx_employe_manager", columnList = "manager_id")
 })
 public class Employe {
 
+    /**
+     * Employee_ID du fichier source, utilise directement comme cle primaire.
+     * EmployeRepository et la cle etrangere employee_id d'EmployeeSkill en
+     * dependent : ce n'est pas un identifiant technique interchangeable.
+     */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer idEmploye;
-
-    /** Employee_ID du fichier source. Cle metier, ne change jamais. */
     @NotBlank
     @Size(max = 20)
-    @Column(nullable = false, unique = true, length = 20)
-    private String matricule;
+    @Column(name = "employee_id", length = 20)
+    private String employeeId;
 
     @NotBlank
     @Size(max = 100)
@@ -74,27 +75,15 @@ public class Employe {
     @Column(length = 50)
     private String grade;
 
-    @Size(max = 100)
-    @Column(length = 100)
-    private String poste;
-
-    @Size(max = 100)
-    @Column(length = 100)
-    private String service;
-
     /** Manager_ID du fichier source, resolu en relation a l'import. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_manager")
+    @JoinColumn(name = "manager_id")
     private Employe manager;
 
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private StatutEmploye statut = StatutEmploye.ACTIF;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_utilisateur")
-    private UtilisateurRH utilisateur;
 
     public Employe() {
     }
@@ -123,20 +112,12 @@ public class Employe {
         return prenom + " " + nom;
     }
 
-    public Integer getIdEmploye() {
-        return idEmploye;
+    public String getEmployeeId() {
+        return employeeId;
     }
 
-    public void setIdEmploye(Integer idEmploye) {
-        this.idEmploye = idEmploye;
-    }
-
-    public String getMatricule() {
-        return matricule;
-    }
-
-    public void setMatricule(String matricule) {
-        this.matricule = matricule;
+    public void setEmployeeId(String employeeId) {
+        this.employeeId = employeeId;
     }
 
     public String getNom() {
@@ -227,22 +208,6 @@ public class Employe {
         this.grade = grade;
     }
 
-    public String getPoste() {
-        return poste;
-    }
-
-    public void setPoste(String poste) {
-        this.poste = poste;
-    }
-
-    public String getService() {
-        return service;
-    }
-
-    public void setService(String service) {
-        this.service = service;
-    }
-
     public Employe getManager() {
         return manager;
     }
@@ -259,14 +224,6 @@ public class Employe {
         this.statut = statut;
     }
 
-    public UtilisateurRH getUtilisateur() {
-        return utilisateur;
-    }
-
-    public void setUtilisateur(UtilisateurRH utilisateur) {
-        this.utilisateur = utilisateur;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -276,16 +233,16 @@ public class Employe {
             return false;
         }
         Employe autre = (Employe) o;
-        return matricule != null && matricule.equals(autre.getMatricule());
+        return employeeId != null && employeeId.equals(autre.getEmployeeId());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(matricule);
+        return Objects.hashCode(employeeId);
     }
 
     @Override
     public String toString() {
-        return "Employe{matricule='" + matricule + "', nom='" + nom + "', prenom='" + prenom + "'}";
+        return "Employe{employeeId='" + employeeId + "', nom='" + nom + "', prenom='" + prenom + "'}";
     }
 }
