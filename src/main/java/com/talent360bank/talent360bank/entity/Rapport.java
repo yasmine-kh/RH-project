@@ -1,6 +1,8 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 @Entity
@@ -11,15 +13,19 @@ public class Rapport {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idRapport;
 
+    @NotBlank(message = "Le type de rapport est obligatoire")
     @Column(nullable = false)
     private String type;
 
+    @NotBlank(message = "Le format est obligatoire")
     @Column(nullable = false)
     private String format;
 
+    @NotNull(message = "La date de génération est obligatoire")
     @Column(name = "date_generation", nullable = false)
     private LocalDate dateGeneration;
 
+    @NotNull(message = "L'utilisateur est obligatoire")
     @ManyToOne
     @JoinColumn(name = "id_utilisateur", nullable = false)
     private UtilisateurRH utilisateur;

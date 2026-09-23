@@ -1,6 +1,7 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,8 +11,10 @@ import java.util.List;
 public class Poste {
 
     @Id
+    @NotBlank(message = "L'identifiant du poste est obligatoire")
     private String posteId;
 
+    @NotBlank(message = "Le nom du poste est obligatoire")
     @Column(name = "nom_poste")
     private String nomPoste;
 

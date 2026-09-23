@@ -1,6 +1,7 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "employee_skill")
@@ -13,17 +14,21 @@ public class EmployeeSkill {
     @Column(name = "cle_lookup")
     private String cleLookup;
 
+    @NotNull(message = "L'employé est obligatoire")
     @ManyToOne
     @JoinColumn(name = "employee_id", nullable = false)
     private Employe employe;
 
+    @NotNull(message = "La compétence est obligatoire")
     @ManyToOne
     @JoinColumn(name = "competence_id", nullable = false)
     private Competence competence;
 
+    @NotNull(message = "Le niveau actuel est obligatoire")
     @Column(name = "niveau_actuel")
     private Integer niveauActuel;
 
+    @NotNull(message = "Le niveau cible est obligatoire")
     @Column(name = "niveau_cible")
     private Integer niveauCible;
 
