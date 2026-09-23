@@ -1,14 +1,17 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "competence")
 public class Competence {
 
     @Id
+    @NotBlank(message = "L'identifiant de la compétence est obligatoire")
     private String competenceId;
 
+    @NotBlank(message = "Le nom de la compétence est obligatoire")
     private String nom;
 
     private String categorie;

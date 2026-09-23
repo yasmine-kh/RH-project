@@ -1,14 +1,17 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "poste")
 public class Poste {
 
     @Id
+    @NotBlank(message = "L'identifiant du poste est obligatoire")
     private String posteId;
 
+    @NotBlank(message = "Le nom du poste est obligatoire")
     @Column(name = "nom_poste")
     private String nomPoste;
 
