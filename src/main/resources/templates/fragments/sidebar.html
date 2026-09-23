@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Fragment reutilisable de la sidebar.
+  Parametre "active" = identifiant de la page en cours (voir activePage
+  envoye par PagesController) pour surligner le bon lien.
+-->
+<div th:fragment="sidebar(active)" class="sidebar">
+    <div class="sidebar-brand">
+        <span class="brand-icon">🏦</span>
+        <span class="brand-text">Talent 360 Bank</span>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a href="/" class="nav-item" th:classappend="${active == 'accueil'} ? 'active'">
+            <i class="bi bi-house"></i><span>Accueil</span>
+        </a>
+        <a href="/9box" class="nav-item" th:classappend="${active == '9box'} ? 'active'">
+            <i class="bi bi-grid-3x3"></i><span>9-Box</span>
+        </a>
+        <a href="/viviers" class="nav-item" th:classappend="${active == 'viviers'} ? 'active'">
+            <i class="bi bi-people"></i><span>Viviers</span>
+        </a>
+        <a href="/postes-critiques" class="nav-item" th:classappend="${active == 'postes-critiques'} ? 'active'">
+            <i class="bi bi-exclamation-triangle"></i><span>Postes critiques</span>
+        </a>
+        <a href="/comite-talent" class="nav-item" th:classappend="${active == 'comite-talent'} ? 'active'">
+            <i class="bi bi-person-badge"></i><span>Comite Talent</span>
+        </a>
+        <a href="/alertes" class="nav-item" th:classappend="${active == 'alertes'} ? 'active'">
+            <i class="bi bi-bell"></i><span>Alertes</span>
+        </a>
+        <a href="/parametres" class="nav-item" th:classappend="${active == 'parametres'} ? 'active'">
+            <i class="bi bi-gear"></i><span>Parametres</span>
+        </a>
+    </nav>
+</div>
+
+</body>
+</html>

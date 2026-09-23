@@ -1,6 +1,8 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "appartenance_vivier")
@@ -10,17 +12,21 @@ public class AppartenanceVivier {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idAppartenance;
 
+    @NotBlank(message = "L'origine est obligatoire")
     @Column(nullable = false)
     private String origine;
 
+    @NotNull(message = "L'employé est obligatoire")
     @ManyToOne
     @JoinColumn(name = "id_employe", nullable = false)
     private Employe employe;
 
+    @NotNull(message = "Le vivier est obligatoire")
     @ManyToOne
     @JoinColumn(name = "id_vivier", nullable = false)
     private Vivier vivier;
 
+    @NotNull(message = "Le trimestre est obligatoire")
     @ManyToOne
     @JoinColumn(name = "id_trimestre", nullable = false)
     private Trimestre trimestre;

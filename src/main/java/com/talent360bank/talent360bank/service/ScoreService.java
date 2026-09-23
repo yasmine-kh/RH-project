@@ -66,11 +66,11 @@ public class ScoreService {
 
         Performance performance = performanceRepository.findByEmployeAndTrimestre(employe, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucune note de performance pour " + employe.getMatricule()
+                        "Aucune note de performance pour " + employe.getEmployeeId()
                                 + " sur " + decrire(trimestre)));
         Potentiel potentiel = potentielRepository.findByEmployeAndTrimestre(employe, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucune note de potentiel pour " + employe.getMatricule()
+                        "Aucune note de potentiel pour " + employe.getEmployeeId()
                                 + " sur " + decrire(trimestre)));
 
         return enregistrer(employe, trimestre, performance, potentiel, parametre);
@@ -94,7 +94,7 @@ public class ScoreService {
 
         Map<String, Potentiel> potentielParMatricule = new HashMap<>();
         for (Potentiel potentiel : potentiels) {
-            potentielParMatricule.put(potentiel.getEmploye().getMatricule(), potentiel);
+            potentielParMatricule.put(potentiel.getEmploye().getEmployeeId(), potentiel);
         }
 
         List<Score> enregistres = new ArrayList<>();
@@ -103,7 +103,7 @@ public class ScoreService {
 
         for (Performance performance : performances) {
             Employe employe = performance.getEmploye();
-            String matricule = employe.getMatricule();
+            String matricule = employe.getEmployeeId();
             matriculesVus.add(matricule);
 
             if (!employe.estCalculable()) {
@@ -125,7 +125,7 @@ public class ScoreService {
         // Employes notes en potentiel mais pas en performance : sans les deux
         // axes, la matrice 9-box ne peut pas les placer.
         for (Potentiel potentiel : potentiels) {
-            String matricule = potentiel.getEmploye().getMatricule();
+            String matricule = potentiel.getEmploye().getEmployeeId();
             if (!matriculesVus.contains(matricule)) {
                 ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,
                         "Notes de performance absentes"));

@@ -58,7 +58,7 @@ public class CalculService {
 
         Performance performance = performanceRepository.findByEmployeAndTrimestre(employe, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucune note de performance pour " + employe.getMatricule()
+                        "Aucune note de performance pour " + employe.getEmployeeId()
                                 + " sur " + decrire(trimestre)));
 
         return calculerScorePerformance(performance, chargerParametre(trimestre));
@@ -77,7 +77,7 @@ public class CalculService {
 
         Potentiel potentiel = potentielRepository.findByEmployeAndTrimestre(employe, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucune note de potentiel pour " + employe.getMatricule()
+                        "Aucune note de potentiel pour " + employe.getEmployeeId()
                                 + " sur " + decrire(trimestre)));
 
         return calculerScorePotentiel(potentiel, chargerParametre(trimestre));
