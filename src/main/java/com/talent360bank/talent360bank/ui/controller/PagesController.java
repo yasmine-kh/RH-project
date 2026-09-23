@@ -1,6 +1,6 @@
-package com.talent360.ui.controller;
+package com.talent360bank.talent360bank.ui.controller;
 
-import com.talent360.ui.model.KpiCard;
+import com.talent360bank.talent360bank.ui.model.KpiCard;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;

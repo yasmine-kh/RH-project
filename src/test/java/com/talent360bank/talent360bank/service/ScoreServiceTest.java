@@ -63,7 +63,7 @@ class ScoreServiceTest {
 
     private Employe employe(String matricule, StatutEmploye statut) {
         Employe employe = new Employe();
-        employe.setMatricule(matricule);
+        employe.setEmployeeId(matricule);
         employe.setNom("Nom" + matricule);
         employe.setPrenom("Prenom" + matricule);
         employe.setDateEntree(LocalDate.of(2020, 1, 15));
