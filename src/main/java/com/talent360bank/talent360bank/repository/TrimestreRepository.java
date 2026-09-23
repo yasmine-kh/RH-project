@@ -7,8 +7,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface TrimestreRepository extends JpaRepository<Trimestre, Integer> {
+
+    /**
+     * Un trimestre s'identifie par son couple (numero, annee), pas par sa cle
+     * technique : c'est ce couple que portent les URL de l'API.
+     */
+    Optional<Trimestre> findByNumeroAndAnnee(Integer numero, Integer annee);
 
     /**
      * Trimestres anterieurs, du plus recent au plus ancien. Appele avec une
