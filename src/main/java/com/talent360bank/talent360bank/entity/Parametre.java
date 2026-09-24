@@ -53,6 +53,11 @@ public class Parametre {
     @Valid
     @NotNull
     @Embedded
+    private BaremeExperience baremeExperience;
+
+    @Valid
+    @NotNull
+    @Embedded
     private SeuilsNeufBox seuilsNeufBox;
 
     @Valid
@@ -100,6 +105,8 @@ public class Parametre {
         parametre.setPoidsSuccession(new PoidsSuccession(
                 new BigDecimal("25"), new BigDecimal("20"), new BigDecimal("20"),
                 new BigDecimal("15"), new BigDecimal("10"), new BigDecimal("10")));
+        parametre.setBaremeExperience(new BaremeExperience(
+                new BigDecimal("8"), new BigDecimal("100")));
         parametre.setSeuilsNeufBox(new SeuilsNeufBox(
                 new BigDecimal("85"), new BigDecimal("70")));
         parametre.setSeuilsReadiness(new SeuilsReadiness(
@@ -187,6 +194,14 @@ public class Parametre {
 
     public void setPoidsSuccession(PoidsSuccession poidsSuccession) {
         this.poidsSuccession = poidsSuccession;
+    }
+
+    public BaremeExperience getBaremeExperience() {
+        return baremeExperience;
+    }
+
+    public void setBaremeExperience(BaremeExperience baremeExperience) {
+        this.baremeExperience = baremeExperience;
     }
 
     public SeuilsNeufBox getSeuilsNeufBox() {
