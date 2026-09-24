@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.BaremeExperience;
 import com.talent360bank.talent360bank.entity.Competence;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.EmployeeSkill;
@@ -24,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -52,16 +55,9 @@ public class SuccessionService {
 
     private static final Logger log = LoggerFactory.getLogger(SuccessionService.class);
 
-    /**
-     * Anciennete a partir de laquelle le critere experience est au maximum.
-     * La specification pondere l'experience sans dire comment la noter : faute
-     * d'echelle fournie, l'anciennete est ramenee lineairement sur 100 et
-     * plafonnee a dix ans. A confirmer avec le RH.
-     */
-    public static final int ANCIENNETE_REFERENCE_ANNEES = 10;
-
     private static final BigDecimal CENT = new BigDecimal("100");
     private static final RoundingMode ARRONDI = RoundingMode.HALF_UP;
+    private static final BigDecimal JOURS_PAR_AN = new BigDecimal("365.25");
 
     private final PosteRepository posteRepository;
     private final ScoreRepository scoreRepository;
@@ -161,27 +157,36 @@ public class SuccessionService {
     }
 
     /**
-     * Anciennete ramenee sur 100, plafonnee a {@link #ANCIENNETE_REFERENCE_ANNEES}.
+     * Critere experience selon le {@link BaremeExperience} du Parametre :
+     * min(plafond, annees d'anciennete x points par annee).
+     *
+     * <p>L'anciennete est en annees decimales arrondies au dixieme, comme
+     * dans 01_COLLABORATEURS : ROUND((aujourd'hui - date d'entree) / 365.25, 1).
+     * Les annees revolues de {@link Employe#getAnciennete()} feraient perdre
+     * jusqu'a une annee de points.
      *
      * @return null si la date d'entree est inconnue
+     * @throws DonneesIncompletesException si le bareme n'est pas configure
      */
-    public BigDecimal scoreExperience(Employe candidat) {
+    public BigDecimal scoreExperience(Employe candidat, BaremeExperience bareme) {
         Objects.requireNonNull(candidat, "candidat");
+        if (bareme == null || bareme.getPointsParAnnee() == null || bareme.getPlafond() == null) {
+            throw new DonneesIncompletesException("Le bareme d'experience n'est pas configure");
+        }
 
-        Integer anciennete = candidat.getAnciennete();
-        if (anciennete == null) {
+        if (candidat.getDateEntree() == null) {
             return null;
         }
-        if (anciennete >= ANCIENNETE_REFERENCE_ANNEES) {
-            return CENT.setScale(CalculService.PRECISION_SCORE, ARRONDI);
-        }
-        if (anciennete <= 0) {
+        BigDecimal anciennete = BigDecimal.valueOf(
+                        ChronoUnit.DAYS.between(candidat.getDateEntree(), LocalDate.now()))
+                .divide(JOURS_PAR_AN, 1, ARRONDI);
+        if (anciennete.signum() <= 0) {
             return BigDecimal.ZERO.setScale(CalculService.PRECISION_SCORE, ARRONDI);
         }
-        return BigDecimal.valueOf(anciennete)
-                .multiply(CENT)
-                .divide(BigDecimal.valueOf(ANCIENNETE_REFERENCE_ANNEES),
-                        CalculService.PRECISION_SCORE, ARRONDI);
+        return anciennete
+                .multiply(bareme.getPointsParAnnee())
+                .min(bareme.getPlafond())
+                .setScale(CalculService.PRECISION_SCORE, ARRONDI);
     }
 
     /**
@@ -209,7 +214,7 @@ public class SuccessionService {
                 scoreCompetences(poste, competencesCandidat),
                 score.getScorePerformance(),
                 score.getScorePotentiel(),
-                scoreExperience(candidat),
+                scoreExperience(candidat, parametre.getBaremeExperience()),
                 potentiel == null ? null : potentiel.getNoteLeadership(),
                 potentiel == null ? null : potentiel.getNoteMobilite());
 

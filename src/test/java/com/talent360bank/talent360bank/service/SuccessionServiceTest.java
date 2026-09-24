@@ -236,13 +236,38 @@ class SuccessionServiceTest {
     @ParameterizedTest
     @CsvSource({
             "0, 0.00",
-            "5, 50.00",
-            "10, 100.00",
-            "15, 100.00"    // plafonne a la reference de dix ans
+            "5, 40.00",
+            "12, 96.00",
+            "13, 100.00",   // 104 plafonne a 100
+            "20, 100.00"
     })
-    void experience_est_l_anciennete_ramenee_sur_cent(int annees, String attendu) {
-        assertThat(successionService.scoreExperience(employe("E001", StatutEmploye.ACTIF, annees)))
+    void experience_vaut_huit_points_par_annee_plafonnes_a_cent(int annees, String attendu) {
+        assertThat(successionService.scoreExperience(
+                employe("E001", StatutEmploye.ACTIF, annees), parametre.getBaremeExperience()))
                 .isEqualByComparingTo(attendu);
+    }
+
+    @Test
+    void experience_compte_l_anciennete_au_dixieme_d_annee() {
+        // 1205 jours / 365.25 = 3.299 -> 3.3 ans, comme 01_COLLABORATEURS ; 3.3 x 8 = 26.4
+        Employe candidat = employe("E001", StatutEmploye.ACTIF, 0);
+        candidat.setDateEntree(LocalDate.now().minusDays(1205));
+
+        assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience()))
+                .isEqualByComparingTo("26.40");
+    }
+
+    @Test
+    void le_bareme_d_experience_vient_du_parametre_pas_du_code() {
+        parametre.getBaremeExperience().setPointsParAnnee(new BigDecimal("10"));
+        parametre.getBaremeExperience().setPlafond(new BigDecimal("90"));
+
+        assertThat(successionService.scoreExperience(
+                employe("E001", StatutEmploye.ACTIF, 5), parametre.getBaremeExperience()))
+                .isEqualByComparingTo("50.00");
+        assertThat(successionService.scoreExperience(
+                employe("E001", StatutEmploye.ACTIF, 12), parametre.getBaremeExperience()))
+                .isEqualByComparingTo("90.00");
     }
 
     @Test
@@ -250,14 +275,25 @@ class SuccessionServiceTest {
         Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
         candidat.setDateEntree(null);
 
-        assertThat(successionService.scoreExperience(candidat)).isNull();
+        assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience()))
+                .isNull();
+    }
+
+    @Test
+    void experience_refuse_un_bareme_non_configure() {
+        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        parametre.getBaremeExperience().setPointsParAnnee(null);
+
+        assertThatThrownBy(() -> successionService.scoreExperience(
+                candidat, parametre.getBaremeExperience()))
+                .isInstanceOf(DonneesIncompletesException.class);
     }
 
     // --- score de matching ---------------------------------------------------
 
     @Test
     void le_matching_applique_les_six_poids_du_parametre() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 10);
+        Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
         Poste poste = poste("P001");
 
         // competences 100, performance 90, potentiel 80, experience 100,
@@ -276,7 +312,7 @@ class SuccessionServiceTest {
 
     @Test
     void le_detail_des_six_criteres_est_restitue() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 10);
+        Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
 
         ResultatMatching resultat = successionService.evaluer(candidat, poste("P001"),
                 score(candidat, "90.00", "80.00"),
@@ -294,7 +330,7 @@ class SuccessionServiceTest {
 
     @Test
     void un_critere_non_evaluable_est_ecarte_et_non_compte_pour_zero() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 10);
+        Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
 
         // Sans Potentiel : leadership et mobilite sortent de la moyenne.
         // (100*25 + 90*20 + 80*20 + 100*15) / (25+20+20+15) = 7400 / 80 = 92.50
@@ -312,7 +348,7 @@ class SuccessionServiceTest {
 
     @Test
     void un_poste_sans_competence_exigee_repartit_le_poids_sur_les_autres_criteres() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 10);
+        Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
         Poste poste = new Poste();
         poste.setPosteId("P002");
 

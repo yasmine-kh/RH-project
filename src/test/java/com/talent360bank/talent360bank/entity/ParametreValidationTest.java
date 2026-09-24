@@ -57,6 +57,16 @@ class ParametreValidationTest {
     }
 
     @Test
+    void unPlafondDExperienceAuDelaDeCentEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getBaremeExperience().setPlafond(new BigDecimal("120"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("baremeExperience.plafond");
+    }
+
+    @Test
     void unSeuilDeVigilanceInatteignableEstRejete() {
         Parametre parametre = parametreValide();
         parametre.getSeuilsVigilance().setSeuilEleve(new BigDecimal("500"));
