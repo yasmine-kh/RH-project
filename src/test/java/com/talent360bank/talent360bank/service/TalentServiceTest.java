@@ -143,6 +143,17 @@ class TalentServiceTest {
     }
 
     @Test
+    void unScoreEnBaseSansPotentielEmpecheDeStatuer() {
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        when(scoreRepository.findByEmployeAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(score(employe, "90", null)));
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+
+        assertThatThrownBy(() -> talentService.estTalent(employe, trimestre))
+                .isInstanceOf(DonneesIncompletesException.class);
+    }
+
+    @Test
     void laDetectionNeRetientQueLesTalents() {
         Employe talent = employe("E001", StatutEmploye.ACTIF);
         Employe presque = employe("E002", StatutEmploye.ACTIF);
