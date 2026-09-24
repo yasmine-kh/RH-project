@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.BaremeCompetences;
 import com.talent360bank.talent360bank.entity.BaremeExperience;
 import com.talent360bank.talent360bank.entity.Competence;
 import com.talent360bank.talent360bank.entity.Employe;
@@ -105,18 +106,27 @@ public class SuccessionService {
     }
 
     /**
-     * Taux de couverture des competences exigees par le poste, sur 100.
+     * Couverture des competences exigees par le poste, sur 100, selon le
+     * {@link BaremeCompetences} du Parametre et comme dans 09_SUCCESSION :
+     * chaque competence vaut max(0, 100 - points par niveau manquant x
+     * max(0, requis - actuel)), puis moyenne sur les competences exigees.
      *
      * <p>Le rapprochement se fait par identifiant de competence, pas par
-     * libelle. Une competence exigee que le candidat n'a pas compte pour zero ;
-     * un niveau superieur a l'exigence ne rapporte pas de bonus, il est plafonne
-     * a 100 : depasser l'attendu ne compense pas un manque ailleurs.
+     * libelle. Une competence exigee que le candidat n'a pas compte pour zero
+     * (le classeur la suppose au niveau 3 : en attente d'arbitrage client) ;
+     * un niveau superieur a l'exigence ne rapporte pas de bonus : depasser
+     * l'attendu ne compense pas un manque ailleurs.
      *
      * @return null si le poste n'exige aucune competence chiffree, le critere
      *         est alors ecarte de la moyenne au lieu de compter pour zero
+     * @throws DonneesIncompletesException si le bareme n'est pas configure
      */
-    public BigDecimal scoreCompetences(Poste poste, List<EmployeeSkill> competencesCandidat) {
+    public BigDecimal scoreCompetences(Poste poste, List<EmployeeSkill> competencesCandidat,
+                                       BaremeCompetences bareme) {
         Objects.requireNonNull(poste, "poste");
+        if (bareme == null || bareme.getPointsParNiveauManquant() == null) {
+            throw new DonneesIncompletesException("Le bareme des competences n'est pas configure");
+        }
 
         Map<String, Integer> acquis = new HashMap<>();
         if (competencesCandidat != null) {
@@ -143,10 +153,10 @@ public class SuccessionService {
             if (actuel == null || actuel <= 0) {
                 continue;
             }
-            BigDecimal couverture = BigDecimal.valueOf(actuel)
-                    .multiply(CENT)
-                    .divide(BigDecimal.valueOf(requis), CalculService.PRECISION_SCORE, ARRONDI);
-            total = total.add(couverture.min(CENT));
+            int niveauxManquants = Math.max(0, requis - actuel);
+            BigDecimal couverture = CENT.subtract(
+                    bareme.getPointsParNiveauManquant().multiply(BigDecimal.valueOf(niveauxManquants)));
+            total = total.add(couverture.max(BigDecimal.ZERO));
         }
 
         if (exigencesChiffrees == 0) {
@@ -211,7 +221,7 @@ public class SuccessionService {
         }
 
         ResultatMatching.DetailMatching detail = new ResultatMatching.DetailMatching(
-                scoreCompetences(poste, competencesCandidat),
+                scoreCompetences(poste, competencesCandidat, parametre.getBaremeCompetences()),
                 score.getScorePerformance(),
                 score.getScorePotentiel(),
                 scoreExperience(candidat, parametre.getBaremeExperience()),

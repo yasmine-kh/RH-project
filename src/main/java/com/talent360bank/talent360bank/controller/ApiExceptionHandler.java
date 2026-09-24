@@ -55,7 +55,7 @@ public class ApiExceptionHandler {
         return reponse(HttpStatus.BAD_REQUEST, "argument_invalide", exception.getMessage());
     }
 
-    /** Violations inter-blocs des reglages, detectees une fois les dix blocs reunis. */
+    /** Violations inter-blocs des reglages, detectees une fois les onze blocs reunis. */
     @ExceptionHandler(ParametreInvalideException.class)
     public ResponseEntity<ErreurApi> parametreInvalide(ParametreInvalideException exception) {
         return ResponseEntity.badRequest().body(new ErreurApi(

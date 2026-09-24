@@ -58,6 +58,11 @@ public class Parametre {
     @Valid
     @NotNull
     @Embedded
+    private BaremeCompetences baremeCompetences;
+
+    @Valid
+    @NotNull
+    @Embedded
     private SeuilsNeufBox seuilsNeufBox;
 
     @Valid
@@ -107,6 +112,7 @@ public class Parametre {
                 new BigDecimal("15"), new BigDecimal("10"), new BigDecimal("10")));
         parametre.setBaremeExperience(new BaremeExperience(
                 new BigDecimal("8"), new BigDecimal("100")));
+        parametre.setBaremeCompetences(new BaremeCompetences(new BigDecimal("20")));
         parametre.setSeuilsNeufBox(new SeuilsNeufBox(
                 new BigDecimal("85"), new BigDecimal("70")));
         parametre.setSeuilsReadiness(new SeuilsReadiness(
@@ -202,6 +208,14 @@ public class Parametre {
 
     public void setBaremeExperience(BaremeExperience baremeExperience) {
         this.baremeExperience = baremeExperience;
+    }
+
+    public BaremeCompetences getBaremeCompetences() {
+        return baremeCompetences;
+    }
+
+    public void setBaremeCompetences(BaremeCompetences baremeCompetences) {
+        this.baremeCompetences = baremeCompetences;
     }
 
     public SeuilsNeufBox getSeuilsNeufBox() {
