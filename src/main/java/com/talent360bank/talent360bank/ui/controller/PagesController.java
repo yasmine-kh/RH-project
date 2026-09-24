@@ -1,6 +1,7 @@
 package com.talent360bank.talent360bank.ui.controller;
 
 import com.talent360bank.talent360bank.ui.service.DashboardService;
+import com.talent360bank.talent360bank.ui.service.NineBoxService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,9 +10,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class PagesController {
 
     private final DashboardService dashboardService;
+    private final NineBoxService nineBoxService;
 
-    public PagesController(DashboardService dashboardService) {
+    public PagesController(DashboardService dashboardService, NineBoxService nineBoxService) {
         this.dashboardService = dashboardService;
+        this.nineBoxService = nineBoxService;
     }
 
     @GetMapping("/")
@@ -23,9 +26,9 @@ public class PagesController {
 
     @GetMapping("/9box")
     public String neufBox(Model model) {
+        model.addAttribute("cells", nineBoxService.buildGrid());
         model.addAttribute("activePage", "9box");
-        model.addAttribute("pageTitle", "Matrice 9-Box");
-        return "placeholder";
+        return "9box";
     }
 
     @GetMapping("/viviers")
