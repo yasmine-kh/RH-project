@@ -77,6 +77,16 @@ class ParametreValidationTest {
     }
 
     @Test
+    void unNiveauParDefautHorsEchelleEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getBaremeCompetences().setNiveauParDefaut(6);
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("baremeCompetences.niveauParDefaut");
+    }
+
+    @Test
     void unSeuilDeVigilanceInatteignableEstRejete() {
         Parametre parametre = parametreValide();
         parametre.getSeuilsVigilance().setSeuilEleve(new BigDecimal("500"));

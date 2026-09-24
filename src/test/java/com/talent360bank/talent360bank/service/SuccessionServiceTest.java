@@ -187,20 +187,44 @@ class SuccessionServiceTest {
     void un_niveau_superieur_a_l_exigence_ne_rapporte_pas_de_bonus() {
         Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
 
-        // C001 a 8 pour un niveau 4 exige : plafonne a 100, il ne compense pas C002 a 0.
+        // C001 a 8 pour un niveau 4 exige : plafonne a 100, il ne compense pas
+        // C002 a 1 sur 3 exige = 100 - 20 x 2 = 60. Moyenne 80.
         assertThat(successionService.scoreCompetences(poste("P001"), List.of(
-                skill(candidat, competenceA, 8)), bareme()))
-                .isEqualByComparingTo("50.00");
+                skill(candidat, competenceA, 8),
+                skill(candidat, competenceB, 1)), bareme()))
+                .isEqualByComparingTo("80.00");
     }
 
     @Test
-    void une_competence_absente_compte_pour_zero() {
+    void une_competence_absente_est_supposee_au_niveau_par_defaut() {
         Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
 
-        // C001 a 2 sur 4 exige = 100 - 20 x 2 = 60, C002 absente = 0, moyenne 30.
+        // Comme IFERROR(..., 3) dans 09_SUCCESSION : C001 a 2 sur 4 exige = 60,
+        // C002 absente supposee au niveau 3 pour 3 exige = 100. Moyenne 80.
         assertThat(successionService.scoreCompetences(poste("P001"), List.of(
                 skill(candidat, competenceA, 2)), bareme()))
-                .isEqualByComparingTo("30.00");
+                .isEqualByComparingTo("80.00");
+    }
+
+    @Test
+    void le_niveau_par_defaut_vient_du_parametre_pas_du_code() {
+        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        bareme().setNiveauParDefaut(1);
+
+        // C001 au niveau = 100, C002 absente supposee au niveau 1 pour 3 exige = 60.
+        assertThat(successionService.scoreCompetences(poste("P001"), List.of(
+                skill(candidat, competenceA, 4)), bareme()))
+                .isEqualByComparingTo("80.00");
+    }
+
+    @Test
+    void les_competences_refusent_un_niveau_par_defaut_non_configure() {
+        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        bareme().setNiveauParDefaut(null);
+
+        assertThatThrownBy(() -> successionService.scoreCompetences(poste("P001"), List.of(
+                skill(candidat, competenceA, 4)), bareme()))
+                .isInstanceOf(DonneesIncompletesException.class);
     }
 
     @Test
@@ -402,37 +426,38 @@ class SuccessionServiceTest {
     }
 
     @Test
-    void un_critere_non_evaluable_est_ecarte_et_non_compte_pour_zero() {
+    void un_critere_non_evaluable_compte_pour_zero_sans_redistribuer_son_poids() {
         Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
 
-        // Sans Potentiel : leadership et mobilite sortent de la moyenne.
-        // (100*25 + 90*20 + 80*20 + 100*15) / (25+20+20+15) = 7400 / 80 = 92.50
+        // Sans Potentiel : leadership et mobilite comptent pour zero, comme une
+        // cellule vide dans 09_SUCCESSION.
+        // (100*25 + 90*20 + 80*20 + 100*15 + 0*10 + 0*10) / 100 = 74.00
         ResultatMatching resultat = successionService.evaluer(candidat, poste("P001"),
                 score(candidat, "90.00", "80.00"),
                 null,
                 List.of(skill(candidat, competenceA, 4), skill(candidat, competenceB, 3)),
                 parametre);
 
-        assertThat(resultat.scoreMatching()).isEqualByComparingTo("92.50");
-        assertThat(resultat.readiness()).isEqualTo(NiveauReadiness.READY_NOW);
+        assertThat(resultat.scoreMatching()).isEqualByComparingTo("74.00");
+        assertThat(resultat.readiness()).isEqualTo(NiveauReadiness.ENTRE_1_ET_2_ANS);
         assertThat(resultat.detail().leadership()).isNull();
         assertThat(resultat.detail().mobilite()).isNull();
     }
 
     @Test
-    void un_poste_sans_competence_exigee_repartit_le_poids_sur_les_autres_criteres() {
+    void un_poste_sans_competence_exigee_compte_zero_au_critere_competences() {
         Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
         Poste poste = new Poste();
         poste.setPosteId("P002");
 
-        // (90*20 + 80*20 + 100*15 + 70*10 + 60*10) / (20+20+15+10+10) = 6200 / 75 = 82.67
+        // (0*25 + 90*20 + 80*20 + 100*15 + 70*10 + 60*10) / 100 = 62.00
         ResultatMatching resultat = successionService.evaluer(candidat, poste,
                 score(candidat, "90.00", "80.00"),
                 potentiel(candidat, "70.00", "60.00"),
                 List.of(),
                 parametre);
 
-        assertThat(resultat.scoreMatching()).isEqualByComparingTo("82.67");
+        assertThat(resultat.scoreMatching()).isEqualByComparingTo("62.00");
     }
 
     @Test
@@ -556,7 +581,9 @@ class SuccessionServiceTest {
 
         assertThat(classement.get(0).candidat().getEmployeeId()).isEqualTo("E001");
         assertThat(classement.get(0).detail().competences()).isEqualByComparingTo("100.00");
-        assertThat(classement.get(1).detail().competences()).isEqualByComparingTo("0.00");
+        // E002 n'a rien : niveau par defaut 3 partout, C001 = 80 et C002 = 100.
+        // Avec les competences de E001, il aurait 100.
+        assertThat(classement.get(1).detail().competences()).isEqualByComparingTo("90.00");
     }
 
     @Test

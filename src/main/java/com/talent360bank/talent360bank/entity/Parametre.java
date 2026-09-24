@@ -112,7 +112,7 @@ public class Parametre {
                 new BigDecimal("15"), new BigDecimal("10"), new BigDecimal("10")));
         parametre.setBaremeExperience(new BaremeExperience(
                 new BigDecimal("8"), new BigDecimal("100")));
-        parametre.setBaremeCompetences(new BaremeCompetences(new BigDecimal("20")));
+        parametre.setBaremeCompetences(new BaremeCompetences(new BigDecimal("20"), 3));
         parametre.setSeuilsNeufBox(new SeuilsNeufBox(
                 new BigDecimal("85"), new BigDecimal("70")));
         parametre.setSeuilsReadiness(new SeuilsReadiness(
@@ -126,6 +126,53 @@ public class Parametre {
         parametre.setSeuilsVigilance(new SeuilsVigilance(
                 new BigDecimal("30"), new BigDecimal("60"), new BigDecimal("60")));
         return parametre;
+    }
+
+    /**
+     * Complete, avec les valeurs de {@link #parDefaut}, les blocs ajoutes apres
+     * la mise en service : bareme d'experience et bareme des competences.
+     *
+     * <p>Une ligne creee avant leur ajout a ces colonnes a NULL ; quand toutes
+     * les colonnes d'un bloc sont NULL, Hibernate charge le bloc entier a null.
+     * Seuls les champs absents sont remplis : un reglage saisi par le RH n'est
+     * jamais ecrase.
+     *
+     * @return vrai si au moins un champ a ete complete
+     */
+    public boolean completerBlocsAjoutes() {
+        Parametre defauts = parDefaut(trimestre);
+        boolean complete = false;
+
+        if (baremeExperience == null) {
+            baremeExperience = defauts.getBaremeExperience();
+            complete = true;
+        } else {
+            if (baremeExperience.getPointsParAnnee() == null) {
+                baremeExperience.setPointsParAnnee(defauts.getBaremeExperience().getPointsParAnnee());
+                complete = true;
+            }
+            if (baremeExperience.getPlafond() == null) {
+                baremeExperience.setPlafond(defauts.getBaremeExperience().getPlafond());
+                complete = true;
+            }
+        }
+
+        if (baremeCompetences == null) {
+            baremeCompetences = defauts.getBaremeCompetences();
+            complete = true;
+        } else {
+            if (baremeCompetences.getPointsParNiveauManquant() == null) {
+                baremeCompetences.setPointsParNiveauManquant(
+                        defauts.getBaremeCompetences().getPointsParNiveauManquant());
+                complete = true;
+            }
+            if (baremeCompetences.getNiveauParDefaut() == null) {
+                baremeCompetences.setNiveauParDefaut(defauts.getBaremeCompetences().getNiveauParDefaut());
+                complete = true;
+            }
+        }
+
+        return complete;
     }
 
     /**

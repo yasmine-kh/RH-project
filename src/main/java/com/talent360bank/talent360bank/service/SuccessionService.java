@@ -112,19 +112,20 @@ public class SuccessionService {
      * max(0, requis - actuel)), puis moyenne sur les competences exigees.
      *
      * <p>Le rapprochement se fait par identifiant de competence, pas par
-     * libelle. Une competence exigee que le candidat n'a pas compte pour zero
-     * (le classeur la suppose au niveau 3 : en attente d'arbitrage client) ;
-     * un niveau superieur a l'exigence ne rapporte pas de bonus : depasser
-     * l'attendu ne compense pas un manque ailleurs.
+     * libelle. Une competence exigee absente du profil du candidat est supposee
+     * au niveau par defaut du bareme, comme dans 09_SUCCESSION ; un niveau
+     * superieur a l'exigence ne rapporte pas de bonus : depasser l'attendu ne
+     * compense pas un manque ailleurs.
      *
-     * @return null si le poste n'exige aucune competence chiffree, le critere
-     *         est alors ecarte de la moyenne au lieu de compter pour zero
+     * @return null si le poste n'exige aucune competence chiffree : le critere
+     *         est alors non evaluable et compte pour zero dans le matching
      * @throws DonneesIncompletesException si le bareme n'est pas configure
      */
     public BigDecimal scoreCompetences(Poste poste, List<EmployeeSkill> competencesCandidat,
                                        BaremeCompetences bareme) {
         Objects.requireNonNull(poste, "poste");
-        if (bareme == null || bareme.getPointsParNiveauManquant() == null) {
+        if (bareme == null || bareme.getPointsParNiveauManquant() == null
+                || bareme.getNiveauParDefaut() == null) {
             throw new DonneesIncompletesException("Le bareme des competences n'est pas configure");
         }
 
@@ -149,10 +150,8 @@ public class SuccessionService {
             }
             exigencesChiffrees++;
 
-            Integer actuel = acquis.get(exigence.competence().getCompetenceId());
-            if (actuel == null || actuel <= 0) {
-                continue;
-            }
+            int actuel = acquis.getOrDefault(exigence.competence().getCompetenceId(),
+                    bareme.getNiveauParDefaut());
             int niveauxManquants = Math.max(0, requis - actuel);
             BigDecimal couverture = CENT.subtract(
                     bareme.getPointsParNiveauManquant().multiply(BigDecimal.valueOf(niveauxManquants)));
@@ -203,9 +202,10 @@ public class SuccessionService {
      * Matching d'un candidat sur un poste, sans acces base : pour classer un lot
      * avec des reglages et des donnees deja charges.
      *
-     * <p>Le {@link Potentiel} peut etre absent : leadership et mobilite sont
-     * alors ecartes de la moyenne, les quatre autres criteres suffisent a
-     * produire un classement plutot que de rejeter le candidat.
+     * <p>Un critere non evaluable (pas de {@link Potentiel}, pas de date
+     * d'entree, poste sans competence chiffree) compte pour zero dans le score,
+     * comme une cellule vide dans 09_SUCCESSION ; le detail le rend null pour
+     * qu'on distingue un zero d'une donnee absente.
      */
     public ResultatMatching evaluer(Employe candidat, Poste poste, Score score, Potentiel potentiel,
                                     List<EmployeeSkill> competencesCandidat, Parametre parametre) {
@@ -336,9 +336,9 @@ public class SuccessionService {
     }
 
     /**
-     * Moyenne ponderee des criteres evaluables, ramenee sur 100. La division se
-     * fait par la somme des poids effectivement retenus : un critere absent est
-     * neutre, il ne tire pas le score vers le bas.
+     * Moyenne ponderee des six criteres, ramenee sur 100. Un critere absent
+     * compte pour zero et garde son poids, comme dans 09_SUCCESSION : son poids
+     * n'est pas redistribue sur les autres.
      */
     private BigDecimal moyennePonderee(String[] noms, BigDecimal[] sousScores, BigDecimal[] poids) {
         BigDecimal total = BigDecimal.ZERO;
@@ -349,16 +349,15 @@ public class SuccessionService {
                 throw new DonneesIncompletesException(
                         "Poids manquant (" + noms[i] + ") pour le calcul du matching");
             }
-            if (sousScores[i] == null) {
-                continue;
+            if (sousScores[i] != null) {
+                total = total.add(sousScores[i].multiply(poids[i]));
             }
-            total = total.add(sousScores[i].multiply(poids[i]));
             sommePoids = sommePoids.add(poids[i]);
         }
 
         if (sommePoids.signum() == 0) {
             throw new DonneesIncompletesException(
-                    "Aucun critere evaluable, le score de matching est indefini");
+                    "Poids du matching tous nuls, le score de matching est indefini");
         }
 
         return total.divide(sommePoids, CalculService.PRECISION_SCORE, ARRONDI);
