@@ -118,7 +118,8 @@ public class Parametre {
         parametre.setSeuilsReadiness(new SeuilsReadiness(
                 new BigDecimal("90"), new BigDecimal("80"), new BigDecimal("65")));
         parametre.setSeuilsTalent(new SeuilsTalent(
-                new BigDecimal("85"), new BigDecimal("85")));
+                new BigDecimal("85"), new BigDecimal("85"),
+                new BigDecimal("85"), new BigDecimal("75")));
         parametre.setPointsVigilance(new PointsVigilance(
                 new BigDecimal("25"), new BigDecimal("20"), new BigDecimal("15"),
                 new BigDecimal("15"), new BigDecimal("10"), new BigDecimal("10"),
@@ -129,8 +130,9 @@ public class Parametre {
     }
 
     /**
-     * Complete, avec les valeurs de {@link #parDefaut}, les blocs ajoutes apres
-     * la mise en service : bareme d'experience et bareme des competences.
+     * Complete, avec les valeurs de {@link #parDefaut}, les reglages ajoutes
+     * apres la mise en service : bareme d'experience, bareme des competences
+     * et seuils de haut potentiel.
      *
      * <p>Une ligne creee avant leur ajout a ces colonnes a NULL ; quand toutes
      * les colonnes d'un bloc sont NULL, Hibernate charge le bloc entier a null.
@@ -168,6 +170,19 @@ public class Parametre {
             }
             if (baremeCompetences.getNiveauParDefaut() == null) {
                 baremeCompetences.setNiveauParDefaut(defauts.getBaremeCompetences().getNiveauParDefaut());
+                complete = true;
+            }
+        }
+
+        if (seuilsTalent != null) {
+            if (seuilsTalent.getSeuilHautPotentielPotentiel() == null) {
+                seuilsTalent.setSeuilHautPotentielPotentiel(
+                        defauts.getSeuilsTalent().getSeuilHautPotentielPotentiel());
+                complete = true;
+            }
+            if (seuilsTalent.getSeuilHautPotentielPerformance() == null) {
+                seuilsTalent.setSeuilHautPotentielPerformance(
+                        defauts.getSeuilsTalent().getSeuilHautPotentielPerformance());
                 complete = true;
             }
         }

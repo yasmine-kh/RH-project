@@ -5,6 +5,7 @@ import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.StatutEmploye;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
+import com.talent360bank.talent360bank.service.MembreVivierReleve;
 import com.talent360bank.talent360bank.service.NeufBoxService;
 import com.talent360bank.talent360bank.service.ResultatRecalcul;
 import com.talent360bank.talent360bank.service.TalentService;
@@ -87,6 +88,43 @@ class TalentEtNeufBoxControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.employeeId").value("E001"))
                 .andExpect(jsonPath("$.estTalent").value(true));
+    }
+
+    @Test
+    void les_hauts_potentiels_du_trimestre_sont_exposes() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+        when(talentService.detecterHautsPotentiels(trimestre)).thenReturn(List.of(score()));
+
+        mockMvc.perform(get("/api/trimestres/2026/1/hauts-potentiels"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].scorePotentiel").value(88.00));
+    }
+
+    @Test
+    void le_statut_de_haut_potentiel_d_un_employe_est_un_objet() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+        when(chargeur.exigerEmploye("E001")).thenReturn(employe);
+        when(talentService.estHautPotentiel(employe, trimestre)).thenReturn(true);
+
+        mockMvc.perform(get("/api/trimestres/2026/1/hauts-potentiels/E001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employeeId").value("E001"))
+                .andExpect(jsonPath("$.estHautPotentiel").value(true));
+    }
+
+    @Test
+    void le_vivier_de_releve_expose_la_raison_de_chaque_membre() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+        when(talentService.getVivierReleve(trimestre))
+                .thenReturn(List.of(new MembreVivierReleve(score(), true, true)));
+
+        mockMvc.perform(get("/api/trimestres/2026/1/vivier-releve"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].nomComplet").isNotEmpty())
+                .andExpect(jsonPath("$[0].talent").value(true))
+                .andExpect(jsonPath("$[0].hautPotentiel").value(true));
     }
 
     @Test

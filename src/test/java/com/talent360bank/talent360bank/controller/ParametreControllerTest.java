@@ -72,6 +72,8 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.baremeCompetences.pointsParNiveauManquant").value(20))
                 .andExpect(jsonPath("$.baremeCompetences.niveauParDefaut").value(3))
                 .andExpect(jsonPath("$.seuilsReadiness.seuilReadyNow").value(90))
+                .andExpect(jsonPath("$.seuilsTalent.seuilHautPotentielPotentiel").value(85))
+                .andExpect(jsonPath("$.seuilsTalent.seuilHautPotentielPerformance").value(75))
                 .andExpect(jsonPath("$.seuilsVigilance.seuilEngagementFaible").value(60))
                 .andExpect(jsonPath("$.pointsVigilance.pointEngagementFaible").value(25));
     }

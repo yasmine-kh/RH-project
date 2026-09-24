@@ -25,7 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ParametreInitializerJpaTest {
 
     private static final List<String> COLONNES_AJOUTEES = List.of(
-            "exp_points_par_annee", "exp_plafond", "comp_points_par_niveau_manquant", "comp_niveau_par_defaut");
+            "exp_points_par_annee", "exp_plafond", "comp_points_par_niveau_manquant", "comp_niveau_par_defaut",
+            "seuil_hp_pot", "seuil_hp_perf");
 
     @Autowired
     private ParametreRepository parametreRepository;
@@ -51,6 +52,20 @@ class ParametreInitializerJpaTest {
         assertThat(defauts.get("exp_plafond")).isEqualByComparingTo("100");
         assertThat(defauts.get("comp_points_par_niveau_manquant")).isEqualByComparingTo("20");
         assertThat(defauts.get("comp_niveau_par_defaut")).isEqualByComparingTo("3");
+        assertThat(defauts.get("seuil_hp_pot")).isEqualByComparingTo("85");
+        assertThat(defauts.get("seuil_hp_perf")).isEqualByComparingTo("75");
+    }
+
+    @Test
+    void uneLigneAnterieureAuxSeuilsDeHautPotentielEstCompletee() {
+        Integer id = ligneExistante("seuil_hp_pot = NULL, seuil_hp_perf = NULL");
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        Parametre complete = relire(id);
+        assertThat(complete.getSeuilsTalent().getSeuilHautPotentielPotentiel()).isEqualByComparingTo("85");
+        assertThat(complete.getSeuilsTalent().getSeuilHautPotentielPerformance()).isEqualByComparingTo("75");
+        assertThat(complete.getSeuilsTalent().getSeuilPerformance()).isEqualByComparingTo("85");
     }
 
     @Test

@@ -72,6 +72,21 @@ class ParametreInitializerTest {
     }
 
     @Test
+    void desSeuilsDeHautPotentielAbsentsRecoiventLesValeursDuClasseur() {
+        Parametre ancien = Parametre.parDefaut(trimestre);
+        ancien.getSeuilsTalent().setSeuilHautPotentielPotentiel(null);
+        ancien.getSeuilsTalent().setSeuilHautPotentielPerformance(null);
+        when(parametreRepository.findAll()).thenReturn(List.of(ancien));
+
+        initializer.run(null);
+
+        verify(parametreRepository).save(ancien);
+        assertThat(ancien.getSeuilsTalent().getSeuilHautPotentielPotentiel()).isEqualByComparingTo("85");
+        assertThat(ancien.getSeuilsTalent().getSeuilHautPotentielPerformance()).isEqualByComparingTo("75");
+        assertThat(ancien.getSeuilsTalent().getSeuilPerformance()).isEqualByComparingTo("85");
+    }
+
+    @Test
     void unZeroEstSignaleMaisJamaisRemplace() {
         // Un 0 peut etre un reglage voulu : l'initialiseur ne le touche pas.
         Parametre aZero = Parametre.parDefaut(trimestre);

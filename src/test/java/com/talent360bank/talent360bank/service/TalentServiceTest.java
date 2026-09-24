@@ -26,6 +26,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -233,5 +234,139 @@ class TalentServiceTest {
         assertThatThrownBy(() -> talentService.detecterTalents(trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
                 .hasMessageContaining("Aucun parametre");
+    }
+
+    // --- haut potentiel ------------------------------------------------------
+
+    @ParameterizedTest
+    @CsvSource({
+            "75.00, 85.00, true",    // les deux exactement au seuil (perf 75, pot 85)
+            "74.99, 90.00, false",   // performance juste en dessous
+            "90.00, 84.99, false",   // potentiel juste en dessous
+            "80.00, 90.00, true",    // haut potentiel sans etre talent
+            "100.00, 70.00, false"   // une performance parfaite ne rattrape pas le potentiel
+    })
+    void leHautPotentielEstUnEtAvecBornesIncluses(String performance, String potentiel, boolean attendu) {
+        assertThat(talentService.estHautPotentiel(
+                new BigDecimal(performance), new BigDecimal(potentiel), parametre.getSeuilsTalent()))
+                .isEqualTo(attendu);
+    }
+
+    @Test
+    void lesSeuilsDeHautPotentielViennentDuParametre() {
+        parametre.getSeuilsTalent().setSeuilHautPotentielPerformance(new BigDecimal("60"));
+        parametre.getSeuilsTalent().setSeuilHautPotentielPotentiel(new BigDecimal("70"));
+
+        assertThat(talentService.estHautPotentiel(
+                new BigDecimal("65"), new BigDecimal("72"), parametre.getSeuilsTalent())).isTrue();
+    }
+
+    @Test
+    void unScoreManquantEmpecheDeStatuerSurLeHautPotentiel() {
+        assertThatThrownBy(() -> talentService.estHautPotentiel(
+                null, new BigDecimal("90"), parametre.getSeuilsTalent()))
+                .isInstanceOf(DonneesIncompletesException.class);
+    }
+
+    @Test
+    void desSeuilsDeHautPotentielNonConfiguresSontSignales() {
+        parametre.getSeuilsTalent().setSeuilHautPotentielPotentiel(null);
+
+        assertThatThrownBy(() -> talentService.estHautPotentiel(
+                new BigDecimal("90"), new BigDecimal("90"), parametre.getSeuilsTalent()))
+                .isInstanceOf(DonneesIncompletesException.class)
+                .hasMessageContaining("haut potentiel");
+    }
+
+    @Test
+    void statueSurLeHautPotentielDUnEmployeDepuisSonScoreEnBase() {
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        when(scoreRepository.findByEmployeAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(score(employe, "78", "88")));
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+
+        assertThat(talentService.estHautPotentiel(employe, trimestre)).isTrue();
+        assertThat(talentService.estTalent(employe, trimestre)).isFalse();
+    }
+
+    @Test
+    void unEmployeSansScoreEstSignalePourLeHautPotentiel() {
+        Employe employe = employe("E009", StatutEmploye.ACTIF);
+        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> talentService.estHautPotentiel(employe, trimestre))
+                .isInstanceOf(RessourceIntrouvableException.class)
+                .hasMessageContaining("E009");
+    }
+
+    @Test
+    void laDetectionDesHautsPotentielsTrieEtEcarteArchivesEtIncomplets() {
+        Employe hpSeul = employe("E001", StatutEmploye.ACTIF);
+        Employe talent = employe("E002", StatutEmploye.ACTIF);
+        Employe sousLeSeuil = employe("E003", StatutEmploye.ACTIF);
+        Employe archive = employe("E004", StatutEmploye.ARCHIVE);
+        Employe incomplet = employe("E005", StatutEmploye.ACTIF);
+
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(List.of(
+                score(hpSeul, "76", "86"),
+                score(talent, "92", "90"),
+                score(sousLeSeuil, "74.99", "95"),
+                score(archive, "99", "99"),
+                score(incomplet, "90", null)));
+
+        assertThat(talentService.detecterHautsPotentiels(trimestre))
+                .extracting(s -> s.getEmploye().getEmployeeId())
+                .containsExactly("E002", "E001");
+    }
+
+    // --- vivier de releve ----------------------------------------------------
+
+    @Test
+    void leVivierReunitTalentsEtHautsPotentielsSansDoublonAvecLaRaison() {
+        // Avec les valeurs par defaut (talent 85/85, HP 75/85), tout talent est
+        // aussi HP. Seuils HP deplaces (perf >= 90, pot >= 80) pour couvrir les
+        // trois cas : talent seul, HP seul, les deux.
+        parametre.getSeuilsTalent().setSeuilHautPotentielPerformance(new BigDecimal("90"));
+        parametre.getSeuilsTalent().setSeuilHautPotentielPotentiel(new BigDecimal("80"));
+
+        Employe talentSeul = employe("E001", StatutEmploye.ACTIF);
+        Employe hpSeul = employe("E002", StatutEmploye.ACTIF);
+        Employe lesDeux = employe("E003", StatutEmploye.ACTIF);
+        Employe aucun = employe("E004", StatutEmploye.ACTIF);
+
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(List.of(
+                score(talentSeul, "87", "86"),   // talent ; pas HP (perf < 90)
+                score(hpSeul, "91", "84"),       // HP ; pas talent (pot < 85)
+                score(lesDeux, "95", "92"),      // les deux : une seule entree
+                score(aucun, "60", "60")));
+
+        List<MembreVivierReleve> vivier = talentService.getVivierReleve(trimestre);
+
+        assertThat(vivier)
+                .extracting(m -> m.score().getEmploye().getEmployeeId(), MembreVivierReleve::talent,
+                        MembreVivierReleve::hautPotentiel)
+                .containsExactly(
+                        tuple("E003", true, true),
+                        tuple("E002", false, true),
+                        tuple("E001", true, false));
+    }
+
+    @Test
+    void leVivierEcarteArchivesEtScoresIncomplets() {
+        Employe archive = employe("E001", StatutEmploye.ARCHIVE);
+        Employe incomplet = employe("E002", StatutEmploye.ACTIF);
+        Employe membre = employe("E003", StatutEmploye.ACTIF);
+
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(List.of(
+                score(archive, "99", "99"),
+                score(incomplet, null, "99"),
+                score(membre, "80", "90")));
+
+        assertThat(talentService.getVivierReleve(trimestre))
+                .extracting(m -> m.score().getEmploye().getEmployeeId())
+                .containsExactly("E003");
     }
 }

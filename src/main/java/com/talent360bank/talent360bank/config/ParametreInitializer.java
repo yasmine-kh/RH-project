@@ -69,6 +69,14 @@ public class ParametreInitializer implements ApplicationRunner {
         if (parametre.getBaremeCompetences().getNiveauParDefaut() == 0) {
             aZero.add("comp_niveau_par_defaut");
         }
+        if (parametre.getSeuilsTalent() != null) {
+            if (parametre.getSeuilsTalent().getSeuilHautPotentielPotentiel().signum() == 0) {
+                aZero.add("seuil_hp_pot");
+            }
+            if (parametre.getSeuilsTalent().getSeuilHautPotentielPerformance().signum() == 0) {
+                aZero.add("seuil_hp_perf");
+            }
+        }
         if (!aZero.isEmpty()) {
             log.warn("Parametre {} : {} a 0, peut-etre pose par l'ajout de la colonne ; "
                     + "a verifier dans les reglages", parametre.getIdParametre(), aZero);

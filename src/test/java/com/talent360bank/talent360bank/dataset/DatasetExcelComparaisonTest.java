@@ -133,13 +133,23 @@ class DatasetExcelComparaisonTest {
         verifier(ecarts);
     }
 
+    /**
+     * Sur toute la population et non l'echantillon : ces statuts ne demandent
+     * que les deux scores, et l'echantillon ne contient aucun haut potentiel
+     * qui ne soit pas aussi talent (11 dans le classeur).
+     */
     @Test
-    void le_statut_de_talent_est_celui_du_classeur() {
+    void les_statuts_talent_haut_potentiel_et_releve_sont_ceux_du_classeur() {
         List<Ecart> ecarts = new ArrayList<>();
-        for (String id : echantillon) {
+        for (String id : parEmploye("10_TALENTS").keySet()) {
+            Map<String, String> ligne = parEmploye("10_TALENTS").get(id);
             boolean talent = talentService.estTalent(score(id), parametre);
-            comparerLibelle(ecarts, id, "10_TALENTS.Talent propose (auto)",
-                    parEmploye("10_TALENTS").get(id).get("E"), talent ? "Oui" : "Non");
+            boolean hautPotentiel = talentService.estHautPotentiel(score(id), parametre);
+            comparerLibelle(ecarts, id, "10_TALENTS.Talent propose (auto)", ligne.get("E"), ouiNon(talent));
+            comparerLibelle(ecarts, id, "10_TALENTS.Haut Potentiel propose (auto)",
+                    ligne.get("F"), ouiNon(hautPotentiel));
+            comparerLibelle(ecarts, id, "10_TALENTS.Dans le vivier de releve",
+                    ligne.get("J"), ouiNon(talent || hautPotentiel));
         }
         verifier(ecarts);
     }
@@ -334,6 +344,10 @@ class DatasetExcelComparaisonTest {
         return index;
     }
 
+    private static String ouiNon(boolean valeur) {
+        return valeur ? "Oui" : "Non";
+    }
+
     private static String libelleClasseur(NiveauReadiness readiness) {
         return switch (readiness) {
             case READY_NOW -> "Ready Now";
@@ -389,7 +403,7 @@ class DatasetExcelComparaisonTest {
     }
 
     private static void verifier(List<Ecart> ecarts) {
-        String rapport = ecarts.size() + " ecart(s) avec le classeur sur " + echantillon + " :\n"
+        String rapport = ecarts.size() + " ecart(s) avec le classeur :\n"
                 + String.join("\n", ecarts.stream().map(Ecart::toString).toList());
         if (!ecarts.isEmpty()) {
             System.out.println(rapport);
