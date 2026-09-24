@@ -133,3 +133,35 @@ body {
 @media (max-width: 640px) {
     .kpi-grid { grid-template-columns: 1fr; }
 }
+/* ---------- 9-BOX GRID ---------- */
+.ninebox-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 24px;
+}
+
+.ninebox-cell {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 16px;
+    min-height: 140px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.ninebox-cell-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.ninebox-cell-count {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+
+.ninebox-cell-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.85rem;
+}

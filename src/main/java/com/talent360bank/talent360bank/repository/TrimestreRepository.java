@@ -11,6 +11,8 @@ import java.util.Optional;
 
 public interface TrimestreRepository extends JpaRepository<Trimestre, Integer> {
 
+    Optional<Trimestre> findTopByOrderByAnneeDescNumeroDesc();
+
     /**
      * Un trimestre s'identifie par son couple (numero, annee), pas par sa cle
      * technique : c'est ce couple que portent les URL de l'API.
@@ -18,10 +20,7 @@ public interface TrimestreRepository extends JpaRepository<Trimestre, Integer> {
     Optional<Trimestre> findByNumeroAndAnnee(Integer numero, Integer annee);
 
     /**
-     * Trimestres anterieurs, du plus recent au plus ancien. Appele avec une
-     * page de taille 1 pour obtenir le trimestre precedent : la comparaison
-     * porte sur le couple (annee, numero), pas sur l'identifiant technique,
-     * qui suit l'ordre de creation des lignes et non l'ordre du calendrier.
+     * Trimestres anterieurs, du plus recent au plus ancien.
      */
     @Query("select t from Trimestre t "
             + "where t.annee < :annee or (t.annee = :annee and t.numero < :numero) "
