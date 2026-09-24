@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.controller.dto;
 
+import com.talent360bank.talent360bank.entity.BaremeCompetences;
 import com.talent360bank.talent360bank.entity.BaremeExperience;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.PoidsPerformance;
@@ -16,7 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * Corps de mise a jour des reglages : les dix blocs, et rien d'autre.
+ * Corps de mise a jour des reglages : les onze blocs, et rien d'autre.
  *
  * <p>Ni l'identifiant ni le trimestre ne sont acceptes du client. Un jeu de
  * reglages appartient a son trimestre et n'en change pas : le trimestre vient
@@ -28,13 +29,14 @@ public record ParametreForm(@Size(max = 100) String libelle,
                             @Valid @NotNull PoidsPotentiel poidsPotentiel,
                             @Valid @NotNull PoidsSuccession poidsSuccession,
                             @Valid @NotNull BaremeExperience baremeExperience,
+                            @Valid @NotNull BaremeCompetences baremeCompetences,
                             @Valid @NotNull SeuilsNeufBox seuilsNeufBox,
                             @Valid @NotNull SeuilsReadiness seuilsReadiness,
                             @Valid @NotNull SeuilsTalent seuilsTalent,
                             @Valid @NotNull PointsVigilance pointsVigilance,
                             @Valid @NotNull SeuilsVigilance seuilsVigilance) {
 
-    /** Recopie les dix blocs sur les reglages existants. */
+    /** Recopie les onze blocs sur les reglages existants. */
     public void appliquerA(Parametre parametre) {
         parametre.setLibelle(libelle);
         parametre.setPoidsSources(poidsSources);
@@ -42,6 +44,7 @@ public record ParametreForm(@Size(max = 100) String libelle,
         parametre.setPoidsPotentiel(poidsPotentiel);
         parametre.setPoidsSuccession(poidsSuccession);
         parametre.setBaremeExperience(baremeExperience);
+        parametre.setBaremeCompetences(baremeCompetences);
         parametre.setSeuilsNeufBox(seuilsNeufBox);
         parametre.setSeuilsReadiness(seuilsReadiness);
         parametre.setSeuilsTalent(seuilsTalent);

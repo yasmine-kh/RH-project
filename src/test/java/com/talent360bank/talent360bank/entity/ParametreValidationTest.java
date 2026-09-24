@@ -67,6 +67,16 @@ class ParametreValidationTest {
     }
 
     @Test
+    void desPointsParNiveauManquantNegatifsSontRejetes() {
+        Parametre parametre = parametreValide();
+        parametre.getBaremeCompetences().setPointsParNiveauManquant(new BigDecimal("-5"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("baremeCompetences.pointsParNiveauManquant");
+    }
+
+    @Test
     void unSeuilDeVigilanceInatteignableEstRejete() {
         Parametre parametre = parametreValide();
         parametre.getSeuilsVigilance().setSeuilEleve(new BigDecimal("500"));

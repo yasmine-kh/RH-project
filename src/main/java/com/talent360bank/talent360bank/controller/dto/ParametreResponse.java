@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.controller.dto;
 
+import com.talent360bank.talent360bank.entity.BaremeCompetences;
 import com.talent360bank.talent360bank.entity.BaremeExperience;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.PoidsPerformance;
@@ -22,6 +23,7 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                                 PoidsPotentiel poidsPotentiel,
                                 PoidsSuccession poidsSuccession,
                                 BaremeExperience baremeExperience,
+                                BaremeCompetences baremeCompetences,
                                 SeuilsNeufBox seuilsNeufBox,
                                 SeuilsReadiness seuilsReadiness,
                                 SeuilsTalent seuilsTalent,
@@ -39,6 +41,7 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                 parametre.getPoidsPotentiel(),
                 parametre.getPoidsSuccession(),
                 parametre.getBaremeExperience(),
+                parametre.getBaremeCompetences(),
                 parametre.getSeuilsNeufBox(),
                 parametre.getSeuilsReadiness(),
                 parametre.getSeuilsTalent(),
