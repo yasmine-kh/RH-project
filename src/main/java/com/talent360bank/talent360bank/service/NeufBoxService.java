@@ -105,7 +105,7 @@ public class NeufBoxService {
 
         Score score = scoreRepository.findByEmployeAndTrimestre(employe, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun score calcule pour " + employe.getMatricule()
+                        "Aucun score calcule pour " + employe.getEmployeeId()
                                 + " sur " + decrire(trimestre)));
 
         Parametre parametre = calculService.chargerParametre(trimestre);
@@ -135,7 +135,7 @@ public class NeufBoxService {
 
         for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
             Employe employe = score.getEmploye();
-            String matricule = employe.getMatricule();
+            String matricule = employe.getEmployeeId();
 
             if (!employe.estCalculable()) {
                 ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,

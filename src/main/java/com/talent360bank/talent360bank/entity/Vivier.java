@@ -4,69 +4,43 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 
 @Entity
-@Table(name = "utilisateur_rh")
-public class UtilisateurRH {
+@Table(name = "vivier")
+public class Vivier {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer idUtilisateur;
+    private Integer idVivier;
 
-    @NotBlank(message = "Le nom est obligatoire")
-    @Column(nullable = false)
-    private String nom;
+    @NotBlank(message = "Le nom de la catégorie est obligatoire")
+    @Column(name = "nom_categorie", nullable = false)
+    private String nomCategorie;
 
-    @NotBlank(message = "Le login est obligatoire")
-    @Column(nullable = false, unique = true)
-    private String login;
+    private String description;
 
-    @NotBlank(message = "Le mot de passe est obligatoire")
-    @Column(name = "mot_de_passe_hash", nullable = false)
-    private String motDePasseHash;
-
-    @NotBlank(message = "Le rôle est obligatoire")
-    @Column(nullable = false)
-    private String role;
-
-    public UtilisateurRH() {
+    public Vivier() {
     }
 
-    public Integer getIdUtilisateur() {
-        return idUtilisateur;
+    public Integer getIdVivier() {
+        return idVivier;
     }
 
-    public void setIdUtilisateur(Integer idUtilisateur) {
-        this.idUtilisateur = idUtilisateur;
+    public void setIdVivier(Integer idVivier) {
+        this.idVivier = idVivier;
     }
 
-    public String getNom() {
-        return nom;
+    public String getNomCategorie() {
+        return nomCategorie;
     }
 
-    public void setNom(String nom) {
-        this.nom = nom;
+    public void setNomCategorie(String nomCategorie) {
+        this.nomCategorie = nomCategorie;
     }
 
-    public String getLogin() {
-        return login;
+    public String getDescription() {
+        return description;
     }
 
-    public void setLogin(String login) {
-        this.login = login;
-    }
-
-    public String getMotDePasseHash() {
-        return motDePasseHash;
-    }
-
-    public void setMotDePasseHash(String motDePasseHash) {
-        this.motDePasseHash = motDePasseHash;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
+    public void setDescription(String description) {
+        this.description = description;
     }
 }
