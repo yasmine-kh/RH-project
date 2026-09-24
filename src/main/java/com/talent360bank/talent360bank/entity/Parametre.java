@@ -111,7 +111,7 @@ public class Parametre {
                 new BigDecimal("15"), new BigDecimal("10"), new BigDecimal("10"),
                 new BigDecimal("5")));
         parametre.setSeuilsVigilance(new SeuilsVigilance(
-                new BigDecimal("30"), new BigDecimal("60")));
+                new BigDecimal("30"), new BigDecimal("60"), new BigDecimal("60")));
         return parametre;
     }
 
