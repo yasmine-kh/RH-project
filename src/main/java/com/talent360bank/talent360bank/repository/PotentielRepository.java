@@ -14,7 +14,7 @@ public interface PotentielRepository extends JpaRepository<Potentiel, Integer> {
 
     Optional<Potentiel> findByEmployeAndTrimestre(Employe employe, Trimestre trimestre);
 
-    Optional<Potentiel> findByEmployeMatriculeAndTrimestre(String matricule, Trimestre trimestre);
+    Optional<Potentiel> findByEmployeEmployeeIdAndTrimestre(String matricule, Trimestre trimestre);
 
     /**
      * Employe et Trimestre etant LAZY, les parcourir hors transaction leverait

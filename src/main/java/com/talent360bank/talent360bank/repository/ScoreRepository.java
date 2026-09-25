@@ -14,7 +14,7 @@ public interface ScoreRepository extends JpaRepository<Score, Integer> {
 
     Optional<Score> findByEmployeAndTrimestre(Employe employe, Trimestre trimestre);
 
-    Optional<Score> findByEmployeMatriculeAndTrimestre(String matricule, Trimestre trimestre);
+    Optional<Score> findByEmployeEmployeeIdAndTrimestre(String matricule, Trimestre trimestre);
 
     /**
      * Employe et Trimestre etant LAZY, les parcourir hors transaction leverait

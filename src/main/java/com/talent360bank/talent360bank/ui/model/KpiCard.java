@@ -1,4 +1,4 @@
-package com.talent360.ui.model;
+package com.talent360bank.talent360bank.ui.model;
 
 /**
  * Represente une carte statistique du Dashboard (les "9 boxes" d'indicateurs).

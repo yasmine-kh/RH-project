@@ -14,7 +14,7 @@ public interface PerformanceRepository extends JpaRepository<Performance, Intege
 
     Optional<Performance> findByEmployeAndTrimestre(Employe employe, Trimestre trimestre);
 
-    Optional<Performance> findByEmployeMatriculeAndTrimestre(String matricule, Trimestre trimestre);
+    Optional<Performance> findByEmployeEmployeeIdAndTrimestre(String matricule, Trimestre trimestre);
 
     /**
      * Employe et Trimestre etant LAZY, les parcourir hors transaction leverait

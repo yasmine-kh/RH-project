@@ -22,7 +22,7 @@ class NotesValidationTest {
 
     private Employe employe() {
         Employe employe = new Employe();
-        employe.setMatricule("E001");
+        employe.setEmployeeId("E001");
         employe.setNom("Bennani");
         employe.setPrenom("Sara");
         employe.setDateEntree(java.time.LocalDate.of(2020, 1, 15));
