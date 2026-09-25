@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,6 +28,9 @@ class ParametreInitializerJpaTest {
     private static final List<String> COLONNES_AJOUTEES = List.of(
             "exp_points_par_annee", "exp_plafond", "comp_points_par_niveau_manquant", "comp_niveau_par_defaut",
             "seuil_hp_pot", "seuil_hp_perf", "couv_nb_min_successeurs");
+
+    /** Un trimestre distinct par ligne creee, voir {@link #ligneExistante}. */
+    private static final AtomicInteger ANNEES = new AtomicInteger(2026);
 
     @Autowired
     private ParametreRepository parametreRepository;
@@ -115,11 +119,16 @@ class ParametreInitializerJpaTest {
      * Une ligne de parametre telle qu'une colonne nullable l'aurait laissee.
      * Le schema genere rend ces colonnes NOT NULL : on leve la contrainte pour
      * reproduire ce cas.
+     *
+     * <p>Sous H2, un ALTER TABLE valide la transaction : le rollback de
+     * {@code @DataJpaTest} n'efface pas les lignes creees ici. Chaque appel
+     * prend donc son propre trimestre (unique sur numero + annee) et ne
+     * modifie que sa propre ligne de parametre.
      */
     private Integer ligneExistante(String modification) {
         Trimestre trimestre = new Trimestre();
         trimestre.setNumero(1);
-        trimestre.setAnnee(2026);
+        trimestre.setAnnee(ANNEES.getAndIncrement());
         trimestreRepository.save(trimestre);
         Integer id = parametreRepository.save(Parametre.parDefaut(trimestre)).getIdParametre();
         entityManager.flush();
@@ -128,7 +137,9 @@ class ParametreInitializerJpaTest {
             entityManager.createNativeQuery("ALTER TABLE parametre ALTER COLUMN " + colonne + " SET NULL")
                     .executeUpdate();
         }
-        entityManager.createNativeQuery("UPDATE parametre SET " + modification).executeUpdate();
+        entityManager.createNativeQuery("UPDATE parametre SET " + modification + " WHERE id_parametre = :id")
+                .setParameter("id", id)
+                .executeUpdate();
         entityManager.clear();
         return id;
     }
