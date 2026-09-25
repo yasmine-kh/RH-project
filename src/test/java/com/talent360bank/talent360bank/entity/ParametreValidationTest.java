@@ -57,6 +57,46 @@ class ParametreValidationTest {
     }
 
     @Test
+    void unPlafondDExperienceAuDelaDeCentEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getBaremeExperience().setPlafond(new BigDecimal("120"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("baremeExperience.plafond");
+    }
+
+    @Test
+    void desPointsParNiveauManquantNegatifsSontRejetes() {
+        Parametre parametre = parametreValide();
+        parametre.getBaremeCompetences().setPointsParNiveauManquant(new BigDecimal("-5"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("baremeCompetences.pointsParNiveauManquant");
+    }
+
+    @Test
+    void unNiveauParDefautHorsEchelleEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getBaremeCompetences().setNiveauParDefaut(6);
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("baremeCompetences.niveauParDefaut");
+    }
+
+    @Test
+    void unSeuilDeHautPotentielAuDelaDeCentEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsTalent().setSeuilHautPotentielPerformance(new BigDecimal("101"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsTalent.seuilHautPotentielPerformance");
+    }
+
+    @Test
     void unSeuilDeVigilanceInatteignableEstRejete() {
         Parametre parametre = parametreValide();
         parametre.getSeuilsVigilance().setSeuilEleve(new BigDecimal("500"));

@@ -73,7 +73,7 @@ public class ParametreController {
     }
 
     /**
-     * Remplace les neuf blocs de reglages du trimestre.
+     * Remplace les onze blocs de reglages du trimestre.
      *
      * <p>Les blocs sont valides un a un par @Valid, mais les regles qui
      * croisent plusieurs blocs vivent sur Parametre : elles ne peuvent etre

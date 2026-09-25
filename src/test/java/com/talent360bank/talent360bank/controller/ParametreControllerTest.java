@@ -53,12 +53,13 @@ class ParametreControllerTest {
     private ParametreForm formDepuis(Parametre source) {
         return new ParametreForm("Reglages revus",
                 source.getPoidsSources(), source.getPoidsPerformance(), source.getPoidsPotentiel(),
-                source.getPoidsSuccession(), source.getSeuilsNeufBox(), source.getSeuilsReadiness(),
+                source.getPoidsSuccession(), source.getBaremeExperience(), source.getBaremeCompetences(),
+                source.getSeuilsNeufBox(), source.getSeuilsReadiness(),
                 source.getSeuilsTalent(), source.getPointsVigilance(), source.getSeuilsVigilance());
     }
 
     @Test
-    void la_lecture_aplatit_le_trimestre_et_rend_les_neuf_blocs() throws Exception {
+    void la_lecture_aplatit_le_trimestre_et_rend_les_onze_blocs() throws Exception {
         when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
 
         mockMvc.perform(get("/api/trimestres/2026/1/parametre"))
@@ -66,7 +67,13 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.annee").value(2026))
                 .andExpect(jsonPath("$.numero").value(1))
                 .andExpect(jsonPath("$.poidsSuccession.poidsCompetences").value(25))
+                .andExpect(jsonPath("$.baremeExperience.pointsParAnnee").value(8))
+                .andExpect(jsonPath("$.baremeExperience.plafond").value(100))
+                .andExpect(jsonPath("$.baremeCompetences.pointsParNiveauManquant").value(20))
+                .andExpect(jsonPath("$.baremeCompetences.niveauParDefaut").value(3))
                 .andExpect(jsonPath("$.seuilsReadiness.seuilReadyNow").value(90))
+                .andExpect(jsonPath("$.seuilsTalent.seuilHautPotentielPotentiel").value(85))
+                .andExpect(jsonPath("$.seuilsTalent.seuilHautPotentielPerformance").value(75))
                 .andExpect(jsonPath("$.seuilsVigilance.seuilEngagementFaible").value(60))
                 .andExpect(jsonPath("$.pointsVigilance.pointEngagementFaible").value(25));
     }
@@ -104,7 +111,7 @@ class ParametreControllerTest {
     }
 
     @Test
-    void la_mise_a_jour_remplace_les_neuf_blocs() throws Exception {
+    void la_mise_a_jour_remplace_les_onze_blocs() throws Exception {
         when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
         when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
 

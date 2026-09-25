@@ -1,5 +1,7 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.BaremeCompetences;
+import com.talent360bank.talent360bank.entity.BaremeExperience;
 import com.talent360bank.talent360bank.entity.Competence;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.EmployeeSkill;
@@ -24,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -52,16 +56,9 @@ public class SuccessionService {
 
     private static final Logger log = LoggerFactory.getLogger(SuccessionService.class);
 
-    /**
-     * Anciennete a partir de laquelle le critere experience est au maximum.
-     * La specification pondere l'experience sans dire comment la noter : faute
-     * d'echelle fournie, l'anciennete est ramenee lineairement sur 100 et
-     * plafonnee a dix ans. A confirmer avec le RH.
-     */
-    public static final int ANCIENNETE_REFERENCE_ANNEES = 10;
-
     private static final BigDecimal CENT = new BigDecimal("100");
     private static final RoundingMode ARRONDI = RoundingMode.HALF_UP;
+    private static final BigDecimal JOURS_PAR_AN = new BigDecimal("365.25");
 
     private final PosteRepository posteRepository;
     private final ScoreRepository scoreRepository;
@@ -109,18 +106,28 @@ public class SuccessionService {
     }
 
     /**
-     * Taux de couverture des competences exigees par le poste, sur 100.
+     * Couverture des competences exigees par le poste, sur 100, selon le
+     * {@link BaremeCompetences} du Parametre et comme dans 09_SUCCESSION :
+     * chaque competence vaut max(0, 100 - points par niveau manquant x
+     * max(0, requis - actuel)), puis moyenne sur les competences exigees.
      *
      * <p>Le rapprochement se fait par identifiant de competence, pas par
-     * libelle. Une competence exigee que le candidat n'a pas compte pour zero ;
-     * un niveau superieur a l'exigence ne rapporte pas de bonus, il est plafonne
-     * a 100 : depasser l'attendu ne compense pas un manque ailleurs.
+     * libelle. Une competence exigee absente du profil du candidat est supposee
+     * au niveau par defaut du bareme, comme dans 09_SUCCESSION ; un niveau
+     * superieur a l'exigence ne rapporte pas de bonus : depasser l'attendu ne
+     * compense pas un manque ailleurs.
      *
-     * @return null si le poste n'exige aucune competence chiffree, le critere
-     *         est alors ecarte de la moyenne au lieu de compter pour zero
+     * @return null si le poste n'exige aucune competence chiffree : le critere
+     *         est alors non evaluable et compte pour zero dans le matching
+     * @throws DonneesIncompletesException si le bareme n'est pas configure
      */
-    public BigDecimal scoreCompetences(Poste poste, List<EmployeeSkill> competencesCandidat) {
+    public BigDecimal scoreCompetences(Poste poste, List<EmployeeSkill> competencesCandidat,
+                                       BaremeCompetences bareme) {
         Objects.requireNonNull(poste, "poste");
+        if (bareme == null || bareme.getPointsParNiveauManquant() == null
+                || bareme.getNiveauParDefaut() == null) {
+            throw new DonneesIncompletesException("Le bareme des competences n'est pas configure");
+        }
 
         Map<String, Integer> acquis = new HashMap<>();
         if (competencesCandidat != null) {
@@ -143,14 +150,12 @@ public class SuccessionService {
             }
             exigencesChiffrees++;
 
-            Integer actuel = acquis.get(exigence.competence().getCompetenceId());
-            if (actuel == null || actuel <= 0) {
-                continue;
-            }
-            BigDecimal couverture = BigDecimal.valueOf(actuel)
-                    .multiply(CENT)
-                    .divide(BigDecimal.valueOf(requis), CalculService.PRECISION_SCORE, ARRONDI);
-            total = total.add(couverture.min(CENT));
+            int actuel = acquis.getOrDefault(exigence.competence().getCompetenceId(),
+                    bareme.getNiveauParDefaut());
+            int niveauxManquants = Math.max(0, requis - actuel);
+            BigDecimal couverture = CENT.subtract(
+                    bareme.getPointsParNiveauManquant().multiply(BigDecimal.valueOf(niveauxManquants)));
+            total = total.add(couverture.max(BigDecimal.ZERO));
         }
 
         if (exigencesChiffrees == 0) {
@@ -161,36 +166,46 @@ public class SuccessionService {
     }
 
     /**
-     * Anciennete ramenee sur 100, plafonnee a {@link #ANCIENNETE_REFERENCE_ANNEES}.
+     * Critere experience selon le {@link BaremeExperience} du Parametre :
+     * min(plafond, annees d'anciennete x points par annee).
+     *
+     * <p>L'anciennete est en annees decimales arrondies au dixieme, comme
+     * dans 01_COLLABORATEURS : ROUND((aujourd'hui - date d'entree) / 365.25, 1).
+     * Les annees revolues de {@link Employe#getAnciennete()} feraient perdre
+     * jusqu'a une annee de points.
      *
      * @return null si la date d'entree est inconnue
+     * @throws DonneesIncompletesException si le bareme n'est pas configure
      */
-    public BigDecimal scoreExperience(Employe candidat) {
+    public BigDecimal scoreExperience(Employe candidat, BaremeExperience bareme) {
         Objects.requireNonNull(candidat, "candidat");
+        if (bareme == null || bareme.getPointsParAnnee() == null || bareme.getPlafond() == null) {
+            throw new DonneesIncompletesException("Le bareme d'experience n'est pas configure");
+        }
 
-        Integer anciennete = candidat.getAnciennete();
-        if (anciennete == null) {
+        if (candidat.getDateEntree() == null) {
             return null;
         }
-        if (anciennete >= ANCIENNETE_REFERENCE_ANNEES) {
-            return CENT.setScale(CalculService.PRECISION_SCORE, ARRONDI);
-        }
-        if (anciennete <= 0) {
+        BigDecimal anciennete = BigDecimal.valueOf(
+                        ChronoUnit.DAYS.between(candidat.getDateEntree(), LocalDate.now()))
+                .divide(JOURS_PAR_AN, 1, ARRONDI);
+        if (anciennete.signum() <= 0) {
             return BigDecimal.ZERO.setScale(CalculService.PRECISION_SCORE, ARRONDI);
         }
-        return BigDecimal.valueOf(anciennete)
-                .multiply(CENT)
-                .divide(BigDecimal.valueOf(ANCIENNETE_REFERENCE_ANNEES),
-                        CalculService.PRECISION_SCORE, ARRONDI);
+        return anciennete
+                .multiply(bareme.getPointsParAnnee())
+                .min(bareme.getPlafond())
+                .setScale(CalculService.PRECISION_SCORE, ARRONDI);
     }
 
     /**
      * Matching d'un candidat sur un poste, sans acces base : pour classer un lot
      * avec des reglages et des donnees deja charges.
      *
-     * <p>Le {@link Potentiel} peut etre absent : leadership et mobilite sont
-     * alors ecartes de la moyenne, les quatre autres criteres suffisent a
-     * produire un classement plutot que de rejeter le candidat.
+     * <p>Un critere non evaluable (pas de {@link Potentiel}, pas de date
+     * d'entree, poste sans competence chiffree) compte pour zero dans le score,
+     * comme une cellule vide dans 09_SUCCESSION ; le detail le rend null pour
+     * qu'on distingue un zero d'une donnee absente.
      */
     public ResultatMatching evaluer(Employe candidat, Poste poste, Score score, Potentiel potentiel,
                                     List<EmployeeSkill> competencesCandidat, Parametre parametre) {
@@ -206,10 +221,10 @@ public class SuccessionService {
         }
 
         ResultatMatching.DetailMatching detail = new ResultatMatching.DetailMatching(
-                scoreCompetences(poste, competencesCandidat),
+                scoreCompetences(poste, competencesCandidat, parametre.getBaremeCompetences()),
                 score.getScorePerformance(),
                 score.getScorePotentiel(),
-                scoreExperience(candidat),
+                scoreExperience(candidat, parametre.getBaremeExperience()),
                 potentiel == null ? null : potentiel.getNoteLeadership(),
                 potentiel == null ? null : potentiel.getNoteMobilite());
 
@@ -321,9 +336,9 @@ public class SuccessionService {
     }
 
     /**
-     * Moyenne ponderee des criteres evaluables, ramenee sur 100. La division se
-     * fait par la somme des poids effectivement retenus : un critere absent est
-     * neutre, il ne tire pas le score vers le bas.
+     * Moyenne ponderee des six criteres, ramenee sur 100. Un critere absent
+     * compte pour zero et garde son poids, comme dans 09_SUCCESSION : son poids
+     * n'est pas redistribue sur les autres.
      */
     private BigDecimal moyennePonderee(String[] noms, BigDecimal[] sousScores, BigDecimal[] poids) {
         BigDecimal total = BigDecimal.ZERO;
@@ -334,16 +349,15 @@ public class SuccessionService {
                 throw new DonneesIncompletesException(
                         "Poids manquant (" + noms[i] + ") pour le calcul du matching");
             }
-            if (sousScores[i] == null) {
-                continue;
+            if (sousScores[i] != null) {
+                total = total.add(sousScores[i].multiply(poids[i]));
             }
-            total = total.add(sousScores[i].multiply(poids[i]));
             sommePoids = sommePoids.add(poids[i]);
         }
 
         if (sommePoids.signum() == 0) {
             throw new DonneesIncompletesException(
-                    "Aucun critere evaluable, le score de matching est indefini");
+                    "Poids du matching tous nuls, le score de matching est indefini");
         }
 
         return total.divide(sommePoids, CalculService.PRECISION_SCORE, ARRONDI);
