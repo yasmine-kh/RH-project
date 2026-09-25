@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
-import java.util.List;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "utilisateur_rh")
@@ -11,19 +11,21 @@ public class UtilisateurRH {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idUtilisateur;
 
+    @NotBlank(message = "Le nom est obligatoire")
     @Column(nullable = false)
     private String nom;
 
+    @NotBlank(message = "Le login est obligatoire")
     @Column(nullable = false, unique = true)
     private String login;
 
+    @NotBlank(message = "Le mot de passe est obligatoire")
     @Column(name = "mot_de_passe_hash", nullable = false)
     private String motDePasseHash;
 
+    @NotBlank(message = "Le rôle est obligatoire")
     @Column(nullable = false)
     private String role;
-
-
 
     public UtilisateurRH() {
     }
@@ -67,6 +69,4 @@ public class UtilisateurRH {
     public void setRole(String role) {
         this.role = role;
     }
-
-
 }

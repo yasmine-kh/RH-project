@@ -10,6 +10,7 @@ public class Vivier {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idVivier;
 
+    @NotBlank(message = "Le nom de la catégorie est obligatoire")
     @Column(name = "nom_categorie", nullable = false)
     private String nomCategorie;
 
