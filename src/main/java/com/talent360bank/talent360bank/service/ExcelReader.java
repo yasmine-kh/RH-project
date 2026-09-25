@@ -105,7 +105,12 @@ public class ExcelReader {
         return skills;
     }
 
-    public List<Poste> lirePostes(String cheminFichier) throws IOException {
+    /**
+     * @param referentielParNom competences du referentiel indexees par nom : les
+     *                          competences requises de 07_POSTES sont des libelles
+     */
+    public List<Poste> lirePostes(String cheminFichier, Map<String, Competence> referentielParNom)
+            throws IOException {
         List<Poste> postes = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(cheminFichier);
              Workbook workbook = WorkbookFactory.create(fis)) {
@@ -125,15 +130,15 @@ public class ExcelReader {
                 p.setDirection(getCellString(row, 2));
                 p.setGradeCible(getCellString(row, 3));
                 p.setCriticite(getCellString(row, 4));
-                p.setCompetenceRequise1(getCellString(row, 5));
+                p.setCompetenceRequise1(referentielParNom.get(getCellString(row, 5)));
                 p.setNiveau1(getCellInteger(row, 6));
-                p.setCompetenceRequise2(getCellString(row, 7));
+                p.setCompetenceRequise2(referentielParNom.get(getCellString(row, 7)));
                 p.setNiveau2(getCellInteger(row, 8));
-                p.setCompetenceRequise3(getCellString(row, 9));
+                p.setCompetenceRequise3(referentielParNom.get(getCellString(row, 9)));
                 p.setNiveau3(getCellInteger(row, 10));
-                p.setCompetenceRequise4(getCellString(row, 11));
+                p.setCompetenceRequise4(referentielParNom.get(getCellString(row, 11)));
                 p.setNiveau4(getCellInteger(row, 12));
-                p.setCompetenceRequise5(getCellString(row, 13));
+                p.setCompetenceRequise5(referentielParNom.get(getCellString(row, 13)));
                 p.setNiveau5(getCellInteger(row, 14));
                 p.setPosteCritique(getCellString(row, 15));
                 postes.add(p);
@@ -164,40 +169,44 @@ public class ExcelReader {
         }
     }
 
-    public List<Parametre> lireParametres(String cheminFichier) throws IOException {
-        List<Parametre> parametres = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(cheminFichier);
-             Workbook workbook = WorkbookFactory.create(fis)) {
-
-            Sheet sheet = workbook.getSheet("00_PARAMETRES");
-            int derniereLigne = sheet.getLastRowNum();
-            String sectionCourante = null;
-
-            for (int i = 4; i <= derniereLigne; i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
-
-                String colA = getCellString(row, 0);
-                if (colA != null && colA.matches("^\\d+\\..*")) {
-                    sectionCourante = colA;
-                    continue;
-                }
-                if ("Critere".equalsIgnoreCase(colA)) continue;
-                if (colA == null || colA.isBlank()) continue;
-
-                Double valeur = getCellDouble(row, 1);
-                if (valeur == null) continue;
-
-                Parametre p = new Parametre();
-                p.setSection(sectionCourante);
-                p.setCritere(colA);
-                p.setValeur(valeur);
-                p.setCommentaire(getCellString(row, 2));
-                parametres.add(p);
-            }
-        }
-        return parametres;
-    }
+    // TODO(Dou/Jasmine) : a reecrire. Parametre n'a pas de champs section /
+    // critere / valeur / commentaire : c'est un jeu de reglages par trimestre,
+    // en blocs (PoidsPerformance, SeuilsNeufBox...). La lecture de 00_PARAMETRES
+    // doit alimenter ces blocs ; methode desactivee pour que le projet compile.
+    // public List<Parametre> lireParametres(String cheminFichier) throws IOException {
+    //     List<Parametre> parametres = new ArrayList<>();
+    //     try (FileInputStream fis = new FileInputStream(cheminFichier);
+    //          Workbook workbook = WorkbookFactory.create(fis)) {
+    //
+    //         Sheet sheet = workbook.getSheet("00_PARAMETRES");
+    //         int derniereLigne = sheet.getLastRowNum();
+    //         String sectionCourante = null;
+    //
+    //         for (int i = 4; i <= derniereLigne; i++) {
+    //             Row row = sheet.getRow(i);
+    //             if (row == null) continue;
+    //
+    //             String colA = getCellString(row, 0);
+    //             if (colA != null && colA.matches("^\\d+\\..*")) {
+    //                 sectionCourante = colA;
+    //                 continue;
+    //             }
+    //             if ("Critere".equalsIgnoreCase(colA)) continue;
+    //             if (colA == null || colA.isBlank()) continue;
+    //
+    //             Double valeur = getCellDouble(row, 1);
+    //             if (valeur == null) continue;
+    //
+    //             Parametre p = new Parametre();
+    //             p.setSection(sectionCourante);
+    //             p.setCritere(colA);
+    //             p.setValeur(valeur);
+    //             p.setCommentaire(getCellString(row, 2));
+    //             parametres.add(p);
+    //         }
+    //     }
+    //     return parametres;
+    // }
     private String getCellString(Row row, int col) {
         Cell cell = row.getCell(col);
         if (cell == null) return null;

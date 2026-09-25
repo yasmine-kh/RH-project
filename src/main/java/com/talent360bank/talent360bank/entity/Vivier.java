@@ -1,6 +1,7 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "vivier")

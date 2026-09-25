@@ -21,7 +21,7 @@ public class ParametreService {
         return parametreRepository.save(parametre);
     }
 
-    public void supprimer(String id) {
+    public void supprimer(Integer id) {
         parametreRepository.deleteById(id);
     }
 }
