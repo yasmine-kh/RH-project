@@ -77,6 +77,26 @@ class ParametreValidationTest {
     }
 
     @Test
+    void unNiveauParDefautHorsEchelleEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getBaremeCompetences().setNiveauParDefaut(6);
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("baremeCompetences.niveauParDefaut");
+    }
+
+    @Test
+    void unSeuilDeHautPotentielAuDelaDeCentEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsTalent().setSeuilHautPotentielPerformance(new BigDecimal("101"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsTalent.seuilHautPotentielPerformance");
+    }
+
+    @Test
     void unSeuilDeVigilanceInatteignableEstRejete() {
         Parametre parametre = parametreValide();
         parametre.getSeuilsVigilance().setSeuilEleve(new BigDecimal("500"));
