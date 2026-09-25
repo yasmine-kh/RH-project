@@ -1,4 +1,6 @@
-package com.talent360bank.talent360bank.entity;
+package com.talent360bank.talent360bank.service.enums;
+
+import com.talent360bank.talent360bank.entity.PointsVigilance;
 
 import java.math.BigDecimal;
 import java.util.function.Function;

@@ -8,6 +8,7 @@ import com.talent360bank.talent360bank.entity.PoidsPotentiel;
 import com.talent360bank.talent360bank.entity.PoidsSources;
 import com.talent360bank.talent360bank.entity.PoidsSuccession;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
+import com.talent360bank.talent360bank.entity.SeuilsCouverture;
 import com.talent360bank.talent360bank.entity.SeuilsNeufBox;
 import com.talent360bank.talent360bank.entity.SeuilsReadiness;
 import com.talent360bank.talent360bank.entity.SeuilsTalent;
@@ -17,11 +18,15 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * Corps de mise a jour des reglages : les onze blocs, et rien d'autre.
+ * Corps de mise a jour des reglages : les douze blocs, et rien d'autre.
  *
  * <p>Ni l'identifiant ni le trimestre ne sont acceptes du client. Un jeu de
  * reglages appartient a son trimestre et n'en change pas : le trimestre vient
  * de l'URL, l'identifiant de la ligne existante.
+ *
+ * <p>{@code seuilsCouverture} est facultatif : ajoute apres les autres blocs,
+ * il ne doit pas casser un client qui ne le connait pas encore. Absent, la
+ * valeur en place est conservee.
  */
 public record ParametreForm(@Size(max = 100) String libelle,
                             @Valid @NotNull PoidsSources poidsSources,
@@ -32,11 +37,12 @@ public record ParametreForm(@Size(max = 100) String libelle,
                             @Valid @NotNull BaremeCompetences baremeCompetences,
                             @Valid @NotNull SeuilsNeufBox seuilsNeufBox,
                             @Valid @NotNull SeuilsReadiness seuilsReadiness,
+                            @Valid SeuilsCouverture seuilsCouverture,
                             @Valid @NotNull SeuilsTalent seuilsTalent,
                             @Valid @NotNull PointsVigilance pointsVigilance,
                             @Valid @NotNull SeuilsVigilance seuilsVigilance) {
 
-    /** Recopie les onze blocs sur les reglages existants. */
+    /** Recopie les blocs sur les reglages existants ; un seuil de couverture absent garde sa valeur. */
     public void appliquerA(Parametre parametre) {
         parametre.setLibelle(libelle);
         parametre.setPoidsSources(poidsSources);
@@ -47,6 +53,9 @@ public record ParametreForm(@Size(max = 100) String libelle,
         parametre.setBaremeCompetences(baremeCompetences);
         parametre.setSeuilsNeufBox(seuilsNeufBox);
         parametre.setSeuilsReadiness(seuilsReadiness);
+        if (seuilsCouverture != null) {
+            parametre.setSeuilsCouverture(seuilsCouverture);
+        }
         parametre.setSeuilsTalent(seuilsTalent);
         parametre.setPointsVigilance(pointsVigilance);
         parametre.setSeuilsVigilance(seuilsVigilance);

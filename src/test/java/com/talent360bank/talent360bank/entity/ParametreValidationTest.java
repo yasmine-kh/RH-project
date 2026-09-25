@@ -87,6 +87,17 @@ class ParametreValidationTest {
     }
 
     @Test
+    void unMinimumDeSuccesseursNulEstRejete() {
+        // A 0, aucun poste critique ne pourrait jamais etre en alerte.
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsCouverture().setNbMinSuccesseurs(0);
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsCouverture.nbMinSuccesseurs");
+    }
+
+    @Test
     void unSeuilDeHautPotentielAuDelaDeCentEstRejete() {
         Parametre parametre = parametreValide();
         parametre.getSeuilsTalent().setSeuilHautPotentielPerformance(new BigDecimal("101"));

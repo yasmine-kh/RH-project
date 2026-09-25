@@ -5,7 +5,6 @@ import com.talent360bank.talent360bank.entity.Competence;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.EmployeeSkill;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
-import com.talent360bank.talent360bank.entity.NiveauReadiness;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Poste;
@@ -13,6 +12,7 @@ import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.StatutEmploye;
 import com.talent360bank.talent360bank.entity.Trimestre;
+import com.talent360bank.talent360bank.repository.EmployeRepository;
 import com.talent360bank.talent360bank.repository.EmployeeSkillRepository;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
@@ -22,19 +22,26 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.CalculService;
 import com.talent360bank.talent360bank.service.NeufBoxService;
-import com.talent360bank.talent360bank.service.ResultatMatching;
+import com.talent360bank.talent360bank.service.PosteCritiqueService;
+import com.talent360bank.talent360bank.service.SuccesseursIdentifiesEnMemoire;
 import com.talent360bank.talent360bank.service.SuccessionService;
 import com.talent360bank.talent360bank.service.TalentService;
+import com.talent360bank.talent360bank.service.enums.NiveauCouverture;
+import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
+import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
+import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -46,7 +53,9 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -179,6 +188,45 @@ class DatasetExcelComparaisonTest {
         verifier(ecarts);
     }
 
+    /**
+     * Sur tous les postes et tous les successeurs de 09_SUCCESSION, par le
+     * chemin complet du service (depots simules a partir du classeur) : postes
+     * critiques retenus, nombre de successeurs, meilleur matching, couverture,
+     * puis les chiffres du tableau de bord.
+     */
+    @Test
+    void la_couverture_des_postes_critiques_est_celle_du_classeur() {
+        PosteCritiqueService service = posteCritiqueServiceSurLeClasseur();
+        Trimestre trimestre = parametre.getTrimestre();
+
+        List<CouverturePoste> couvertures = service.listerPostesCritiques(trimestre);
+
+        Map<String, Map<String, String>> attendus = parPoste("08_POSTES_CRITIQUES");
+        assertThat(couvertures).extracting(c -> c.poste().getPosteId())
+                .containsExactlyElementsOf(attendus.keySet());
+
+        List<Ecart> ecarts = new ArrayList<>();
+        for (CouverturePoste couverture : couvertures) {
+            String posteId = couverture.poste().getPosteId();
+            Map<String, String> ligne = attendus.get(posteId);
+            comparerNombre(ecarts, posteId, "08_POSTES_CRITIQUES.Nb Successeurs",
+                    ligne.get("G"), BigDecimal.valueOf(couverture.nbSuccesseurs()));
+            // Le classeur rend 0 sans successeur (IFERROR(MAXIFS(...), 0)), nous null.
+            comparerNombre(ecarts, posteId, "08_POSTES_CRITIQUES.Meilleur Matching", ligne.get("H"),
+                    couverture.meilleurMatching() == null ? BigDecimal.ZERO : couverture.meilleurMatching());
+            comparerLibelle(ecarts, posteId, "08_POSTES_CRITIQUES.Couverture",
+                    ligne.get("I"), libelleClasseur(couverture.niveau()));
+        }
+        verifier(ecarts);
+
+        // Chiffres cles de 00_DASHBOARD.
+        assertThat(couvertures).hasSize(15);
+        assertThat(service.detecterAlertes(trimestre)).extracting(c -> c.poste().getPosteId())
+                .containsExactly("PST13");
+        assertThat(service.tauxCouverture(couvertures).setScale(0, RoundingMode.HALF_UP))
+                .isEqualByComparingTo("93");
+    }
+
     // --- echantillon ---------------------------------------------------------
 
     /**
@@ -276,6 +324,7 @@ class DatasetExcelComparaisonTest {
     }
 
     private static Map<String, Poste> postes(Map<String, Competence> referentiel) {
+        Map<String, Map<String, String>> critiques = parPoste("08_POSTES_CRITIQUES");
         Map<String, Poste> postes = new HashMap<>();
         for (Map<String, String> ligne : classeur.feuille("07_POSTES").values()) {
             String posteId = ligne.getOrDefault("A", "");
@@ -295,6 +344,11 @@ class DatasetExcelComparaisonTest {
             poste.setNiveau4(entier(ligne.get("M")));
             poste.setCompetenceRequise5(referentiel.get(ligne.get("N")));
             poste.setNiveau5(entier(ligne.get("O")));
+            poste.setCriticite(ligne.get("E"));
+            poste.setPosteCritique(ligne.get("P"));
+            if (critiques.containsKey(posteId)) {
+                poste.setTitulaireId(critiques.get(posteId).get("E"));
+            }
             postes.put(posteId, poste);
         }
         return postes;
@@ -313,6 +367,66 @@ class DatasetExcelComparaisonTest {
             }
         }
         return competences;
+    }
+
+    /**
+     * Le service des postes critiques branche sur le classeur : 07_POSTES pour
+     * les postes, 09_SUCCESSION (Poste_ID, Employee_ID) pour les successeurs
+     * identifies, et les donnees des employes pour leur matching.
+     */
+    private static PosteCritiqueService posteCritiqueServiceSurLeClasseur() {
+        Map<String, Competence> referentiel = referentielParNom();
+
+        SuccesseursIdentifiesEnMemoire successeurs = new SuccesseursIdentifiesEnMemoire();
+        for (Map<String, String> ligne : classeur.feuille("09_SUCCESSION").values()) {
+            String posteId = ligne.getOrDefault("A", "");
+            String id = ligne.getOrDefault("B", "");
+            if (posteId.matches("PST\\d+") && id.matches("BP\\d+")) {
+                successeurs.identifier(posteId, id);
+            }
+        }
+
+        List<Score> scores = new ArrayList<>();
+        List<Potentiel> potentiels = new ArrayList<>();
+        for (String id : parEmploye("01_COLLABORATEURS").keySet()) {
+            scores.add(score(id));
+            Potentiel potentiel = potentiel(id);
+            potentiel.setEmploye(employe(id));
+            potentiels.add(potentiel);
+        }
+
+        PosteRepository posteRepository = mock(PosteRepository.class);
+        when(posteRepository.findAll()).thenReturn(new ArrayList<>(postes(referentiel).values()));
+
+        EmployeRepository employeRepository = mock(EmployeRepository.class);
+        when(employeRepository.findAllById(anyIterable())).thenAnswer(appel -> {
+            List<Employe> employes = new ArrayList<>();
+            for (Object id : (Iterable<?>) appel.getArgument(0)) {
+                employes.add(employe((String) id));
+            }
+            return employes;
+        });
+
+        EmployeeSkillRepository employeeSkillRepository = mock(EmployeeSkillRepository.class);
+        when(employeeSkillRepository.findByEmployeIdsAvecCompetence(anyCollection())).thenAnswer(appel -> {
+            List<EmployeeSkill> skills = new ArrayList<>();
+            for (Object id : (Collection<?>) appel.getArgument(0)) {
+                skills.addAll(competences(employe((String) id), referentiel));
+            }
+            return skills;
+        });
+
+        ScoreRepository scoreRepository = mock(ScoreRepository.class);
+        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(scores);
+        PotentielRepository potentielRepository = mock(PotentielRepository.class);
+        when(potentielRepository.findByTrimestreAvecEmploye(any())).thenReturn(potentiels);
+        ParametreRepository parametreRepository = mock(ParametreRepository.class);
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+
+        CalculService calcul = new CalculService(parametreRepository,
+                mock(PerformanceRepository.class), potentielRepository);
+        return new PosteCritiqueService(posteRepository, employeRepository, scoreRepository,
+                potentielRepository, employeeSkillRepository, successionService, calcul, successeurs);
     }
 
     /** La vraie table de reference de l'application, chargee dans un depot en memoire. */
@@ -342,6 +456,27 @@ class DatasetExcelComparaisonTest {
             }
         }
         return index;
+    }
+
+    /** Lignes d'une feuille indexees par Poste_ID (colonne A), dans l'ordre. */
+    private static Map<String, Map<String, String>> parPoste(String feuille) {
+        Map<String, Map<String, String>> index = new LinkedHashMap<>();
+        for (Map<String, String> ligne : classeur.feuille(feuille).values()) {
+            String id = ligne.getOrDefault("A", "");
+            if (id.matches("PST\\d+")) {
+                index.put(id, ligne);
+            }
+        }
+        return index;
+    }
+
+    private static String libelleClasseur(NiveauCouverture niveau) {
+        return switch (niveau) {
+            case ALERTE -> "Aucun successeur - ALERTE";
+            case READY_NOW -> "Couverte - Ready Now";
+            case MOINS_1_AN -> "Couverte - <1 an";
+            case PARTIELLE -> "Partielle - a renforcer";
+        };
     }
 
     private static String ouiNon(boolean valeur) {

@@ -1,11 +1,9 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.NiveauVigilance;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.SignalVigilance;
 import com.talent360bank.talent360bank.entity.StatutEmploye;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
@@ -16,6 +14,9 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
+import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
+import com.talent360bank.talent360bank.service.enums.SignalVigilance;
+import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

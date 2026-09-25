@@ -26,7 +26,7 @@ class ParametreInitializerJpaTest {
 
     private static final List<String> COLONNES_AJOUTEES = List.of(
             "exp_points_par_annee", "exp_plafond", "comp_points_par_niveau_manquant", "comp_niveau_par_defaut",
-            "seuil_hp_pot", "seuil_hp_perf");
+            "seuil_hp_pot", "seuil_hp_perf", "couv_nb_min_successeurs");
 
     @Autowired
     private ParametreRepository parametreRepository;
@@ -54,6 +54,19 @@ class ParametreInitializerJpaTest {
         assertThat(defauts.get("comp_niveau_par_defaut")).isEqualByComparingTo("3");
         assertThat(defauts.get("seuil_hp_pot")).isEqualByComparingTo("85");
         assertThat(defauts.get("seuil_hp_perf")).isEqualByComparingTo("75");
+        assertThat(defauts.get("couv_nb_min_successeurs")).isEqualByComparingTo("1");
+    }
+
+    @Test
+    void uneLigneAnterieureAuSeuilDeCouvertureEstCompletee() {
+        Integer id = ligneExistante("couv_nb_min_successeurs = NULL");
+
+        // Seule colonne du bloc a NULL : Hibernate rend le bloc a null.
+        assertThat(relire(id).getSeuilsCouverture()).isNull();
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        assertThat(relire(id).getSeuilsCouverture().getNbMinSuccesseurs()).isEqualTo(1);
     }
 
     @Test

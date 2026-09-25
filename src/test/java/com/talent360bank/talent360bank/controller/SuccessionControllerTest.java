@@ -1,12 +1,12 @@
 package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.NiveauReadiness;
 import com.talent360bank.talent360bank.entity.StatutEmploye;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.service.ResultatMatching;
 import com.talent360bank.talent360bank.service.SuccessionService;
+import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
+import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -334,7 +334,7 @@ class ApiIntegrationTest {
                 voulu.getPoidsSources(), voulu.getPoidsPerformance(), voulu.getPoidsPotentiel(),
                 voulu.getPoidsSuccession(), voulu.getBaremeExperience(), voulu.getBaremeCompetences(),
                 voulu.getSeuilsNeufBox(),
-                voulu.getSeuilsReadiness(),
+                voulu.getSeuilsReadiness(), voulu.getSeuilsCouverture(),
                 voulu.getSeuilsTalent(), voulu.getPointsVigilance(), voulu.getSeuilsVigilance());
 
         ResponseEntity<String> reponse = restTemplate.exchange(

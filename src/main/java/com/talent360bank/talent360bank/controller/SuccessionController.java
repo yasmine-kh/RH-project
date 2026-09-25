@@ -38,7 +38,7 @@ public class SuccessionController {
                                             @RequestParam(required = false) Integer limite) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
 
-        List<com.talent360bank.talent360bank.service.ResultatMatching> classement =
+        List<com.talent360bank.talent360bank.service.resultat.ResultatMatching> classement =
                 limite == null
                         ? successionService.classerCandidats(posteId, trimestre)
                         : successionService.classerCandidats(posteId, trimestre, limite);
