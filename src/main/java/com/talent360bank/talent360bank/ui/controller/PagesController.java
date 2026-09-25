@@ -2,6 +2,7 @@ package com.talent360bank.talent360bank.ui.controller;
 
 import com.talent360bank.talent360bank.ui.service.DashboardService;
 import com.talent360bank.talent360bank.ui.service.NineBoxService;
+import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,10 +12,12 @@ public class PagesController {
 
     private final DashboardService dashboardService;
     private final NineBoxService nineBoxService;
+    private final VivierService vivierService;
 
-    public PagesController(DashboardService dashboardService, NineBoxService nineBoxService) {
+    public PagesController(DashboardService dashboardService, NineBoxService nineBoxService, VivierService vivierService) {
         this.dashboardService = dashboardService;
         this.nineBoxService = nineBoxService;
+        this.vivierService = vivierService;
     }
 
     @GetMapping("/")
@@ -33,9 +36,9 @@ public class PagesController {
 
     @GetMapping("/viviers")
     public String viviers(Model model) {
+        model.addAttribute("rows", vivierService.buildRows());
         model.addAttribute("activePage", "viviers");
-        model.addAttribute("pageTitle", "Viviers de talents");
-        return "placeholder";
+        return "viviers";
     }
 
     @GetMapping("/postes-critiques")
