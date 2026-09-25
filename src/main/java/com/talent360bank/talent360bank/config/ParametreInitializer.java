@@ -77,6 +77,9 @@ public class ParametreInitializer implements ApplicationRunner {
                 aZero.add("seuil_hp_perf");
             }
         }
+        if (parametre.getSeuilsCouverture().getNbMinSuccesseurs() == 0) {
+            aZero.add("couv_nb_min_successeurs");
+        }
         if (!aZero.isEmpty()) {
             log.warn("Parametre {} : {} a 0, peut-etre pose par l'ajout de la colonne ; "
                     + "a verifier dans les reglages", parametre.getIdParametre(), aZero);

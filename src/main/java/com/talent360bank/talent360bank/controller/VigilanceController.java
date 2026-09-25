@@ -1,9 +1,9 @@
 package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.controller.dto.VigilanceResponse;
-import com.talent360bank.talent360bank.entity.NiveauVigilance;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.service.VigilanceService;
+import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,7 +42,7 @@ public class VigilanceController {
                                                @RequestParam(required = false) NiveauVigilance minimum) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
 
-        List<com.talent360bank.talent360bank.service.ResultatVigilance> resultats =
+        List<com.talent360bank.talent360bank.service.resultat.ResultatVigilance> resultats =
                 minimum == null
                         ? vigilanceService.evaluerTrimestre(trimestre)
                         : vigilanceService.evaluerTrimestre(trimestre, minimum);

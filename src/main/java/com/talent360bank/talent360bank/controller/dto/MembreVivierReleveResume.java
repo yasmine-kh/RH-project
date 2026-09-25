@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.controller.dto;
 
-import com.talent360bank.talent360bank.service.MembreVivierReleve;
+import com.talent360bank.talent360bank.service.resultat.MembreVivierReleve;
 
 import java.math.BigDecimal;
 

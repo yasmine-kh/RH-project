@@ -1,4 +1,4 @@
-package com.talent360bank.talent360bank.entity;
+package com.talent360bank.talent360bank.service.enums;
 
 /** Delai estime avant qu'un candidat soit pret a prendre le poste cible. */
 public enum NiveauReadiness {

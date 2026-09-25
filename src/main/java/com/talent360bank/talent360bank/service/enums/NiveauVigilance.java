@@ -1,4 +1,4 @@
-package com.talent360bank.talent360bank.entity;
+package com.talent360bank.talent360bank.service.enums;
 
 /** Niveau de l'indice de vigilance (risque de depart). */
 public enum NiveauVigilance {

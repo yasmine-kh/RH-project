@@ -11,6 +11,7 @@ import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
+import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

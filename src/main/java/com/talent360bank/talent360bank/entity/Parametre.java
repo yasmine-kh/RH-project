@@ -73,6 +73,11 @@ public class Parametre {
     @Valid
     @NotNull
     @Embedded
+    private SeuilsCouverture seuilsCouverture;
+
+    @Valid
+    @NotNull
+    @Embedded
     private SeuilsTalent seuilsTalent;
 
     @Valid
@@ -117,6 +122,7 @@ public class Parametre {
                 new BigDecimal("85"), new BigDecimal("70")));
         parametre.setSeuilsReadiness(new SeuilsReadiness(
                 new BigDecimal("90"), new BigDecimal("80"), new BigDecimal("65")));
+        parametre.setSeuilsCouverture(new SeuilsCouverture(1));
         parametre.setSeuilsTalent(new SeuilsTalent(
                 new BigDecimal("85"), new BigDecimal("85"),
                 new BigDecimal("85"), new BigDecimal("75")));
@@ -131,8 +137,8 @@ public class Parametre {
 
     /**
      * Complete, avec les valeurs de {@link #parDefaut}, les reglages ajoutes
-     * apres la mise en service : bareme d'experience, bareme des competences
-     * et seuils de haut potentiel.
+     * apres la mise en service : bareme d'experience, bareme des competences,
+     * seuils de haut potentiel et seuil de couverture des postes critiques.
      *
      * <p>Une ligne creee avant leur ajout a ces colonnes a NULL ; quand toutes
      * les colonnes d'un bloc sont NULL, Hibernate charge le bloc entier a null.
@@ -185,6 +191,15 @@ public class Parametre {
                         defauts.getSeuilsTalent().getSeuilHautPotentielPerformance());
                 complete = true;
             }
+        }
+
+        // Bloc a une seule colonne : NULL en base, Hibernate le rend a null.
+        if (seuilsCouverture == null) {
+            seuilsCouverture = defauts.getSeuilsCouverture();
+            complete = true;
+        } else if (seuilsCouverture.getNbMinSuccesseurs() == null) {
+            seuilsCouverture.setNbMinSuccesseurs(defauts.getSeuilsCouverture().getNbMinSuccesseurs());
+            complete = true;
         }
 
         return complete;
@@ -294,6 +309,14 @@ public class Parametre {
 
     public void setSeuilsReadiness(SeuilsReadiness seuilsReadiness) {
         this.seuilsReadiness = seuilsReadiness;
+    }
+
+    public SeuilsCouverture getSeuilsCouverture() {
+        return seuilsCouverture;
+    }
+
+    public void setSeuilsCouverture(SeuilsCouverture seuilsCouverture) {
+        this.seuilsCouverture = seuilsCouverture;
     }
 
     public SeuilsTalent getSeuilsTalent() {

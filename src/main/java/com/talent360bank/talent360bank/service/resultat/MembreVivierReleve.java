@@ -1,4 +1,4 @@
-package com.talent360bank.talent360bank.service;
+package com.talent360bank.talent360bank.service.resultat;
 
 import com.talent360bank.talent360bank.entity.Score;
 
