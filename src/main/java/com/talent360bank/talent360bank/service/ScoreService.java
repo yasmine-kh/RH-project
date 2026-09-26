@@ -125,8 +125,7 @@ public class ScoreService {
         // Employes notes en potentiel mais pas en performance : sans les deux
         // axes, la matrice 9-box ne peut pas les placer.
         for (Potentiel potentiel : potentiels) {
-            String matricule = potentiel.getEmploye().getEmployeeId()
-                    ;
+            String matricule = potentiel.getEmploye().getEmployeeId();
             if (!matriculesVus.contains(matricule)) {
                 ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,
                         "Notes de performance absentes"));
