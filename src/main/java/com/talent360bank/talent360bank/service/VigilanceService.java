@@ -1,19 +1,20 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.NiveauVigilance;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.SeuilsVigilance;
-import com.talent360bank.talent360bank.entity.SignalVigilance;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
+import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
+import com.talent360bank.talent360bank.service.enums.SignalVigilance;
+import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;

@@ -1,6 +1,7 @@
 package com.talent360bank.talent360bank.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.talent360bank.talent360bank.controller.dto.ParametreForm;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Trimestre;
@@ -54,12 +55,12 @@ class ParametreControllerTest {
         return new ParametreForm("Reglages revus",
                 source.getPoidsSources(), source.getPoidsPerformance(), source.getPoidsPotentiel(),
                 source.getPoidsSuccession(), source.getBaremeExperience(), source.getBaremeCompetences(),
-                source.getSeuilsNeufBox(), source.getSeuilsReadiness(),
+                source.getSeuilsNeufBox(), source.getSeuilsReadiness(), source.getSeuilsCouverture(),
                 source.getSeuilsTalent(), source.getPointsVigilance(), source.getSeuilsVigilance());
     }
 
     @Test
-    void la_lecture_aplatit_le_trimestre_et_rend_les_onze_blocs() throws Exception {
+    void la_lecture_aplatit_le_trimestre_et_rend_les_douze_blocs() throws Exception {
         when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
 
         mockMvc.perform(get("/api/trimestres/2026/1/parametre"))
@@ -72,6 +73,7 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.baremeCompetences.pointsParNiveauManquant").value(20))
                 .andExpect(jsonPath("$.baremeCompetences.niveauParDefaut").value(3))
                 .andExpect(jsonPath("$.seuilsReadiness.seuilReadyNow").value(90))
+                .andExpect(jsonPath("$.seuilsCouverture.nbMinSuccesseurs").value(1))
                 .andExpect(jsonPath("$.seuilsTalent.seuilHautPotentielPotentiel").value(85))
                 .andExpect(jsonPath("$.seuilsTalent.seuilHautPotentielPerformance").value(75))
                 .andExpect(jsonPath("$.seuilsVigilance.seuilEngagementFaible").value(60))
@@ -111,7 +113,7 @@ class ParametreControllerTest {
     }
 
     @Test
-    void la_mise_a_jour_remplace_les_onze_blocs() throws Exception {
+    void la_mise_a_jour_remplace_les_douze_blocs() throws Exception {
         when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
         when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
 
@@ -124,6 +126,54 @@ class ParametreControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.libelle").value("Reglages revus"))
                 .andExpect(jsonPath("$.seuilsTalent.seuilPerformance").value(80));
+    }
+
+    @Test
+    void sans_seuil_de_couverture_la_valeur_en_place_est_conservee() throws Exception {
+        parametre.getSeuilsCouverture().setNbMinSuccesseurs(2);
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        // Corps d'un client anterieur au bloc : le champ est absent du JSON.
+        ObjectNode corps = objectMapper.valueToTree(formDepuis(Parametre.parDefaut(trimestre)));
+        corps.remove("seuilsCouverture");
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corps.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.libelle").value("Reglages revus"))
+                .andExpect(jsonPath("$.seuilsCouverture.nbMinSuccesseurs").value(2));
+    }
+
+    @Test
+    void un_seuil_de_couverture_fourni_remplace_la_valeur_en_place() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        Parametre voulu = Parametre.parDefaut(trimestre);
+        voulu.getSeuilsCouverture().setNbMinSuccesseurs(3);
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(voulu))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seuilsCouverture.nbMinSuccesseurs").value(3));
+    }
+
+    @Test
+    void un_seuil_de_couverture_fourni_mais_invalide_rend_400() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+
+        Parametre casse = Parametre.parDefaut(trimestre);
+        casse.getSeuilsCouverture().setNbMinSuccesseurs(0);
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(casse))))
+                .andExpect(status().isBadRequest());
+
+        verify(parametreRepository, never()).save(any());
     }
 
     @Test

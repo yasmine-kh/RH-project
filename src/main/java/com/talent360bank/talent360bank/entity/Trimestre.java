@@ -6,7 +6,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 @Entity
-@Table(name = "trimestre")
+@Table(name = "trimestre", uniqueConstraints = @UniqueConstraint(
+        name = "uk_trimestre_numero_annee", columnNames = {"numero", "annee"}))
 public class Trimestre {
 
     @Id

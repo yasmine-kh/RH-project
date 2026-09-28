@@ -1,0 +1,38 @@
+name: CI
+
+# Compile et lance les tests sur chaque PR vers develop / main, et a chaque push
+# sur ces branches. A declarer comme verification obligatoire dans le ruleset
+# de develop : une PR qui ne compile pas ne peut plus etre fusionnee.
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+jobs:
+  build:
+    name: mvn test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # Tests sur H2 (src/test/resources/application.properties). Le jeu de
+      # donnees Excel est gitignore : DatasetExcelComparaisonTest est ignore ici.
+      # mvnw est enregistre sans le bit executable (depot cree sous Windows).
+      - name: Build et tests
+        run: |
+          chmod +x mvnw
+          ./mvnw -B test
+
+      - name: Rapports de tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/

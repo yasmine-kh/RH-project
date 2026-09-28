@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.controller.dto;
 
-import com.talent360bank.talent360bank.service.ResultatMatching;
+import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 
 import java.math.BigDecimal;
 

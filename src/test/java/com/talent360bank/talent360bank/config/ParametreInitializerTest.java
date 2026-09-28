@@ -87,6 +87,30 @@ class ParametreInitializerTest {
     }
 
     @Test
+    void unSeuilDeCouvertureAbsentRecoitLaValeurDuClasseur() {
+        Parametre ancien = Parametre.parDefaut(trimestre);
+        ancien.setSeuilsCouverture(null);
+        when(parametreRepository.findAll()).thenReturn(List.of(ancien));
+
+        initializer.run(null);
+
+        verify(parametreRepository).save(ancien);
+        assertThat(ancien.getSeuilsCouverture().getNbMinSuccesseurs()).isEqualTo(1);
+    }
+
+    @Test
+    void unSeuilDeCouvertureSaisiNestPasEcrase() {
+        Parametre regle = Parametre.parDefaut(trimestre);
+        regle.getSeuilsCouverture().setNbMinSuccesseurs(2);
+        when(parametreRepository.findAll()).thenReturn(List.of(regle));
+
+        initializer.run(null);
+
+        verify(parametreRepository, never()).save(any());
+        assertThat(regle.getSeuilsCouverture().getNbMinSuccesseurs()).isEqualTo(2);
+    }
+
+    @Test
     void unZeroEstSignaleMaisJamaisRemplace() {
         // Un 0 peut etre un reglage voulu : l'initialiseur ne le touche pas.
         Parametre aZero = Parametre.parDefaut(trimestre);

@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.controller.dto;
 
-import com.talent360bank.talent360bank.entity.SignalVigilance;
-import com.talent360bank.talent360bank.service.ResultatVigilance;
+import com.talent360bank.talent360bank.service.enums.SignalVigilance;
+import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 
 import java.math.BigDecimal;
 import java.util.Comparator;

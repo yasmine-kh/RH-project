@@ -1,12 +1,12 @@
 package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.NiveauVigilance;
-import com.talent360bank.talent360bank.entity.SignalVigilance;
 import com.talent360bank.talent360bank.entity.StatutEmploye;
 import com.talent360bank.talent360bank.entity.Trimestre;
-import com.talent360bank.talent360bank.service.ResultatVigilance;
 import com.talent360bank.talent360bank.service.VigilanceService;
+import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
+import com.talent360bank.talent360bank.service.enums.SignalVigilance;
+import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

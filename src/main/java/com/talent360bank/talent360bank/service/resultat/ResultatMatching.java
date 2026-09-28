@@ -1,7 +1,7 @@
-package com.talent360bank.talent360bank.service;
+package com.talent360bank.talent360bank.service.resultat;
 
 import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.NiveauReadiness;
+import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
 
 import java.math.BigDecimal;
 

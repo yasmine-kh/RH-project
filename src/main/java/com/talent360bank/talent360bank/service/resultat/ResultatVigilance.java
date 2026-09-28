@@ -1,8 +1,8 @@
-package com.talent360bank.talent360bank.service;
+package com.talent360bank.talent360bank.service.resultat;
 
 import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.NiveauVigilance;
-import com.talent360bank.talent360bank.entity.SignalVigilance;
+import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
+import com.talent360bank.talent360bank.service.enums.SignalVigilance;
 
 import java.math.BigDecimal;
 import java.util.Set;
