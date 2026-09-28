@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.talent360bank.talent360bank.controller.dto.ParametreForm;
@@ -106,7 +107,7 @@ class ParametreControllerTest {
         when(parametreRepository.existsByTrimestre(trimestre)).thenReturn(false);
         when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
 
-        mockMvc.perform(post("/api/trimestres/2026/1/parametre"))
+        mockMvc.perform(post("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.poidsPerformance.poidsObjectifs").value(40))
                 .andExpect(jsonPath("$.seuilsNeufBox.seuilEleve").value(85));
@@ -117,7 +118,7 @@ class ParametreControllerTest {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
         when(parametreRepository.existsByTrimestre(trimestre)).thenReturn(true);
 
-        mockMvc.perform(post("/api/trimestres/2026/1/parametre"))
+        mockMvc.perform(post("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
                 .andExpect(status().isConflict());
 
         verify(parametreRepository, never()).save(any());
@@ -131,7 +132,7 @@ class ParametreControllerTest {
         Parametre voulu = Parametre.parDefaut(trimestre);
         voulu.getSeuilsTalent().setSeuilPerformance(new BigDecimal("80"));
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(voulu))))
                 .andExpect(status().isOk())
@@ -149,7 +150,7 @@ class ParametreControllerTest {
         ObjectNode corps = objectMapper.valueToTree(formDepuis(Parametre.parDefaut(trimestre)));
         corps.remove("seuilsCouverture");
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corps.toString()))
                 .andExpect(status().isOk())
@@ -165,7 +166,7 @@ class ParametreControllerTest {
         Parametre voulu = Parametre.parDefaut(trimestre);
         voulu.getSeuilsCouverture().setNbMinSuccesseurs(3);
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(voulu))))
                 .andExpect(status().isOk())
@@ -179,7 +180,7 @@ class ParametreControllerTest {
         Parametre casse = Parametre.parDefaut(trimestre);
         casse.getSeuilsCouverture().setNbMinSuccesseurs(0);
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(casse))))
                 .andExpect(status().isBadRequest());
@@ -203,7 +204,7 @@ class ParametreControllerTest {
         corps.remove("seuilsNeufBoxPotentiel");
         corps.remove("seuilsCategoriePerformance");
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corps.toString()))
                 .andExpect(status().isOk())
@@ -223,7 +224,7 @@ class ParametreControllerTest {
         voulu.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("88"));
         voulu.getSeuilsCategoriePerformance().setSeuilSolide(new BigDecimal("72"));
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(voulu))))
                 .andExpect(status().isOk())
@@ -239,7 +240,7 @@ class ParametreControllerTest {
         Parametre casse = Parametre.parDefaut(trimestre);
         casse.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("90"));
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(casse))))
                 .andExpect(status().isBadRequest());
@@ -254,7 +255,7 @@ class ParametreControllerTest {
         Parametre casse = Parametre.parDefaut(trimestre);
         casse.getSeuilsCategoriePerformance().setSeuilSolide(new BigDecimal("85"));
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(casse))))
                 .andExpect(status().isBadRequest());
@@ -269,7 +270,7 @@ class ParametreControllerTest {
         Parametre casse = Parametre.parDefaut(trimestre);
         casse.getPoidsPerformance().setPoidsObjectifs(new BigDecimal("50"));
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(casse))))
                 .andExpect(status().isBadRequest())
@@ -287,7 +288,7 @@ class ParametreControllerTest {
         Parametre casse = Parametre.parDefaut(trimestre);
         casse.getSeuilsVigilance().setSeuilEleve(new BigDecimal("500"));
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(casse))))
                 .andExpect(status().isBadRequest())
@@ -301,7 +302,7 @@ class ParametreControllerTest {
     void un_bloc_absent_rend_400() throws Exception {
         when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"libelle\":\"incomplet\"}"))
                 .andExpect(status().isBadRequest())
@@ -310,7 +311,7 @@ class ParametreControllerTest {
 
     @Test
     void un_corps_illisible_rend_400_et_non_500() throws Exception {
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{ceci n'est pas du json"))
                 .andExpect(status().isBadRequest())
@@ -328,7 +329,7 @@ class ParametreControllerTest {
                 .put("poidsAutoEvaluation", 25).put("poidsManager", 25)
                 .put("poidsCompetences", 25).put("poidsEngagement", 25);
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corps.toString()))
                 .andExpect(status().isOk())
@@ -344,7 +345,7 @@ class ParametreControllerTest {
         ObjectNode corps = objectMapper.valueToTree(formDepuis(Parametre.parDefaut(trimestre)));
         corps.remove("seuilsGapCompetence");
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corps.toString()))
                 .andExpect(status().isOk())
@@ -359,7 +360,7 @@ class ParametreControllerTest {
         Parametre voulu = Parametre.parDefaut(trimestre);
         voulu.getSeuilsGapCompetence().setSeuilPrioritaire(4);
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(voulu))))
                 .andExpect(status().isOk())
@@ -374,11 +375,23 @@ class ParametreControllerTest {
         Parametre casse = Parametre.parDefaut(trimestre);
         casse.getSeuilsGapCompetence().setSeuilPrioritaire(seuil);
 
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(formDepuis(casse))))
                 .andExpect(status().isBadRequest());
 
+        verify(parametreRepository, never()).save(any());
+    }
+
+    @Test
+    void une_ecriture_sans_l_en_tete_de_protection_est_refusee_avant_le_controleur() throws Exception {
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(Parametre.parDefaut(trimestre)))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.erreur").value("en_tete_manquant"));
+
+        verify(parametreRepository, never()).findByNumeroEtAnnee(any(Integer.class), any(Integer.class));
         verify(parametreRepository, never()).save(any());
     }
 }

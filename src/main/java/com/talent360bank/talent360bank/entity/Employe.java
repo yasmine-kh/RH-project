@@ -246,8 +246,12 @@ public class Employe {
         return Objects.hashCode(employeeId);
     }
 
+    /**
+     * Sans nom ni prenom : toString finit dans les logs et les messages
+     * d'erreur, qui ne doivent pas porter de donnees personnelles.
+     */
     @Override
     public String toString() {
-        return "Employe{employeeId='" + employeeId + "', nom='" + nom + "', prenom='" + prenom + "'}";
+        return "Employe{employeeId='" + employeeId + "', statut=" + statut + "}";
     }
 }

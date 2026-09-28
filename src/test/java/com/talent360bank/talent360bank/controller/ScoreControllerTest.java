@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.StatutEmploye;
@@ -74,7 +75,7 @@ class ScoreControllerTest {
                 List.of(score("90.00", "80.00", "Performant")),
                 List.of(new ResultatRecalcul.EmployeIgnore("E002", "Notes de potentiel absentes"))));
 
-        mockMvc.perform(post("/api/trimestres/2026/1/scores/recalcul"))
+        mockMvc.perform(post("/api/trimestres/2026/1/scores/recalcul").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombreCalcules").value(1))
                 .andExpect(jsonPath("$.nombreIgnores").value(1))

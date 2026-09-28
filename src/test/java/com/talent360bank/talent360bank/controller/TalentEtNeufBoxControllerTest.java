@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
 import com.talent360bank.talent360bank.entity.AppartenanceVivier;
 import com.talent360bank.talent360bank.entity.CategoriePerformance;
 import com.talent360bank.talent360bank.entity.CategoriePotentiel;
@@ -109,7 +110,7 @@ class TalentEtNeufBoxControllerTest {
         when(vivierReleveService.constituerViviers(trimestre)).thenReturn(new ResultatConstitutionVivier(
                 3, List.of(new AppartenanceVivier(), new AppartenanceVivier()), List.of("E009")));
 
-        mockMvc.perform(post("/api/trimestres/2026/1/vivier-releve"))
+        mockMvc.perform(post("/api/trimestres/2026/1/vivier-releve").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nbRemplaces").value(3))
                 .andExpect(jsonPath("$.nbEcrits").value(2))
@@ -184,7 +185,7 @@ class TalentEtNeufBoxControllerTest {
                 List.of(score()),
                 List.of(new ResultatRecalcul.EmployeIgnore("E002", "Score incomplet"))));
 
-        mockMvc.perform(post("/api/trimestres/2026/1/9box/placement"))
+        mockMvc.perform(post("/api/trimestres/2026/1/9box/placement").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombreCalcules").value(1))
                 .andExpect(jsonPath("$.scores[0].positionBox").value("Talent cle"))
