@@ -159,6 +159,27 @@ class DatasetExcelComparaisonTest {
     }
 
     /**
+     * Categories individuelles sur toute la population : 02_PERFORMANCE J
+     * (00_PARAMETRES section 4) et 03_POTENTIEL L (seuils de l'axe potentiel
+     * de la 9-box, lignes 26 et 27).
+     */
+    @Test
+    void les_categories_de_performance_et_de_potentiel_sont_celles_du_classeur() {
+        List<Ecart> ecarts = new ArrayList<>();
+        for (String id : parEmploye("02_PERFORMANCE").keySet()) {
+            comparerLibelle(ecarts, id, "02_PERFORMANCE.Categorie Performance",
+                    parEmploye("02_PERFORMANCE").get(id).get("J"),
+                    calculService.categoriePerformance(scorePerformance(id),
+                            parametre.getSeuilsCategoriePerformance()).getLibelle());
+            comparerLibelle(ecarts, id, "03_POTENTIEL.Categorie Potentiel",
+                    parEmploye("03_POTENTIEL").get(id).get("L"),
+                    neufBoxService.categoriePotentiel(scorePotentiel(id), parametre).getLibelle());
+        }
+        verifier(ecarts);
+        assertThat(parEmploye("02_PERFORMANCE")).hasSize(100);
+    }
+
+    /**
      * Sur toute la population et non l'echantillon : ces statuts ne demandent
      * que les deux scores, et l'echantillon ne contient aucun haut potentiel
      * qui ne soit pas aussi talent (11 dans le classeur).

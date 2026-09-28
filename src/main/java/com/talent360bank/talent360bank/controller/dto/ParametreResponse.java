@@ -8,6 +8,7 @@ import com.talent360bank.talent360bank.entity.PoidsPotentiel;
 import com.talent360bank.talent360bank.entity.PoidsSources;
 import com.talent360bank.talent360bank.entity.PoidsSuccession;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
+import com.talent360bank.talent360bank.entity.SeuilsCategoriePerformance;
 import com.talent360bank.talent360bank.entity.SeuilsCouverture;
 import com.talent360bank.talent360bank.entity.SeuilsNeufBox;
 import com.talent360bank.talent360bank.entity.SeuilsReadiness;
@@ -26,6 +27,8 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                                 BaremeExperience baremeExperience,
                                 BaremeCompetences baremeCompetences,
                                 SeuilsNeufBox seuilsNeufBox,
+                                SeuilsNeufBox seuilsNeufBoxPotentiel,
+                                SeuilsCategoriePerformance seuilsCategoriePerformance,
                                 SeuilsReadiness seuilsReadiness,
                                 SeuilsCouverture seuilsCouverture,
                                 SeuilsTalent seuilsTalent,
@@ -45,6 +48,8 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                 parametre.getBaremeExperience(),
                 parametre.getBaremeCompetences(),
                 parametre.getSeuilsNeufBox(),
+                parametre.getSeuilsNeufBoxPotentiel(),
+                parametre.getSeuilsCategoriePerformance(),
                 parametre.getSeuilsReadiness(),
                 parametre.getSeuilsCouverture(),
                 parametre.getSeuilsTalent(),

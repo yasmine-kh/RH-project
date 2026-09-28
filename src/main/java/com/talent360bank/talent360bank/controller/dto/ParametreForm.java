@@ -8,6 +8,7 @@ import com.talent360bank.talent360bank.entity.PoidsPotentiel;
 import com.talent360bank.talent360bank.entity.PoidsSources;
 import com.talent360bank.talent360bank.entity.PoidsSuccession;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
+import com.talent360bank.talent360bank.entity.SeuilsCategoriePerformance;
 import com.talent360bank.talent360bank.entity.SeuilsCouverture;
 import com.talent360bank.talent360bank.entity.SeuilsNeufBox;
 import com.talent360bank.talent360bank.entity.SeuilsReadiness;
@@ -24,9 +25,12 @@ import jakarta.validation.constraints.Size;
  * reglages appartient a son trimestre et n'en change pas : le trimestre vient
  * de l'URL, l'identifiant de la ligne existante.
  *
- * <p>{@code seuilsCouverture} est facultatif : ajoute apres les autres blocs,
- * il ne doit pas casser un client qui ne le connait pas encore. Absent, la
- * valeur en place est conservee.
+ * <p>Les blocs ajoutes apres les autres sont facultatifs, pour ne pas casser
+ * un client qui ne les connait pas encore : {@code seuilsCouverture},
+ * {@code seuilsNeufBoxPotentiel} et {@code seuilsCategoriePerformance}.
+ * Absents, la valeur en place est conservee. En particulier, un client qui
+ * n'envoie que {@code seuilsNeufBox} ne change que l'axe performance de la
+ * 9-box : l'axe potentiel garde ses seuils.
  */
 public record ParametreForm(@Size(max = 100) String libelle,
                             @Valid @NotNull PoidsSources poidsSources,
@@ -36,13 +40,15 @@ public record ParametreForm(@Size(max = 100) String libelle,
                             @Valid @NotNull BaremeExperience baremeExperience,
                             @Valid @NotNull BaremeCompetences baremeCompetences,
                             @Valid @NotNull SeuilsNeufBox seuilsNeufBox,
+                            @Valid SeuilsNeufBox seuilsNeufBoxPotentiel,
+                            @Valid SeuilsCategoriePerformance seuilsCategoriePerformance,
                             @Valid @NotNull SeuilsReadiness seuilsReadiness,
                             @Valid SeuilsCouverture seuilsCouverture,
                             @Valid @NotNull SeuilsTalent seuilsTalent,
                             @Valid @NotNull PointsVigilance pointsVigilance,
                             @Valid @NotNull SeuilsVigilance seuilsVigilance) {
 
-    /** Recopie les blocs sur les reglages existants ; un seuil de couverture absent garde sa valeur. */
+    /** Recopie les blocs sur les reglages existants ; un bloc facultatif absent garde sa valeur. */
     public void appliquerA(Parametre parametre) {
         parametre.setLibelle(libelle);
         parametre.setPoidsSources(poidsSources);
@@ -52,6 +58,12 @@ public record ParametreForm(@Size(max = 100) String libelle,
         parametre.setBaremeExperience(baremeExperience);
         parametre.setBaremeCompetences(baremeCompetences);
         parametre.setSeuilsNeufBox(seuilsNeufBox);
+        if (seuilsNeufBoxPotentiel != null) {
+            parametre.setSeuilsNeufBoxPotentiel(seuilsNeufBoxPotentiel);
+        }
+        if (seuilsCategoriePerformance != null) {
+            parametre.setSeuilsCategoriePerformance(seuilsCategoriePerformance);
+        }
         parametre.setSeuilsReadiness(seuilsReadiness);
         if (seuilsCouverture != null) {
             parametre.setSeuilsCouverture(seuilsCouverture);

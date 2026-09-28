@@ -333,7 +333,8 @@ class ApiIntegrationTest {
         ParametreForm form = new ParametreForm("Revu au comite",
                 voulu.getPoidsSources(), voulu.getPoidsPerformance(), voulu.getPoidsPotentiel(),
                 voulu.getPoidsSuccession(), voulu.getBaremeExperience(), voulu.getBaremeCompetences(),
-                voulu.getSeuilsNeufBox(),
+                voulu.getSeuilsNeufBox(), voulu.getSeuilsNeufBoxPotentiel(),
+                voulu.getSeuilsCategoriePerformance(),
                 voulu.getSeuilsReadiness(), voulu.getSeuilsCouverture(),
                 voulu.getSeuilsTalent(), voulu.getPointsVigilance(), voulu.getSeuilsVigilance());
 

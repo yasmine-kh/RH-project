@@ -1,11 +1,13 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.CategoriePerformance;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.PoidsPerformance;
 import com.talent360bank.talent360bank.entity.PoidsPotentiel;
 import com.talent360bank.talent360bank.entity.Potentiel;
+import com.talent360bank.talent360bank.entity.SeuilsCategoriePerformance;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -133,6 +135,38 @@ public class CalculService {
                         poids.getPoidsStrategie(),
                         poids.getPoidsAutonomie()},
                 "potentiel");
+    }
+
+    /**
+     * Categorie d'un score de performance, comme la colonne J de
+     * 02_PERFORMANCE. Bornes inclusives : un score egal au seuil decroche la
+     * categorie. Le score est compare tel qu'arrondi a deux decimales.
+     *
+     * @throws DonneesIncompletesException si le score ou les seuils manquent
+     */
+    public CategoriePerformance categoriePerformance(BigDecimal scorePerformance,
+                                                     SeuilsCategoriePerformance seuils) {
+        if (scorePerformance == null) {
+            throw new DonneesIncompletesException("Score de performance absent, categorie indeterminable");
+        }
+        if (seuils == null || seuils.getSeuilExceptionnelle() == null || seuils.getSeuilElevee() == null
+                || seuils.getSeuilSolide() == null || seuils.getSeuilARenforcer() == null) {
+            throw new DonneesIncompletesException(
+                    "Les seuils des categories de performance ne sont pas configures");
+        }
+        if (scorePerformance.compareTo(seuils.getSeuilExceptionnelle()) >= 0) {
+            return CategoriePerformance.EXCEPTIONNELLE;
+        }
+        if (scorePerformance.compareTo(seuils.getSeuilElevee()) >= 0) {
+            return CategoriePerformance.ELEVEE;
+        }
+        if (scorePerformance.compareTo(seuils.getSeuilSolide()) >= 0) {
+            return CategoriePerformance.SOLIDE;
+        }
+        if (scorePerformance.compareTo(seuils.getSeuilARenforcer()) >= 0) {
+            return CategoriePerformance.A_RENFORCER;
+        }
+        return CategoriePerformance.INSUFFISANTE;
     }
 
     /** Reglages applicables au trimestre. */

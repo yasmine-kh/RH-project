@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.CategoriePotentiel;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.NiveauGrille;
@@ -147,6 +148,58 @@ class NeufBoxServiceTest {
     }
 
     @Test
+    void chaqueAxeSuitSesPropresSeuils() {
+        // 80 : moyen sur l'axe performance (85/70), eleve sur l'axe potentiel (75/60).
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("75"));
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("60"));
+        when(matriceRepository.findByNiveauPerformanceAndNiveauPotentiel(2, 3))
+                .thenReturn(Optional.of(caseMatrice(2, 3, "Potentiel")));
+
+        Matrice9Box case9Box = neufBoxService.placer(new BigDecimal("80"), new BigDecimal("80"), parametre);
+
+        assertThat(case9Box.getCategorie()).isEqualTo("Potentiel");
+    }
+
+    @Test
+    void desSeuilsDePerformanceModifiesNeDeplacentPasLAxePotentiel() {
+        parametre.getSeuilsNeufBox().setSeuilEleve(new BigDecimal("95"));
+        when(matriceRepository.findByNiveauPerformanceAndNiveauPotentiel(2, 3))
+                .thenReturn(Optional.of(caseMatrice(2, 3, "Potentiel")));
+
+        assertThat(neufBoxService.placer(new BigDecimal("90"), new BigDecimal("90"), parametre).getCategorie())
+                .isEqualTo("Potentiel");
+    }
+
+    @Test
+    void sansSeuilsDeLAxePotentielLePlacementEstRefuse() {
+        parametre.setSeuilsNeufBoxPotentiel(null);
+
+        assertThatThrownBy(() -> neufBoxService.placer(new BigDecimal("90"), new BigDecimal("90"), parametre))
+                .isInstanceOf(DonneesIncompletesException.class)
+                .hasMessageContaining("potentiel");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "85.00, ELEVE",
+            "84.99, MOYEN",
+            "70.00, MOYEN",
+            "69.99, FAIBLE"
+    })
+    void laCategorieDePotentielEstLeNiveauDeLAxePotentiel(String score, CategoriePotentiel attendue) {
+        assertThat(neufBoxService.categoriePotentiel(new BigDecimal(score), parametre)).isEqualTo(attendue);
+    }
+
+    @Test
+    void laCategorieDePotentielSuitLesSeuilsDeLAxePotentiel() {
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("75"));
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("60"));
+
+        assertThat(neufBoxService.categoriePotentiel(new BigDecimal("80"), parametre))
+                .isEqualTo(CategoriePotentiel.ELEVE);
+    }
+
+    @Test
     void uneCaseManquanteDansLaReferenceEstSignalee() {
         when(matriceRepository.findByNiveauPerformanceAndNiveauPotentiel(any(), any()))
                 .thenReturn(Optional.empty());
@@ -168,8 +221,10 @@ class NeufBoxServiceTest {
                 .thenReturn(Optional.of(caseMatrice(3, 3, "Etoile montante")));
         when(scoreRepository.save(any(Score.class))).thenAnswer(appel -> appel.getArgument(0));
 
-        assertThat(neufBoxService.placerEtEnregistrer(employe, trimestre).getPositionBox())
-                .isEqualTo("Etoile montante");
+        Score place = neufBoxService.placerEtEnregistrer(employe, trimestre);
+
+        assertThat(place.getPositionBox()).isEqualTo("Etoile montante");
+        assertThat(place.getCategoriePotentiel()).isEqualTo(CategoriePotentiel.ELEVE);
     }
 
     @Test
@@ -199,6 +254,9 @@ class NeufBoxServiceTest {
         assertThat(resultat.scoresEnregistres())
                 .extracting(Score::getPositionBox)
                 .containsExactly("Case-33", "Case-12");
+        assertThat(resultat.scoresEnregistres())
+                .extracting(Score::getCategoriePotentiel)
+                .containsExactly(CategoriePotentiel.ELEVE, CategoriePotentiel.MOYEN);
     }
 
     @Test

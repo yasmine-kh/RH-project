@@ -4,8 +4,15 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+/**
+ * Presence d'un employe dans un vivier pour un trimestre. Une seule ligne par
+ * (employe, vivier, trimestre), quelle que soit l'origine : un employe deja
+ * present par un import ou une saisie RH n'est pas double par le moteur.
+ */
 @Entity
-@Table(name = "appartenance_vivier")
+@Table(name = "appartenance_vivier", uniqueConstraints = @UniqueConstraint(
+        name = "uk_appartenance_employe_vivier_trimestre",
+        columnNames = {"id_employe", "id_vivier", "id_trimestre"}))
 public class AppartenanceVivier {
 
     @Id

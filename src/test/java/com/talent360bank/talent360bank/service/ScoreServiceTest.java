@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.CategoriePerformance;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
@@ -121,6 +122,41 @@ class ScoreServiceTest {
         renvoieCeQuOnLuiDonne();
 
         assertThat(scoreService.calculerEtEnregistrer(employe, trimestre).getPositionBox()).isNull();
+    }
+
+    @Test
+    void leRecalculPoseLaCategorieDePerformanceMaisPasCelleDePotentiel() {
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(performance(employe)));
+        when(potentielRepository.findByEmployeAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(potentiel(employe)));
+        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        renvoieCeQuOnLuiDonne();
+
+        Score score = scoreService.calculerEtEnregistrer(employe, trimestre);
+
+        // 77 : entre 70 et 80.
+        assertThat(score.getCategoriePerformance()).isEqualTo(CategoriePerformance.SOLIDE);
+        // Pose par le placement 9-box, qui porte les seuils de l'axe potentiel.
+        assertThat(score.getCategoriePotentiel()).isNull();
+    }
+
+    @Test
+    void desSeuilsDeCategorieModifiesChangentLaCategorieAuRecalcul() {
+        parametre.getSeuilsCategoriePerformance().setSeuilSolide(new BigDecimal("78"));
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(performance(employe)));
+        when(potentielRepository.findByEmployeAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(potentiel(employe)));
+        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        renvoieCeQuOnLuiDonne();
+
+        assertThat(scoreService.calculerEtEnregistrer(employe, trimestre).getCategoriePerformance())
+                .isEqualTo(CategoriePerformance.A_RENFORCER);
     }
 
     @Test

@@ -11,14 +11,14 @@ Ce document décrit ce que calcule le moteur, comment il le calcule et d'où vie
 - **Les bornes sont inclusives** : un score égal au seuil atteint le niveau (85 ≥ 85). Seule exception : les seuils de vigilance et d'engagement, où l'on compare « strictement en dessous ».
 - **Une donnée absente ne se devine pas.** Un questionnaire manquant ne signifie pas un engagement faible ; un fait inconnu ne lève pas de signal.
 - **Écrans.** Seuls l'accueil (`/`), la matrice 9-Box (`/9box`) et les viviers (`/viviers`) ont un écran. Les pages Postes critiques, Comité Talent, Alertes et Paramètres existent dans le menu mais sont encore vides : ces résultats se consultent pour l'instant par les points d'accès décrits ci-dessous.
-- **Validation par le classeur.** Un test automatique rejoue le classeur dans le moteur et compare les résultats, colonne par colonne. Les modules décrits ci-dessous donnent les mêmes résultats que le classeur ; les écarts connus sont signalés dans chaque section.
+- **Validation par le classeur.** Un test automatique rejoue le classeur dans le moteur et compare les résultats, colonne par colonne. Les modules décrits ci-dessous donnent les mêmes résultats que le classeur, sans écart connu. Seule différence de méthode : le classeur compare aux seuils le score non arrondi, le moteur le score arrondi au centième. Aucun collaborateur du jeu de données n'est concerné.
 
 ## Vue d'ensemble
 
 | Module | Produit | Calculé à partir de |
 |---|---|---|
-| Performance | Score /100 | 5 notes d'évaluation |
-| Potentiel | Score /100 | 7 notes d'évaluation |
+| Performance | Score /100 et catégorie (Exceptionnelle à Insuffisante) | 5 notes d'évaluation |
+| Potentiel | Score /100 et catégorie (Élevé, Moyen, Faible) | 7 notes d'évaluation |
 | 9-Box | Case de la matrice | Scores de performance et de potentiel |
 | Talent | Oui / Non | Les deux scores |
 | Haut potentiel | Oui / Non | Les deux scores |
@@ -53,14 +53,32 @@ Les poids doivent totaliser 100. La division se fait par la somme réelle des po
 
 **Source dans le classeur.** `02_PERFORMANCE`, colonnes D à H (les cinq notes, sur 100). Le résultat correspond à la colonne I (Score Performance). Pondérations : `00_PARAMETRES`, section 1.
 
+**Catégorie de performance.** Chaque score reçoit une étiquette individuelle :
+
+| Score de performance | Catégorie |
+|---|---|
+| ≥ 90 | Exceptionnelle |
+| ≥ 80 | Élevée |
+| ≥ 70 | Solide |
+| ≥ 60 | À renforcer |
+| < 60 | Insuffisante |
+
+Les quatre seuils sont réglables et doivent rester strictement décroissants. La catégorie est calculée et enregistrée avec le score, lors du recalcul : changer ces seuils demande donc de relancer le recalcul. Sur le jeu de données : 20 Exceptionnelle, 18 Élevée, 40 Solide, 19 À renforcer, 3 Insuffisante.
+
+**Source dans le classeur.**
+- Notes : `02_PERFORMANCE`, colonnes D à H (sur 100).
+- Score : colonne I (Score Performance).
+- Catégorie : colonne J (Catégorie Performance).
+- Pondérations : `00_PARAMETRES`, section 1 ; seuils des catégories : section 4.
+
 **Service et points d'accès.** `CalculService` calcule, `ScoreService` enregistre.
-- `POST /api/trimestres/{année}/{numéro}/scores/recalcul` : recalcule et enregistre les scores de tout le trimestre.
-- `GET /api/trimestres/{année}/{numéro}/scores` : scores du trimestre.
+- `POST /api/trimestres/{année}/{numéro}/scores/recalcul` : recalcule et enregistre les scores et catégories de performance de tout le trimestre.
+- `GET /api/trimestres/{année}/{numéro}/scores` : scores du trimestre, avec leurs deux catégories.
 - `GET /api/employes/{matricule}/scores` : historique d'un collaborateur, du plus récent au plus ancien.
 
-**Données attendues de l'import.** Pour chaque collaborateur et chaque trimestre : les cinq notes sur 100 (aucune ne peut manquer). Un collaborateur sans notes de performance n'est pas scoré et apparaît dans le bilan du recalcul avec son motif.
+Toutes les réponses qui listent des scores (talents, hauts potentiels, talents validés…) portent aussi les deux catégories. Une catégorie encore non calculée est rendue vide.
 
-**Écart connu.** Les catégories individuelles de `00_PARAMETRES` section 4 (Exceptionnelle, Élevée, Solide, À renforcer, Insuffisante ; colonne J de `02_PERFORMANCE`) ne sont pas encore calculées par le moteur.
+**Données attendues de l'import.** Pour chaque collaborateur et chaque trimestre : les cinq notes sur 100 (aucune ne peut manquer). Un collaborateur sans notes de performance n'est pas scoré et apparaît dans le bilan du recalcul avec son motif.
 
 ## 2. Potentiel
 
@@ -80,9 +98,15 @@ Les poids doivent totaliser 100. La division se fait par la somme réelle des po
 
 Les poids doivent totaliser 100.
 
-**Source dans le classeur.** `03_POTENTIEL`, colonnes D à J (les sept notes). Le résultat correspond à la colonne K (Score Potentiel). Pondérations : `00_PARAMETRES`, section 2.
+**Catégorie de potentiel.** Chaque score reçoit une étiquette : **Élevé** (≥ 85), **Moyen** (≥ 70) ou **Faible**. C'est le niveau de l'axe potentiel de la 9-Box, avec les mêmes seuils (voir section 3) : il n'y a pas de réglage propre. La catégorie est enregistrée lors du placement 9-Box. Sur le jeu de données : 24 Élevé, 55 Moyen, 21 Faible.
 
-**Service et points d'accès.** Les mêmes que pour la performance : les deux scores sont calculés et enregistrés ensemble.
+**Source dans le classeur.**
+- Notes : `03_POTENTIEL`, colonnes D à J.
+- Score : colonne K (Score Potentiel).
+- Catégorie : colonne L (Catégorie Potentiel).
+- Pondérations : `00_PARAMETRES`, section 2.
+
+**Service et points d'accès.** Les mêmes que pour la performance : les deux scores sont calculés et enregistrés ensemble. La catégorie de potentiel est posée par le placement 9-Box (section 3).
 
 **Données attendues de l'import.** Les sept notes sur 100, par collaborateur et par trimestre. Les notes de leadership et de mobilité servent aussi au matching de succession.
 
@@ -90,12 +114,15 @@ Les poids doivent totaliser 100.
 
 **Ce qu'il fait.** Place chaque collaborateur dans l'une des neuf cases de la matrice, selon son niveau de performance et de potentiel.
 
-**Règle.** Chaque axe est découpé en trois niveaux :
-- **Élevé** : score ≥ 85
-- **Moyen** : score ≥ 70
-- **Faible** : en dessous de 70
+**Règle.** Chaque axe est découpé en trois niveaux, avec ses propres seuils :
 
-Les mêmes seuils s'appliquent aux deux axes.
+| Niveau | Axe performance | Axe potentiel |
+|---|---|---|
+| Élevé | score ≥ 85 | score ≥ 85 |
+| Moyen | score ≥ 70 | score ≥ 70 |
+| Faible | en dessous de 70 | en dessous de 70 |
+
+Les deux axes ont aujourd'hui les mêmes valeurs, comme dans le classeur, mais se règlent séparément. Le niveau de l'axe potentiel est aussi la catégorie de potentiel du collaborateur (section 2).
 
 | Performance ↓ / Potentiel → | Faible | Moyen | Élevé |
 |---|---|---|---|
@@ -105,15 +132,13 @@ Les mêmes seuils s'appliquent aux deux axes.
 
 Les libellés des neuf cases sont une table de référence, renommable par les RH sans toucher au code.
 
-**Source dans le classeur.** `04_9BOX` : bandes en colonnes E et G, catégorie en colonne I. Seuils : `00_PARAMETRES`, section 3.
+**Source dans le classeur.** `04_9BOX` : bandes en colonnes E et G, catégorie en colonne I. Seuils : `00_PARAMETRES`, section 3 (lignes 24 et 25 pour la performance, 26 et 27 pour le potentiel).
 
 **Service et points d'accès.** `NeufBoxService`.
-- `POST /api/trimestres/{année}/{numéro}/9box/placement` : place tous les collaborateurs scorés du trimestre.
+- `POST /api/trimestres/{année}/{numéro}/9box/placement` : place tous les collaborateurs scorés du trimestre et enregistre leur catégorie de potentiel.
 - Écran : `/9box`.
 
 **Données attendues de l'import.** Aucune donnée supplémentaire : les deux scores suffisent.
-
-**Écart connu.** Le classeur prévoit des seuils distincts pour la performance et pour le potentiel (lignes 24 à 27), aujourd'hui identiques. Le moteur n'en garde qu'une paire, commune aux deux axes.
 
 ## 4. Talent
 
@@ -153,9 +178,13 @@ Les libellés des neuf cases sont une table de référence, renommable par les R
 
 **Service et points d'accès.** `TalentService` calcule le vivier ; `VivierReleveService` l'enregistre, pour que les écrans le lisent comme les autres viviers.
 - `GET /api/trimestres/{année}/{numéro}/vivier-releve` : vivier calculé à la demande.
+- `POST /api/trimestres/{année}/{numéro}/vivier-releve` : enregistre le vivier du trimestre. La réponse indique le nombre de lignes remplacées, le nombre de lignes écrites et les collaborateurs déjà présents par une autre origine.
 - Écran : `/viviers`.
 
-L'enregistrement remplace uniquement les lignes produites par le moteur. Un collaborateur ajouté par un import ou par les RH n'est jamais retiré. Il n'existe pas encore de point d'accès pour relancer cet enregistrement.
+**Enregistrement.**
+- **Rejouable sans risque :** chaque passage remplace les lignes produites par le moteur pour ce trimestre. Le relancer donne le même vivier, sans doublon.
+- **Import et saisie RH préservés :** un collaborateur ajouté par un import ou par les RH n'est jamais retiré, ni ajouté une seconde fois.
+- **Unicité garantie par la base :** un collaborateur ne peut figurer qu'une fois dans un même vivier pour un même trimestre, quelle que soit l'origine.
 
 **Données attendues de l'import.** Aucune donnée supplémentaire.
 
@@ -362,8 +391,9 @@ Tant qu'aucun import ne fournit ces six indicateurs, seuls l'engagement et la ba
 
 Après un import de notes ou une modification des réglages :
 
-1. `POST /api/trimestres/{année}/{numéro}/scores/recalcul` : recalcule et enregistre les scores de performance et de potentiel.
-2. `POST /api/trimestres/{année}/{numéro}/9box/placement` : replace chaque collaborateur dans la matrice.
+1. `POST /api/trimestres/{année}/{numéro}/scores/recalcul` : recalcule et enregistre les scores de performance et de potentiel, et la catégorie de performance.
+2. `POST /api/trimestres/{année}/{numéro}/9box/placement` : replace chaque collaborateur dans la matrice et enregistre sa catégorie de potentiel.
+3. `POST /api/trimestres/{année}/{numéro}/vivier-releve` : enregistre le vivier de relève, si les écrans doivent le relire.
 
 Les talents, hauts potentiels, matching, couverture des postes critiques, validations du comité, viviers thématiques et vigilance sont calculés à la consultation, avec les réglages du moment.
 
@@ -375,6 +405,8 @@ Les réglages d'un trimestre se consultent, se créent et se modifient par :
 - `PUT /api/trimestres/{année}/{numéro}/parametre` : les modifier.
 
 Toute modification incohérente est refusée avec un message explicite. Par exemple : des poids qui ne totalisent pas 100, ou un seuil élevé inférieur au seuil moyen.
+
+Trois blocs sont facultatifs dans une modification : le seuil de couverture, les seuils 9-Box de l'axe potentiel et les seuils des catégories de performance. Absents, ils gardent leur valeur. Ainsi, un écran qui n'envoie que les seuils 9-Box « historiques » ne modifie que l'axe performance ; l'axe potentiel garde les siens.
 
 | Bloc | Réglage | Défaut | Règle de validation | Module | Classeur (`00_PARAMETRES`) |
 |---|---|---|---|---|---|
@@ -390,7 +422,13 @@ Toute modification incohérente est refusée avec un message explicite. Par exem
 | | Mobilité | 10 | | | |
 | | Vision stratégique | 10 | | | |
 | | Autonomie | 10 | | | |
-| Seuils 9-Box | Seuil élevé | 85 | Supérieur au seuil moyen | 9-Box | Section 3 |
+| Catégories de performance (facultatif) | Exceptionnelle | 90 | 0 à 100 ; strictement décroissants | Performance | Section 4 |
+| | Élevée | 80 | | | |
+| | Solide | 70 | | | |
+| | À renforcer | 60 | | | |
+| Seuils 9-Box, axe performance | Seuil élevé | 85 | Supérieur au seuil moyen | 9-Box | Section 3, lignes 24 et 25 |
+| | Seuil moyen | 70 | | | |
+| Seuils 9-Box, axe potentiel (facultatif) | Seuil élevé | 85 | Supérieur au seuil moyen | 9-Box, catégorie de potentiel | Section 3, lignes 26 et 27 |
 | | Seuil moyen | 70 | | | |
 | Seuils talent | Talent — performance minimale | 85 | 0 à 100 | Talent | Section 5 |
 | | Talent — potentiel minimal | 85 | 0 à 100 | Talent | |
@@ -426,5 +464,7 @@ Toute modification incohérente est refusée avec un message explicite. Par exem
 | | Questionnaire d'engagement | 25 | | | |
 
 **Note sur les poids des sources.** Ce bloc est prévu pour consolider plusieurs sources d'évaluation en un score unique. Ses valeurs, réparties à parts égales, sont à arbitrer avec les RH, et aucun module ne les utilise encore.
+
+**Note sur les trimestres existants.** Lors de la mise à jour, les seuils de l'axe potentiel d'un trimestre déjà configuré sont repris de ses seuils de performance, et non des valeurs par défaut : aucun collaborateur ne change de case. Les seuils des catégories de performance reçoivent les valeurs du classeur.
 
 **Note sur la feuille `00_PARAMETRES`.** Les réglages ne sont pas encore lus depuis le classeur : un nouveau trimestre reçoit les valeurs par défaut ci-dessus, identiques à celles du classeur, puis se modifie dans l'application.
