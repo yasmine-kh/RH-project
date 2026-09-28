@@ -10,6 +10,7 @@ import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.enums.NiveauCouverture;
+import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
 import com.talent360bank.talent360bank.service.resultat.MembreVivierReleve;
@@ -43,13 +44,16 @@ class TableauDeBordServiceTest {
     @Mock
     private Matrice9BoxRepository matrice9BoxRepository;
 
+    private ValidationsComiteEnMemoire decisionsComite;
     private TableauDeBordService service;
     private Trimestre trimestre;
 
     @BeforeEach
     void init() {
-        service = new TableauDeBordService(talentService, vigilanceService, posteCritiqueService,
-                scoreRepository, matrice9BoxRepository);
+        decisionsComite = new ValidationsComiteEnMemoire();
+        service = new TableauDeBordService(talentService,
+                new ValidationComiteService(talentService, decisionsComite),
+                vigilanceService, posteCritiqueService, scoreRepository, matrice9BoxRepository);
         trimestre = new Trimestre();
         trimestre.setNumero(3);
         trimestre.setAnnee(2026);
@@ -62,6 +66,10 @@ class TableauDeBordServiceTest {
                 new MembreVivierReleve(score("BP001", null), true, true),
                 new MembreVivierReleve(score("BP002", null), true, false),
                 new MembreVivierReleve(score("BP003", null), false, true)));
+        // Comite : BP001 retenu, BP002 en attente ; le Oui de BP003, HP sans
+        // etre talent, ne compte pas.
+        decisionsComite.decider("BP001", StatutValidationComite.OUI)
+                .decider("BP003", StatutValidationComite.OUI);
         when(vigilanceService.evaluerTrimestre(trimestre)).thenReturn(List.of(
                 vigilance("BP001", NiveauVigilance.ELEVEE),
                 vigilance("BP002", NiveauVigilance.MODEREE),
@@ -79,6 +87,7 @@ class TableauDeBordServiceTest {
         SyntheseTableauDeBord synthese = service.synthese(trimestre);
 
         assertThat(synthese.nbTalents()).isEqualTo(2);
+        assertThat(synthese.nbTalentsValides()).isEqualTo(1);
         assertThat(synthese.nbHautsPotentiels()).isEqualTo(2);
 
         // Chaque niveau est present, meme a zero, dans l'ordre de l'enum.
@@ -110,6 +119,7 @@ class TableauDeBordServiceTest {
         SyntheseTableauDeBord synthese = service.synthese(trimestre);
 
         assertThat(synthese.nbTalents()).isZero();
+        assertThat(synthese.nbTalentsValides()).isZero();
         assertThat(synthese.nbARisque()).isZero();
         assertThat(synthese.vigilanceParNiveau()).hasSize(3).allSatisfy((niveau, nb) -> assertThat(nb).isZero());
         assertThat(synthese.tauxCouverture()).isNull();

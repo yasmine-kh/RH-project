@@ -11,6 +11,8 @@ import java.util.Map;
  * issus du moteur : rien n'est a recalculer ni a coder en dur cote ecran.
  *
  * @param nbTalents              talents proposes (10_TALENTS, Talent propose)
+ * @param nbTalentsValides       talents proposes et valides par le Comite Talent
+ *                               (10_TALENTS, Talent valide)
  * @param nbHautsPotentiels      hauts potentiels proposes, talents compris
  * @param vigilanceParNiveau     employes par niveau de vigilance, chaque
  *                               niveau present (0 si personne), du plus faible
@@ -24,7 +26,7 @@ import java.util.Map;
  * @param nbNonPlaces9Box        scores du trimestre sans case 9-box (placement
  *                               pas encore lance ou scores incomplets)
  */
-public record SyntheseTableauDeBord(int nbTalents, int nbHautsPotentiels,
+public record SyntheseTableauDeBord(int nbTalents, int nbTalentsValides, int nbHautsPotentiels,
                                     Map<NiveauVigilance, Integer> vigilanceParNiveau,
                                     int nbPostesCritiques, BigDecimal tauxCouverture,
                                     List<CouverturePoste> alertesPostesCritiques,

@@ -25,9 +25,17 @@ import com.talent360bank.talent360bank.service.NeufBoxService;
 import com.talent360bank.talent360bank.service.PosteCritiqueService;
 import com.talent360bank.talent360bank.service.SuccesseursIdentifiesEnMemoire;
 import com.talent360bank.talent360bank.service.SuccessionService;
+import com.talent360bank.talent360bank.service.TableauDeBordService;
 import com.talent360bank.talent360bank.service.TalentService;
+import com.talent360bank.talent360bank.service.ValidationComiteService;
+import com.talent360bank.talent360bank.service.ValidationsComiteEnMemoire;
+import com.talent360bank.talent360bank.service.VigilanceService;
+import com.talent360bank.talent360bank.service.VivierThematiqueService;
+import com.talent360bank.talent360bank.service.ViviersThematiquesEnMemoire;
 import com.talent360bank.talent360bank.service.enums.NiveauCouverture;
 import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
+import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
+import com.talent360bank.talent360bank.service.enums.VivierThematique;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import org.junit.jupiter.api.BeforeAll;
@@ -227,6 +235,71 @@ class DatasetExcelComparaisonTest {
                 .isEqualByComparingTo("93");
     }
 
+    /**
+     * Talent valide (10_TALENTS!H = talent propose ET decision du comite en G)
+     * sur toute la population, puis le chiffre cle de 00_DASHBOARD par le
+     * chemin complet du tableau de bord.
+     */
+    @Test
+    void les_talents_valides_par_le_comite_sont_ceux_du_classeur() {
+        ValidationsComiteEnMemoire decisions = new ValidationsComiteEnMemoire();
+        for (Map.Entry<String, Map<String, String>> ligne : parEmploye("10_TALENTS").entrySet()) {
+            decisions.decider(ligne.getKey(), statutComite(ligne.getValue().get("G")));
+        }
+        ValidationComiteService comite = new ValidationComiteService(talentService, decisions);
+        Trimestre trimestre = parametre.getTrimestre();
+
+        List<Ecart> ecarts = new ArrayList<>();
+        for (String id : parEmploye("10_TALENTS").keySet()) {
+            boolean valide = comite.estTalentValide(talentService.estTalent(score(id), parametre),
+                    decisions.statut(id, trimestre));
+            comparerLibelle(ecarts, id, "10_TALENTS.Talent valide",
+                    parEmploye("10_TALENTS").get(id).get("H"), ouiNon(valide));
+        }
+        verifier(ecarts);
+
+        // 00_DASHBOARD E6 : Talents valides (Comite) = COUNTIF(10_TALENTS!H, "Oui").
+        List<Score> scores = parEmploye("01_COLLABORATEURS").keySet().stream()
+                .map(DatasetExcelComparaisonTest::score).toList();
+        ScoreRepository scoreRepository = mock(ScoreRepository.class);
+        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(scores);
+        ParametreRepository parametreRepository = mock(ParametreRepository.class);
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        TalentService talents = new TalentService(scoreRepository, new CalculService(parametreRepository,
+                mock(PerformanceRepository.class), mock(PotentielRepository.class)));
+        TableauDeBordService tableauDeBord = new TableauDeBordService(talents,
+                new ValidationComiteService(talents, decisions), mock(VigilanceService.class),
+                mock(PosteCritiqueService.class), scoreRepository, mock(Matrice9BoxRepository.class));
+
+        assertThat(tableauDeBord.synthese(trimestre).nbTalentsValides())
+                .isEqualTo(Integer.parseInt(classeur.feuille("00_DASHBOARD").get(6).get("E")))
+                .isEqualTo(8);
+    }
+
+    /**
+     * Vivier thematique (10_TALENTS!I, une valeur saisie) sur toute la
+     * population. Le rattachement direction / vivier est ecrit ici a la main,
+     * tel qu'il sera saisi dans le referentiel, et non relu dans la colonne
+     * comparee : sinon la comparaison ne prouverait rien.
+     */
+    @Test
+    void le_vivier_thematique_est_celui_du_classeur() {
+        VivierThematiqueService service = new VivierThematiqueService(talentService, calculService,
+                mock(ScoreRepository.class), new ViviersThematiquesEnMemoire()
+                .rattacher(VivierThematique.COMMERCIAL, "Reseau Retail", "Corporate Banking")
+                .rattacher(VivierThematique.DIGITAL, "IT & Digital", "Marketing & Communication")
+                .rattacher(VivierThematique.EXPERTISE, "Finance", "Audit Interne", "Juridique")
+                .rattacher(VivierThematique.MANAGEMENT, "RH")
+                .rattacher(VivierThematique.RISQUES, "Risques", "Conformite"));
+
+        List<Ecart> ecarts = new ArrayList<>();
+        for (String id : parEmploye("10_TALENTS").keySet()) {
+            comparerLibelle(ecarts, id, "10_TALENTS.Vivier thematique", parEmploye("10_TALENTS").get(id).get("I"),
+                    service.vivierDe(employe(id)).map(VivierThematique::getLibelle).orElse("(non classe)"));
+        }
+        verifier(ecarts);
+    }
+
     // --- echantillon ---------------------------------------------------------
 
     /**
@@ -265,6 +338,7 @@ class DatasetExcelComparaisonTest {
         employe.setEmployeeId(id);
         employe.setNom(ligne.get("B"));
         employe.setPrenom(ligne.get("C"));
+        employe.setDirection(ligne.get("H"));
         employe.setStatut(StatutEmploye.ACTIF);
         // Le moteur mesure l'anciennete a aujourd'hui, le classeur au 15/09/2026 :
         // la date d'entree est decalee d'autant pour comparer la meme duree.
@@ -477,6 +551,15 @@ class DatasetExcelComparaisonTest {
             case MOINS_1_AN -> "Couverte - <1 an";
             case PARTIELLE -> "Partielle - a renforcer";
         };
+    }
+
+    private static StatutValidationComite statutComite(String libelle) {
+        for (StatutValidationComite statut : StatutValidationComite.values()) {
+            if (normaliser(statut.getLibelle()).equals(normaliser(libelle))) {
+                return statut;
+            }
+        }
+        throw new IllegalStateException("Decision du comite inconnue dans le classeur : " + libelle);
     }
 
     private static String ouiNon(boolean valeur) {

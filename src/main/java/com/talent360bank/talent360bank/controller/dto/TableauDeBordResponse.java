@@ -12,7 +12,7 @@ import java.util.Map;
  * Synthese du tableau de bord telle que l'API l'expose. Les postes en alerte
  * sont aplatis : leur Poste porte des relations LAZY.
  */
-public record TableauDeBordResponse(int nbTalents, int nbHautsPotentiels,
+public record TableauDeBordResponse(int nbTalents, int nbTalentsValides, int nbHautsPotentiels,
                                     Map<String, Integer> vigilanceParNiveau, int nbARisque,
                                     int nbPostesCritiques, int nbAlertesPostesCritiques,
                                     BigDecimal tauxCouverture,
@@ -24,7 +24,8 @@ public record TableauDeBordResponse(int nbTalents, int nbHautsPotentiels,
         for (Map.Entry<NiveauVigilance, Integer> entree : synthese.vigilanceParNiveau().entrySet()) {
             vigilance.put(entree.getKey().name(), entree.getValue());
         }
-        return new TableauDeBordResponse(synthese.nbTalents(), synthese.nbHautsPotentiels(),
+        return new TableauDeBordResponse(synthese.nbTalents(), synthese.nbTalentsValides(),
+                synthese.nbHautsPotentiels(),
                 vigilance, synthese.nbARisque(),
                 synthese.nbPostesCritiques(), synthese.nbAlertesPostesCritiques(), synthese.tauxCouverture(),
                 synthese.alertesPostesCritiques().stream().map(CouverturePosteResponse::de).toList(),
