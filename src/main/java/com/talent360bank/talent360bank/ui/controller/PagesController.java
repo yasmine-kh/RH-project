@@ -1,11 +1,13 @@
 package com.talent360bank.talent360bank.ui.controller;
 
+import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
 import com.talent360bank.talent360bank.ui.service.DashboardService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
 import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 public class PagesController {
@@ -13,11 +15,14 @@ public class PagesController {
     private final DashboardService dashboardService;
     private final NineBoxViewService nineBoxViewService;
     private final VivierService vivierService;
+    private final ComiteTalentViewService comiteTalentViewService;
 
-    public PagesController(DashboardService dashboardService, NineBoxViewService nineBoxViewService, VivierService vivierService) {
+    public PagesController(DashboardService dashboardService, NineBoxViewService nineBoxViewService,
+                           VivierService vivierService, ComiteTalentViewService comiteTalentViewService) {
         this.dashboardService = dashboardService;
         this.nineBoxViewService = nineBoxViewService;
         this.vivierService = vivierService;
+        this.comiteTalentViewService = comiteTalentViewService;
     }
 
     @GetMapping("/")
@@ -49,10 +54,12 @@ public class PagesController {
     }
 
     @GetMapping("/comite-talent")
-    public String comiteTalent(Model model) {
+    public String comiteTalent(@RequestParam(required = false) String trimestre,
+                               @RequestParam(required = false) String statut,
+                               Model model) {
+        model.addAttribute("vue", comiteTalentViewService.build(trimestre, statut));
         model.addAttribute("activePage", "comite-talent");
-        model.addAttribute("pageTitle", "Comite Talent");
-        return "placeholder";
+        return "comite-talent";
     }
 
     @GetMapping("/alertes")

@@ -165,3 +165,28 @@ body {
     padding-left: 18px;
     font-size: 0.85rem;
 }
+
+/* ---------- FILTRES (Comite Talent) ---------- */
+.filtre-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+    margin-top: 24px;
+    padding: 16px 20px;
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.filtre-bar .form-label {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+
+.score-categorie {
+    display: block;
+    color: var(--color-muted);
+    font-size: 0.8rem;
+}

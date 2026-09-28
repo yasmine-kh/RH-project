@@ -13,6 +13,9 @@ public interface TrimestreRepository extends JpaRepository<Trimestre, Integer> {
 
     Optional<Trimestre> findTopByOrderByAnneeDescNumeroDesc();
 
+    /** Tous les trimestres, du plus recent au plus ancien (selecteur des ecrans). */
+    List<Trimestre> findAllByOrderByAnneeDescNumeroDesc();
+
     /**
      * Un trimestre s'identifie par son couple (numero, annee), pas par sa cle
      * technique : c'est ce couple que portent les URL de l'API.
