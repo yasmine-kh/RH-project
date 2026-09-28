@@ -24,6 +24,7 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
+import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -33,7 +34,9 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -89,8 +92,21 @@ class ApiIntegrationTest {
     private Trimestre courant;
     private Trimestre precedent;
 
+    /**
+     * Le client de test ecrit comme un ecran : avec l'en-tete exige sur les
+     * ecritures (voir ProtectionRequetesFilter).
+     */
+    private static final ClientHttpRequestInterceptor EN_TETE_ECRITURE = (requete, corps, execution) -> {
+        requete.getHeaders().add(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1");
+        return execution.execute(requete, corps);
+    };
+
+    @LocalServerPort
+    private int port;
+
     @BeforeAll
     void poserLesDonnees() {
+        restTemplate.getRestTemplate().getInterceptors().add(EN_TETE_ECRITURE);
         precedent = trimestre(4, 2025);
         courant = trimestre(1, 2026);
         parametreRepository.save(Parametre.parDefaut(courant));
@@ -386,5 +402,28 @@ class ApiIntegrationTest {
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(JsonPath.parse(reponse.getBody()).read("$.erreur", String.class))
                 .isEqualTo("ressource_introuvable");
+    }
+
+    @Test
+    @Order(16)
+    void une_ecriture_sans_l_en_tete_est_refusee_sans_rien_executer() {
+        // Client sans l'intercepteur : ce qu'enverrait un formulaire d'un autre site.
+        TestRestTemplate sansEnTete = new TestRestTemplate();
+
+        ResponseEntity<String> reponse = sansEnTete.postForEntity(
+                "http://localhost:" + port + "/api/trimestres/2026/1/9box/placement", null, String.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(JsonPath.parse(reponse.getBody()).read("$.erreur", String.class))
+                .isEqualTo("en_tete_manquant");
+    }
+
+    @Test
+    @Order(17)
+    void une_lecture_sans_l_en_tete_reste_permise() {
+        ResponseEntity<String> reponse = new TestRestTemplate().getForEntity(
+                "http://localhost:" + port + "/api/trimestres/2026/1/scores", String.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 }
