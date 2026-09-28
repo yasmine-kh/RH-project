@@ -9,6 +9,7 @@ import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
+import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.StatutEmploye;
 import com.talent360bank.talent360bank.entity.Trimestre;
@@ -19,8 +20,12 @@ import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
 import com.talent360bank.talent360bank.repository.PosteRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
+import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
+import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.CalculService;
+import com.talent360bank.talent360bank.service.FaitsVigilance;
+import com.talent360bank.talent360bank.service.FaitsVigilanceEnMemoire;
 import com.talent360bank.talent360bank.service.NeufBoxService;
 import com.talent360bank.talent360bank.service.PosteCritiqueService;
 import com.talent360bank.talent360bank.service.SuccesseursIdentifiesEnMemoire;
@@ -34,10 +39,12 @@ import com.talent360bank.talent360bank.service.VivierThematiqueService;
 import com.talent360bank.talent360bank.service.ViviersThematiquesEnMemoire;
 import com.talent360bank.talent360bank.service.enums.NiveauCouverture;
 import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
+import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
 import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.enums.VivierThematique;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
+import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -50,6 +57,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -298,6 +306,79 @@ class DatasetExcelComparaisonTest {
                     service.vivierDe(employe(id)).map(VivierThematique::getLibelle).orElse("(non classe)"));
         }
         verifier(ecarts);
+    }
+
+    /**
+     * Indice et niveau de vigilance (12_VIGILANCE L et M) sur toute la
+     * population, par le chemin complet du lot du trimestre : engagement lu en
+     * D et compare au seuil du moteur, faits importes lus en F a K. Un seul
+     * trimestre dans le classeur : la baisse de performance vient donc du
+     * drapeau importe, faute d'historique.
+     */
+    @Test
+    void l_indice_et_le_niveau_de_vigilance_sont_ceux_du_classeur() {
+        Trimestre trimestre = parametre.getTrimestre();
+        Map<String, Map<String, String>> lignes = parEmploye("12_VIGILANCE");
+
+        List<Score> scores = new ArrayList<>();
+        List<QuestionnaireEngagement> engagements = new ArrayList<>();
+        FaitsVigilanceEnMemoire faits = new FaitsVigilanceEnMemoire();
+        for (Map.Entry<String, Map<String, String>> entree : lignes.entrySet()) {
+            String id = entree.getKey();
+            Map<String, String> ligne = entree.getValue();
+            Score score = score(id);
+            scores.add(score);
+
+            QuestionnaireEngagement engagement = new QuestionnaireEngagement();
+            engagement.setEmploye(score.getEmploye());
+            engagement.setTrimestre(trimestre);
+            engagement.setScoreEngagement(nombre(ligne.get("D")));
+            engagements.add(engagement);
+
+            faits.declarer(id, FaitsVigilance.builder()
+                    .sansMobilite4Ans(drapeau(ligne.get("F")))
+                    .mobiliteNonTraitee(drapeau(ligne.get("G")))
+                    .sansDeveloppementRecent(drapeau(ligne.get("H")))
+                    .baissePerformance(drapeau(ligne.get("I")))
+                    .faibleReconnaissance(drapeau(ligne.get("J")))
+                    .formationNonFaite(drapeau(ligne.get("K")))
+                    .build());
+        }
+
+        ScoreRepository scoreRepository = mock(ScoreRepository.class);
+        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(scores);
+        QuestionnaireEngagementRepository questionnaireRepository = mock(QuestionnaireEngagementRepository.class);
+        when(questionnaireRepository.findByTrimestreAvecEmploye(any())).thenReturn(engagements);
+        TrimestreRepository trimestreRepository = mock(TrimestreRepository.class);
+        when(trimestreRepository.findPrecedents(anyInt(), anyInt(), any())).thenReturn(List.of());
+        ParametreRepository parametreRepository = mock(ParametreRepository.class);
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+
+        VigilanceService service = new VigilanceService(scoreRepository, questionnaireRepository,
+                trimestreRepository, new CalculService(parametreRepository,
+                mock(PerformanceRepository.class), mock(PotentielRepository.class)), faits);
+
+        List<ResultatVigilance> resultats = service.evaluerTrimestre(trimestre);
+        assertThat(resultats).hasSize(lignes.size()).hasSize(100);
+
+        List<Ecart> ecarts = new ArrayList<>();
+        for (ResultatVigilance resultat : resultats) {
+            String id = resultat.employe().getEmployeeId();
+            Map<String, String> ligne = lignes.get(id);
+            comparerNombre(ecarts, id, "12_VIGILANCE.Indice de Vigilance", ligne.get("L"), resultat.indice());
+            comparerLibelle(ecarts, id, "12_VIGILANCE.Niveau de vigilance",
+                    ligne.get("M"), resultat.niveau().getLibelle());
+        }
+        verifier(ecarts);
+
+        Map<NiveauVigilance, Long> parNiveau = new EnumMap<>(NiveauVigilance.class);
+        for (ResultatVigilance resultat : resultats) {
+            parNiveau.merge(resultat.niveau(), 1L, Long::sum);
+        }
+        assertThat(parNiveau).containsExactly(
+                Map.entry(NiveauVigilance.FAIBLE, 55L),
+                Map.entry(NiveauVigilance.MODEREE, 35L),
+                Map.entry(NiveauVigilance.ELEVEE, 10L));
     }
 
     // --- echantillon ---------------------------------------------------------
@@ -564,6 +645,14 @@ class DatasetExcelComparaisonTest {
 
     private static String ouiNon(boolean valeur) {
         return valeur ? "Oui" : "Non";
+    }
+
+    /** Oui / Non saisi dans le classeur, null pour toute autre valeur (inconnu). */
+    private static Boolean drapeau(String valeur) {
+        if ("oui".equals(normaliser(valeur))) {
+            return true;
+        }
+        return "non".equals(normaliser(valeur)) ? false : null;
     }
 
     private static String libelleClasseur(NiveauReadiness readiness) {

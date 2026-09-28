@@ -25,6 +25,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,6 +57,7 @@ class VigilanceServiceTest {
     private PotentielRepository potentielRepository;
 
     private VigilanceService vigilanceService;
+    private FaitsVigilanceEnMemoire faits;
 
     private Trimestre trimestre;
     private Trimestre trimestrePrecedent;
@@ -65,8 +67,9 @@ class VigilanceServiceTest {
     void init() {
         CalculService calculService = new CalculService(
                 parametreRepository, performanceRepository, potentielRepository);
+        faits = new FaitsVigilanceEnMemoire();
         vigilanceService = new VigilanceService(scoreRepository, questionnaireRepository,
-                trimestreRepository, calculService);
+                trimestreRepository, calculService, faits);
 
         trimestre = trimestre(2, 2026);
         trimestrePrecedent = trimestre(1, 2026);
@@ -340,6 +343,130 @@ class VigilanceServiceTest {
         assertThat(signal.getLibelle()).isNotBlank();
     }
 
+    // --- faits importes --------------------------------------------------------
+
+    @ParameterizedTest
+    @EnumSource(value = SignalVigilance.class, names = {"SANS_MOBILITE_4_ANS", "MOBILITE_NON_TRAITEE",
+            "SANS_DEVELOPPEMENT_RECENT", "FAIBLE_RECONNAISSANCE", "FORMATION_NON_FAITE"})
+    void chaque_fait_importe_a_oui_leve_son_signal(SignalVigilance signal) {
+        FaitsVigilance declares = FaitsVigilance.builder().declarer(signal, true).build();
+
+        assertThat(vigilanceService.detecterSignaux(null, null, null, declares, parametre.getSeuilsVigilance()))
+                .containsExactly(signal);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SignalVigilance.class, names = "ENGAGEMENT_FAIBLE", mode = EnumSource.Mode.EXCLUDE)
+    void un_fait_importe_a_non_ou_inconnu_ne_leve_rien(SignalVigilance signal) {
+        FaitsVigilance aNon = FaitsVigilance.builder().declarer(signal, false).build();
+        FaitsVigilance inconnu = FaitsVigilance.builder().declarer(signal, null).build();
+
+        assertThat(vigilanceService.detecterSignaux(null, null, null, aNon, parametre.getSeuilsVigilance()))
+                .isEmpty();
+        assertThat(vigilanceService.detecterSignaux(null, null, null, inconnu, parametre.getSeuilsVigilance()))
+                .isEmpty();
+    }
+
+    @Test
+    void des_faits_absents_valent_aucun_fait() {
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+
+        assertThat(vigilanceService.detecterSignaux(score(employe, trimestre, "70.00"), null,
+                null, null, parametre.getSeuilsVigilance())).isEmpty();
+    }
+
+    @Test
+    void sans_score_precedent_la_baisse_importee_decide() {
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        FaitsVigilance baisse = FaitsVigilance.builder().baissePerformance(true).build();
+
+        assertThat(vigilanceService.detecterSignaux(score(employe, trimestre, "70.00"), null,
+                null, baisse, parametre.getSeuilsVigilance()))
+                .containsExactly(SignalVigilance.BAISSE_PERFORMANCE);
+        // Un score precedent sans performance ne permet pas non plus de mesurer.
+        assertThat(vigilanceService.detecterSignaux(score(employe, trimestre, "70.00"),
+                score(employe, trimestrePrecedent, null), null, baisse, parametre.getSeuilsVigilance()))
+                .containsExactly(SignalVigilance.BAISSE_PERFORMANCE);
+    }
+
+    @Test
+    void avec_un_score_precedent_l_historique_prime_sur_la_baisse_importee() {
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+
+        assertThat(vigilanceService.detecterSignaux(
+                score(employe, trimestre, "70.00"), score(employe, trimestrePrecedent, "70.00"), null,
+                FaitsVigilance.builder().baissePerformance(true).build(), parametre.getSeuilsVigilance()))
+                .isEmpty();
+        assertThat(vigilanceService.detecterSignaux(
+                score(employe, trimestre, "60.00"), score(employe, trimestrePrecedent, "70.00"), null,
+                FaitsVigilance.builder().baissePerformance(false).build(), parametre.getSeuilsVigilance()))
+                .containsExactly(SignalVigilance.BAISSE_PERFORMANCE);
+    }
+
+    @Test
+    void les_faits_importes_permettent_d_atteindre_le_niveau_eleve() {
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        faits.declarer("E001", FaitsVigilance.builder()
+                .sansMobilite4Ans(true).mobiliteNonTraitee(true)
+                .sansDeveloppementRecent(true).faibleReconnaissance(true).build());
+
+        when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
+        when(trimestreRepository.findPrecedents(eq(2026), eq(2), any())).thenReturn(List.of());
+
+        ResultatVigilance resultat = vigilanceService.evaluer(employe, trimestre);
+
+        // 20 + 15 + 15 + 10 = 60 : au seuil eleve.
+        assertThat(resultat.indice()).isEqualByComparingTo("60.00");
+        assertThat(resultat.niveau()).isEqualTo(NiveauVigilance.ELEVEE);
+    }
+
+    @Test
+    void le_lot_applique_a_chaque_employe_ses_propres_faits() {
+        Employe declare = employe("E001", StatutEmploye.ACTIF);
+        Employe inconnu = employe("E002", StatutEmploye.ACTIF);
+        faits.declarer("E001", FaitsVigilance.builder().formationNonFaite(true).baissePerformance(true).build());
+
+        preparerLotSansPrecedent(List.of(score(inconnu, trimestre, "70.00"), score(declare, trimestre, "70.00")));
+
+        List<ResultatVigilance> lot = vigilanceService.evaluerTrimestre(trimestre);
+
+        assertThat(lot.get(0).employe().getEmployeeId()).isEqualTo("E001");
+        assertThat(lot.get(0).signaux()).containsExactlyInAnyOrder(
+                SignalVigilance.FORMATION_NON_FAITE, SignalVigilance.BAISSE_PERFORMANCE);
+        assertThat(lot.get(0).indice()).isEqualByComparingTo("15.00");
+        assertThat(lot.get(1).signaux()).isEmpty();
+    }
+
+    @Test
+    void sans_source_declaree_les_faits_importes_ne_levent_rien() {
+        VigilanceService sansSource = new VigilanceService(scoreRepository, questionnaireRepository,
+                trimestreRepository, new CalculService(parametreRepository, performanceRepository, potentielRepository),
+                new DefaultListableBeanFactory().getBeanProvider(FaitsVigilanceSource.class));
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+
+        preparerLotSansPrecedent(List.of(score(employe, trimestre, "70.00")));
+
+        assertThat(sansSource.evaluerTrimestre(trimestre).get(0).signaux()).isEmpty();
+    }
+
+    @Test
+    void une_source_qui_rend_null_vaut_aucun_fait() {
+        VigilanceService sourceMuette = new VigilanceService(scoreRepository, questionnaireRepository,
+                trimestreRepository, new CalculService(parametreRepository, performanceRepository, potentielRepository),
+                trimestreDemande -> null);
+        Employe employe = employe("E001", StatutEmploye.ACTIF);
+
+        preparerLotSansPrecedent(List.of(score(employe, trimestre, "70.00")));
+
+        assertThat(sourceMuette.evaluerTrimestre(trimestre).get(0).signaux()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(SignalVigilance.class)
+    void chaque_signal_a_desormais_une_source(SignalVigilance signal) {
+        assertThat(signal.estDetectable()).isTrue();
+    }
+
     // --- evaluation ----------------------------------------------------------
 
     @Test
@@ -383,11 +510,10 @@ class VigilanceServiceTest {
     }
 
     @Test
-    void les_signaux_non_detectables_peuvent_etre_fournis_a_la_main() {
+    void des_signaux_peuvent_etre_fournis_a_la_main() {
         Employe employe = employe("E001", StatutEmploye.ACTIF);
 
-        // 25 + 20 + 15 = 60 : le niveau ELEVEE n'est atteignable qu'ainsi
-        // tant que mobilite et developpement ne sont pas modelises.
+        // 25 + 20 + 15 = 60 : au seuil eleve.
         ResultatVigilance resultat = vigilanceService.evaluer(employe,
                 EnumSet.of(SignalVigilance.ENGAGEMENT_FAIBLE,
                         SignalVigilance.SANS_MOBILITE_4_ANS,
@@ -398,14 +524,15 @@ class VigilanceServiceTest {
     }
 
     @Test
-    void la_detection_automatique_seule_ne_peut_pas_atteindre_le_niveau_eleve() {
+    void sans_faits_importes_la_detection_plafonne_a_l_engagement_et_la_baisse() {
         Employe employe = employe("E001", StatutEmploye.ACTIF);
 
-        // Les deux seuls signaux detectables valent 25 + 10 = 35, sous le seuil de 60.
-        Set<SignalVigilance> detectables = EnumSet.of(
-                SignalVigilance.ENGAGEMENT_FAIBLE, SignalVigilance.BAISSE_PERFORMANCE);
+        // Engagement et baisse mesuree valent 25 + 10 = 35, sous le seuil de 60.
+        Set<SignalVigilance> signaux = vigilanceService.detecterSignaux(
+                score(employe, trimestre, "60.00"), score(employe, trimestrePrecedent, "70.00"),
+                engagement(employe, "10.00"), parametre.getSeuilsVigilance());
 
-        ResultatVigilance resultat = vigilanceService.evaluer(employe, detectables, parametre);
+        ResultatVigilance resultat = vigilanceService.evaluer(employe, signaux, parametre);
 
         assertThat(resultat.indice()).isEqualByComparingTo("35.00");
         assertThat(resultat.niveau()).isEqualTo(NiveauVigilance.MODEREE);
@@ -545,7 +672,7 @@ class VigilanceServiceTest {
         assertThat(vigilanceService.evaluerTrimestre(trimestre, NiveauVigilance.MODEREE))
                 .extracting(resultat -> resultat.employe().getEmployeeId())
                 .containsExactly("E001");
-        // Plafond de la detection automatique : ELEVEE reste hors d'atteinte.
+        // Sans faits importes, ELEVEE reste hors d'atteinte.
         assertThat(vigilanceService.evaluerTrimestre(trimestre, NiveauVigilance.ELEVEE)).isEmpty();
     }
 

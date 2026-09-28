@@ -10,10 +10,9 @@ import java.util.function.Function;
  * {@link PointsVigilance} : l'indice de vigilance est la somme des points des
  * signaux declenches, aucun bareme n'est ecrit dans le service.
  *
- * <p>{@link #estDetectable()} distingue les signaux que le modele de donnees
- * sait aujourd'hui reconnaitre de ceux qui attendent leur source : ces
- * derniers restent dans le bareme et peuvent etre fournis a la main, mais
- * aucune detection automatique ne les leve.
+ * <p>{@link #estDetectable()} dit si le moteur sait lever le signal a partir
+ * des donnees : l'engagement et la baisse de performance par le calcul, les
+ * cinq autres par les faits importes (FaitsVigilanceSource).
  */
 public enum SignalVigilance {
 
@@ -21,22 +20,22 @@ public enum SignalVigilance {
             PointsVigilance::getPointEngagementFaible, true),
 
     SANS_MOBILITE_4_ANS("Aucun mouvement depuis 4 ans",
-            PointsVigilance::getPointSansMobilite4Ans, false),
+            PointsVigilance::getPointSansMobilite4Ans, true),
 
     MOBILITE_NON_TRAITEE("Souhait de mobilite non traite",
-            PointsVigilance::getPointMobiliteNonTraitee, false),
+            PointsVigilance::getPointMobiliteNonTraitee, true),
 
     SANS_DEVELOPPEMENT_RECENT("Aucune action de developpement recente",
-            PointsVigilance::getPointSansDeveloppementRecent, false),
+            PointsVigilance::getPointSansDeveloppementRecent, true),
 
     BAISSE_PERFORMANCE("Baisse de performance",
             PointsVigilance::getPointBaissePerformance, true),
 
     FAIBLE_RECONNAISSANCE("Faible reconnaissance",
-            PointsVigilance::getPointFaibleReconnaissance, false),
+            PointsVigilance::getPointFaibleReconnaissance, true),
 
     FORMATION_NON_FAITE("Formation prevue non realisee",
-            PointsVigilance::getPointFormationNonFaite, false);
+            PointsVigilance::getPointFormationNonFaite, true);
 
     private final String libelle;
     private final Function<PointsVigilance, BigDecimal> lecteurPoints;
@@ -55,9 +54,9 @@ public enum SignalVigilance {
     }
 
     /**
-     * Vrai si le modele de donnees permet de lever ce signal automatiquement.
-     * Faux tant que la source n'existe pas : mobilite, plan de developpement,
-     * reconnaissance et formations ne sont pas encore modelises.
+     * Vrai si le moteur peut lever ce signal a partir des donnees, sans saisie
+     * a la main. Vrai pour les sept depuis l'ajout des faits importes ; garde
+     * pour le contrat de l'API et pour un futur signal sans source.
      */
     public boolean estDetectable() {
         return detectable;
