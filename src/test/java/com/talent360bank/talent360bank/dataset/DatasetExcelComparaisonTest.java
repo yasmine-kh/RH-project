@@ -40,6 +40,7 @@ import com.talent360bank.talent360bank.service.ViviersThematiquesEnMemoire;
 import com.talent360bank.talent360bank.service.enums.NiveauCouverture;
 import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
 import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
+import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
 import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.enums.VivierThematique;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
@@ -177,6 +178,29 @@ class DatasetExcelComparaisonTest {
         }
         verifier(ecarts);
         assertThat(parEmploye("02_PERFORMANCE")).hasSize(100);
+    }
+
+    /**
+     * Statut de gap (06_EMPLOYEE_SKILLS H) sur toutes les lignes : niveaux
+     * actuel et cible en E et F, seuil de Prioritaire de 00_PARAMETRES
+     * ligne 77 (2 par defaut).
+     */
+    @Test
+    void le_statut_de_gap_de_chaque_competence_est_celui_du_classeur() {
+        List<Ecart> ecarts = new ArrayList<>();
+        int lignes = 0;
+        for (Map<String, String> ligne : classeur.feuille("06_EMPLOYEE_SKILLS").values()) {
+            if (!ligne.getOrDefault("B", "").matches("BP\\d+")) {
+                continue;
+            }
+            lignes++;
+            StatutGapCompetence statut = calculService.statutGap(entier(ligne.get("E")), entier(ligne.get("F")),
+                    parametre.getSeuilsGapCompetence());
+            comparerLibelle(ecarts, ligne.get("A"), "06_EMPLOYEE_SKILLS.Statut Gap",
+                    ligne.get("H"), statut == null ? null : statut.getLibelle());
+        }
+        verifier(ecarts);
+        assertThat(lignes).isEqualTo(2500);
     }
 
     /**

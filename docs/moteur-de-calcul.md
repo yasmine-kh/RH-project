@@ -211,6 +211,17 @@ Les poids doivent totaliser 100. Un critère non évaluable (par exemple une dat
 - Dépasser le niveau exigé ne rapporte pas de bonus.
 - Le critère est la moyenne sur les compétences exigées.
 
+**Statut du gap de compétence.** Pour chaque compétence d'un collaborateur, gap = niveau cible − niveau actuel, et :
+
+| Gap | Statut |
+|---|---|
+| 0 ou moins | Maîtrise |
+| 1 | À développer, quel que soit le seuil |
+| au moins le seuil « Prioritaire » (2 par défaut) | Prioritaire |
+| de 2 au seuil moins 1 (si le seuil est relevé à 3 ou 4) | À développer |
+
+Le seuil est réglable de 2 à 4 : un gap de 1 est toujours « À développer » dans le classeur, et les niveaux allant de 1 à 5, un gap ne dépasse pas 4. Le statut est calculé à la consultation, avec le seuil du trimestre demandé ; le statut éventuellement présent dans l'import n'est pas repris. Sur le jeu de données : 1 067 Maîtrise, 1 292 À développer, 141 Prioritaire, identiques aux 2 500 lignes du classeur.
+
 **Critère expérience.** L'ancienneté est comptée en années décimales, arrondies au dixième, à la date du calcul.
 
 **Readiness.**
@@ -225,16 +236,17 @@ Les poids doivent totaliser 100. Un critère non évaluable (par exemple une dat
 **Source dans le classeur.**
 - Critères, score et readiness : `09_SUCCESSION`, colonnes E à J (critères), K (Score Matching), L (Readiness).
 - Postes et compétences exigées : `07_POSTES`.
-- Niveaux des collaborateurs : `06_EMPLOYEE_SKILLS` (niveau actuel en colonne E).
-- Barèmes : `00_PARAMETRES`, sections 6, 7 et 10.
+- Niveaux des collaborateurs : `06_EMPLOYEE_SKILLS` (niveau actuel en colonne E, cible en F, statut du gap en H).
+- Barèmes : `00_PARAMETRES`, sections 6, 7 et 10 (ligne 77 pour le seuil « Prioritaire »).
 
-**Service et points d'accès.** `SuccessionService`.
+**Service et points d'accès.** `SuccessionService` pour le matching, `CompetenceEmployeService` pour le statut du gap.
 - `GET /api/postes/{poste}/candidats?annee=…&numero=…` : classement des candidats (paramètre facultatif `limite`).
 - `GET /api/postes/{poste}/candidats/{matricule}?annee=…&numero=…` : matching d'un candidat, avec le détail des six critères.
+- `GET /api/employes/{matricule}/competences?annee=…&numero=…` : compétences d'un collaborateur (niveau actuel, cible, gap et statut). Le trimestre choisit le seuil ; sans année ni numéro, c'est le plus récent.
 
 **Données attendues de l'import.**
 - **Postes :** jusqu'à cinq compétences exigées avec leur niveau, et le titulaire.
-- **Compétences des collaborateurs :** niveau actuel de chaque compétence.
+- **Compétences des collaborateurs :** niveau actuel et niveau cible de chaque compétence.
 - **Collaborateurs :** date d'entrée.
 - **Scores :** les notes de potentiel déjà importées.
 
@@ -406,7 +418,7 @@ Les réglages d'un trimestre se consultent, se créent et se modifient par :
 
 Toute modification incohérente est refusée avec un message explicite. Par exemple : des poids qui ne totalisent pas 100, ou un seuil élevé inférieur au seuil moyen.
 
-Trois blocs sont facultatifs dans une modification : le seuil de couverture, les seuils 9-Box de l'axe potentiel et les seuils des catégories de performance. Absents, ils gardent leur valeur. Ainsi, un écran qui n'envoie que les seuils 9-Box « historiques » ne modifie que l'axe performance ; l'axe potentiel garde les siens.
+Quatre blocs sont facultatifs dans une modification : le seuil de couverture, les seuils 9-Box de l'axe potentiel, les seuils des catégories de performance et le seuil du gap de compétence. Absents, ils gardent leur valeur. Ainsi, un écran qui n'envoie que les seuils 9-Box « historiques » ne modifie que l'axe performance ; l'axe potentiel garde les siens.
 
 | Bloc | Réglage | Défaut | Règle de validation | Module | Classeur (`00_PARAMETRES`) |
 |---|---|---|---|---|---|
@@ -444,6 +456,7 @@ Trois blocs sont facultatifs dans une modification : le seuil de couverture, les
 | | Plafond | 100 | 0 à 100 | | |
 | Barème compétences | Points retirés par niveau manquant | 20 | 0 à 100 | Succession | Feuille `09_SUCCESSION` |
 | | Niveau supposé d'une compétence absente | 3 | 0 à 5 | | |
+| Gap de compétence (facultatif) | Seuil « Prioritaire » (gap ≥) | 2 | 2 à 4 | Statut du gap de compétence | Section 10, ligne 77 |
 | Seuils readiness | Ready Now | 90 | Strictement décroissants | Succession, Postes critiques | Section 7 |
 | | Ready < 1 an | 80 | | | |
 | | Ready 1-2 ans | 65 | | | |
@@ -458,13 +471,10 @@ Trois blocs sont facultatifs dans une modification : le seuil de couverture, les
 | Seuils vigilance | Seuil modéré | 30 | Élevé supérieur au modéré, et au plus égal au total des points | Vigilance | Section 9 |
 | | Seuil élevé | 60 | | | |
 | | Seuil d'engagement faible | 60 | | Vigilance | Section 8, ligne 60 |
-| Poids des sources | Auto-évaluation | 25 | 0 à 100 ; total du bloc = 100 | Aucun pour l'instant | Absent du classeur |
-| | Évaluation manager | 25 | | | |
-| | Compétences | 25 | | | |
-| | Questionnaire d'engagement | 25 | | | |
+Tous les paramètres de `00_PARAMETRES` sont désormais couverts, lignes 6 à 77.
 
-**Note sur les poids des sources.** Ce bloc est prévu pour consolider plusieurs sources d'évaluation en un score unique. Ses valeurs, réparties à parts égales, sont à arbitrer avec les RH, et aucun module ne les utilise encore.
+**Note sur les sources d'évaluation.** Le jeu de données porte une seule série de notes par collaborateur et par trimestre (`02_PERFORMANCE` et `03_POTENTIEL`), sans auto-évaluation ni évaluation manager distinctes. Aucune pondération par source ne s'applique donc, et le classeur n'en prévoit pas. L'ancien bloc « Poids des sources », qui n'avait aucun effet, a été retiré ; une modification qui l'envoie encore est acceptée et le bloc ignoré. S'il fallait un jour consolider plusieurs sources (360°), il faudrait d'abord les données par source et une règle de combinaison validée par les RH.
 
-**Note sur les trimestres existants.** Lors de la mise à jour, les seuils de l'axe potentiel d'un trimestre déjà configuré sont repris de ses seuils de performance, et non des valeurs par défaut : aucun collaborateur ne change de case. Les seuils des catégories de performance reçoivent les valeurs du classeur.
+**Note sur les trimestres existants.** Lors de la mise à jour, les seuils de l'axe potentiel d'un trimestre déjà configuré sont repris de ses seuils de performance, et non des valeurs par défaut : aucun collaborateur ne change de case. Les seuils des catégories de performance et le seuil du gap de compétence reçoivent les valeurs du classeur. Les anciennes colonnes des poids des sources restent en base mais deviennent facultatives au démarrage : rien n'est supprimé, et les nouveaux trimestres s'enregistrent normalement.
 
 **Note sur la feuille `00_PARAMETRES`.** Les réglages ne sont pas encore lus depuis le classeur : un nouveau trimestre reçoit les valeurs par défaut ci-dessus, identiques à celles du classeur, puis se modifie dans l'application.

@@ -29,7 +29,7 @@ class ParametreInitializerJpaTest {
             "exp_points_par_annee", "exp_plafond", "comp_points_par_niveau_manquant", "comp_niveau_par_defaut",
             "seuil_hp_pot", "seuil_hp_perf", "couv_nb_min_successeurs",
             "cat_perf_exceptionnelle", "cat_perf_elevee", "cat_perf_solide", "cat_perf_a_renforcer",
-            "seuil_box_pot_eleve", "seuil_box_pot_moyen");
+            "seuil_box_pot_eleve", "seuil_box_pot_moyen", "comp_seuil_gap_prioritaire");
 
     /** Un trimestre distinct par ligne creee, voir {@link #ligneExistante}. */
     private static final AtomicInteger ANNEES = new AtomicInteger(2026);
@@ -65,6 +65,7 @@ class ParametreInitializerJpaTest {
         assertThat(defauts.get("cat_perf_elevee")).isEqualByComparingTo("80");
         assertThat(defauts.get("cat_perf_solide")).isEqualByComparingTo("70");
         assertThat(defauts.get("cat_perf_a_renforcer")).isEqualByComparingTo("60");
+        assertThat(defauts.get("comp_seuil_gap_prioritaire")).isEqualByComparingTo("2");
         // Sans defaut en base : repris de l'axe performance de chaque ligne.
         assertThat(defauts).doesNotContainKeys("seuil_box_pot_eleve", "seuil_box_pot_moyen");
     }
@@ -82,6 +83,18 @@ class ParametreInitializerJpaTest {
         assertThat(complete.getSeuilsNeufBoxPotentiel().getSeuilEleve()).isEqualByComparingTo("80");
         assertThat(complete.getSeuilsNeufBoxPotentiel().getSeuilMoyen()).isEqualByComparingTo("65");
         assertThat(complete.getSeuilsNeufBox().getSeuilEleve()).isEqualByComparingTo("80");
+    }
+
+    @Test
+    void uneLigneAnterieureAuSeuilDeGapEstCompletee() {
+        Integer id = ligneExistante("comp_seuil_gap_prioritaire = NULL");
+
+        // Seule colonne du bloc a NULL : Hibernate rend le bloc a null.
+        assertThat(relire(id).getSeuilsGapCompetence()).isNull();
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        assertThat(relire(id).getSeuilsGapCompetence().getSeuilPrioritaire()).isEqualTo(2);
     }
 
     @Test

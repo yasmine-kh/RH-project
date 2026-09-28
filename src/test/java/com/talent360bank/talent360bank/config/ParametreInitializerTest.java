@@ -160,6 +160,30 @@ class ParametreInitializerTest {
     }
 
     @Test
+    void unSeuilDeGapAbsentRecoitLaValeurDuClasseur() {
+        Parametre ancien = Parametre.parDefaut(trimestre);
+        ancien.setSeuilsGapCompetence(null);
+        when(parametreRepository.findAll()).thenReturn(List.of(ancien));
+
+        initializer.run(null);
+
+        verify(parametreRepository).save(ancien);
+        assertThat(ancien.getSeuilsGapCompetence().getSeuilPrioritaire()).isEqualTo(2);
+    }
+
+    @Test
+    void unSeuilDeGapSaisiNestPasEcrase() {
+        Parametre regle = Parametre.parDefaut(trimestre);
+        regle.getSeuilsGapCompetence().setSeuilPrioritaire(3);
+        when(parametreRepository.findAll()).thenReturn(List.of(regle));
+
+        initializer.run(null);
+
+        verify(parametreRepository, never()).save(any());
+        assertThat(regle.getSeuilsGapCompetence().getSeuilPrioritaire()).isEqualTo(3);
+    }
+
+    @Test
     void unSeuilDeCouvertureSaisiNestPasEcrase() {
         Parametre regle = Parametre.parDefaut(trimestre);
         regle.getSeuilsCouverture().setNbMinSuccesseurs(2);

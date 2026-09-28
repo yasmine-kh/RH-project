@@ -8,6 +8,8 @@ import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -53,16 +55,16 @@ class ParametreControllerTest {
 
     private ParametreForm formDepuis(Parametre source) {
         return new ParametreForm("Reglages revus",
-                source.getPoidsSources(), source.getPoidsPerformance(), source.getPoidsPotentiel(),
+                source.getPoidsPerformance(), source.getPoidsPotentiel(),
                 source.getPoidsSuccession(), source.getBaremeExperience(), source.getBaremeCompetences(),
                 source.getSeuilsNeufBox(), source.getSeuilsNeufBoxPotentiel(),
-                source.getSeuilsCategoriePerformance(),
+                source.getSeuilsCategoriePerformance(), source.getSeuilsGapCompetence(),
                 source.getSeuilsReadiness(), source.getSeuilsCouverture(),
                 source.getSeuilsTalent(), source.getPointsVigilance(), source.getSeuilsVigilance());
     }
 
     @Test
-    void la_lecture_aplatit_le_trimestre_et_rend_les_douze_blocs() throws Exception {
+    void la_lecture_aplatit_le_trimestre_et_rend_tous_les_blocs() throws Exception {
         when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
 
         mockMvc.perform(get("/api/trimestres/2026/1/parametre"))
@@ -84,7 +86,9 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.seuilsNeufBoxPotentiel.seuilEleve").value(85))
                 .andExpect(jsonPath("$.seuilsNeufBoxPotentiel.seuilMoyen").value(70))
                 .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilExceptionnelle").value(90))
-                .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilARenforcer").value(60));
+                .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilARenforcer").value(60))
+                .andExpect(jsonPath("$.seuilsGapCompetence.seuilPrioritaire").value(2))
+                .andExpect(jsonPath("$.poidsSources").doesNotExist());
     }
 
     @Test
@@ -120,7 +124,7 @@ class ParametreControllerTest {
     }
 
     @Test
-    void la_mise_a_jour_remplace_les_douze_blocs() throws Exception {
+    void la_mise_a_jour_remplace_les_blocs() throws Exception {
         when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
         when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
 
@@ -311,5 +315,70 @@ class ParametreControllerTest {
                         .content("{ceci n'est pas du json"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erreur").value("requete_mal_formee"));
+    }
+
+    @Test
+    void un_corps_qui_envoie_encore_les_poids_des_sources_est_accepte_et_ignore() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        // Corps d'un client anterieur au retrait du bloc.
+        ObjectNode corps = objectMapper.valueToTree(formDepuis(Parametre.parDefaut(trimestre)));
+        corps.putObject("poidsSources")
+                .put("poidsAutoEvaluation", 25).put("poidsManager", 25)
+                .put("poidsCompetences", 25).put("poidsEngagement", 25);
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corps.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.poidsSources").doesNotExist());
+    }
+
+    @Test
+    void sans_seuil_de_gap_la_valeur_en_place_est_conservee() throws Exception {
+        parametre.getSeuilsGapCompetence().setSeuilPrioritaire(3);
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        ObjectNode corps = objectMapper.valueToTree(formDepuis(Parametre.parDefaut(trimestre)));
+        corps.remove("seuilsGapCompetence");
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corps.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seuilsGapCompetence.seuilPrioritaire").value(3));
+    }
+
+    @Test
+    void un_seuil_de_gap_fourni_remplace_la_valeur_en_place() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        Parametre voulu = Parametre.parDefaut(trimestre);
+        voulu.getSeuilsGapCompetence().setSeuilPrioritaire(4);
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(voulu))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seuilsGapCompetence.seuilPrioritaire").value(4));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 5})
+    void un_seuil_de_gap_hors_de_2_a_4_rend_400(int seuil) throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+
+        Parametre casse = Parametre.parDefaut(trimestre);
+        casse.getSeuilsGapCompetence().setSeuilPrioritaire(seuil);
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(casse))))
+                .andExpect(status().isBadRequest());
+
+        verify(parametreRepository, never()).save(any());
     }
 }

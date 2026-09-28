@@ -5,11 +5,11 @@ import com.talent360bank.talent360bank.entity.BaremeExperience;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.PoidsPerformance;
 import com.talent360bank.talent360bank.entity.PoidsPotentiel;
-import com.talent360bank.talent360bank.entity.PoidsSources;
 import com.talent360bank.talent360bank.entity.PoidsSuccession;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
 import com.talent360bank.talent360bank.entity.SeuilsCategoriePerformance;
 import com.talent360bank.talent360bank.entity.SeuilsCouverture;
+import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
 import com.talent360bank.talent360bank.entity.SeuilsNeufBox;
 import com.talent360bank.talent360bank.entity.SeuilsReadiness;
 import com.talent360bank.talent360bank.entity.SeuilsTalent;
@@ -20,7 +20,6 @@ import com.talent360bank.talent360bank.entity.SeuilsVigilance;
  * relation etant LAZY, serialiser l'entite echouerait hors transaction.
  */
 public record ParametreResponse(Integer idParametre, Integer annee, Integer numero, String libelle,
-                                PoidsSources poidsSources,
                                 PoidsPerformance poidsPerformance,
                                 PoidsPotentiel poidsPotentiel,
                                 PoidsSuccession poidsSuccession,
@@ -29,6 +28,7 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                                 SeuilsNeufBox seuilsNeufBox,
                                 SeuilsNeufBox seuilsNeufBoxPotentiel,
                                 SeuilsCategoriePerformance seuilsCategoriePerformance,
+                                SeuilsGapCompetence seuilsGapCompetence,
                                 SeuilsReadiness seuilsReadiness,
                                 SeuilsCouverture seuilsCouverture,
                                 SeuilsTalent seuilsTalent,
@@ -41,7 +41,6 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                 parametre.getTrimestre().getAnnee(),
                 parametre.getTrimestre().getNumero(),
                 parametre.getLibelle(),
-                parametre.getPoidsSources(),
                 parametre.getPoidsPerformance(),
                 parametre.getPoidsPotentiel(),
                 parametre.getPoidsSuccession(),
@@ -50,6 +49,7 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                 parametre.getSeuilsNeufBox(),
                 parametre.getSeuilsNeufBoxPotentiel(),
                 parametre.getSeuilsCategoriePerformance(),
+                parametre.getSeuilsGapCompetence(),
                 parametre.getSeuilsReadiness(),
                 parametre.getSeuilsCouverture(),
                 parametre.getSeuilsTalent(),

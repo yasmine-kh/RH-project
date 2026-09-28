@@ -331,10 +331,10 @@ class ApiIntegrationTest {
         voulu.getSeuilsTalent().setSeuilPerformance(new BigDecimal("80"));
 
         ParametreForm form = new ParametreForm("Revu au comite",
-                voulu.getPoidsSources(), voulu.getPoidsPerformance(), voulu.getPoidsPotentiel(),
+                voulu.getPoidsPerformance(), voulu.getPoidsPotentiel(),
                 voulu.getPoidsSuccession(), voulu.getBaremeExperience(), voulu.getBaremeCompetences(),
                 voulu.getSeuilsNeufBox(), voulu.getSeuilsNeufBoxPotentiel(),
-                voulu.getSeuilsCategoriePerformance(),
+                voulu.getSeuilsCategoriePerformance(), voulu.getSeuilsGapCompetence(),
                 voulu.getSeuilsReadiness(), voulu.getSeuilsCouverture(),
                 voulu.getSeuilsTalent(), voulu.getPointsVigilance(), voulu.getSeuilsVigilance());
 

@@ -73,8 +73,8 @@ public class ParametreController {
     }
 
     /**
-     * Remplace les douze blocs de reglages du trimestre. Seul le seuil de
-     * couverture est facultatif : absent du corps, il garde sa valeur.
+     * Remplace les blocs de reglages du trimestre. Les blocs facultatifs
+     * (voir {@link ParametreForm}) absents du corps gardent leur valeur.
      *
      * <p>Les blocs sont valides un a un par @Valid, mais les regles qui
      * croisent plusieurs blocs vivent sur Parametre : elles ne peuvent etre

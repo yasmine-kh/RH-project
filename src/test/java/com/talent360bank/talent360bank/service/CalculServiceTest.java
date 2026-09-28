@@ -5,6 +5,8 @@ import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Potentiel;
+import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
+import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -116,6 +118,37 @@ class CalculServiceTest {
 
         assertThat(calculService.categoriePerformance(new BigDecimal("92"),
                 parametre.getSeuilsCategoriePerformance())).isEqualTo(CategoriePerformance.ELEVEE);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            // actuel, cible, seuil, statut attendu
+            "5, 3, 2, MAITRISE",       // gap negatif
+            "3, 3, 2, MAITRISE",       // gap nul
+            "2, 3, 2, A_DEVELOPPER",   // gap 1
+            "2, 3, 4, A_DEVELOPPER",
+            "1, 3, 2, PRIORITAIRE",    // gap 2 au seuil par defaut
+            "1, 3, 3, A_DEVELOPPER",   // gap 2 sous un seuil de 3
+            "1, 4, 3, PRIORITAIRE",    // gap 3 au seuil
+            "1, 4, 4, A_DEVELOPPER",
+            "1, 5, 4, PRIORITAIRE"     // gap 4, le maximum
+    })
+    void leStatutDeGapSuitLaFormuleDuClasseur(int actuel, int cible, int seuil, StatutGapCompetence attendu) {
+        assertThat(calculService.statutGap(actuel, cible, new SeuilsGapCompetence(seuil))).isEqualTo(attendu);
+    }
+
+    @Test
+    void unNiveauInconnuDonneUnStatutInconnu() {
+        assertThat(calculService.statutGap(null, 3, parametre.getSeuilsGapCompetence())).isNull();
+        assertThat(calculService.statutGap(2, null, parametre.getSeuilsGapCompetence())).isNull();
+    }
+
+    @Test
+    void leStatutDeGapExigeUnSeuil() {
+        assertThatThrownBy(() -> calculService.statutGap(1, 3, null))
+                .isInstanceOf(DonneesIncompletesException.class);
+        assertThatThrownBy(() -> calculService.statutGap(1, 3, new SeuilsGapCompetence(null)))
+                .isInstanceOf(DonneesIncompletesException.class);
     }
 
     @Test
