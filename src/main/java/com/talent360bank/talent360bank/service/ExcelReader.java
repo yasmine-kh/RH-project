@@ -106,11 +106,10 @@ public class ExcelReader {
     }
 
     /**
-     * @param referentielParNom competences du referentiel indexees par nom : les
+     * @param cheminFichier competences du referentiel indexees par nom : les
      *                          competences requises de 07_POSTES sont des libelles
      */
-    public List<Poste> lirePostes(String cheminFichier, Map<String, Competence> referentielParNom)
-            throws IOException {
+    public List<Poste> lirePostes(String cheminFichier, Map<String, Competence> competencesParNom) throws IOException {
         List<Poste> postes = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(cheminFichier);
              Workbook workbook = WorkbookFactory.create(fis)) {
@@ -130,15 +129,15 @@ public class ExcelReader {
                 p.setDirection(getCellString(row, 2));
                 p.setGradeCible(getCellString(row, 3));
                 p.setCriticite(getCellString(row, 4));
-                p.setCompetenceRequise1(referentielParNom.get(getCellString(row, 5)));
+                p.setCompetenceRequise1(competencesParNom.get(getCellString(row, 5)));
                 p.setNiveau1(getCellInteger(row, 6));
-                p.setCompetenceRequise2(referentielParNom.get(getCellString(row, 7)));
+                p.setCompetenceRequise2(competencesParNom.get(getCellString(row, 7)));
                 p.setNiveau2(getCellInteger(row, 8));
-                p.setCompetenceRequise3(referentielParNom.get(getCellString(row, 9)));
+                p.setCompetenceRequise3(competencesParNom.get(getCellString(row, 9)));
                 p.setNiveau3(getCellInteger(row, 10));
-                p.setCompetenceRequise4(referentielParNom.get(getCellString(row, 11)));
+                p.setCompetenceRequise4(competencesParNom.get(getCellString(row, 11)));
                 p.setNiveau4(getCellInteger(row, 12));
-                p.setCompetenceRequise5(referentielParNom.get(getCellString(row, 13)));
+                p.setCompetenceRequise5(competencesParNom.get(getCellString(row, 13)));
                 p.setNiveau5(getCellInteger(row, 14));
                 p.setPosteCritique(getCellString(row, 15));
                 postes.add(p);

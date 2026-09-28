@@ -25,13 +25,6 @@ public class Poste {
 
     private String criticite;
 
-    /**
-     * Les cinq competences attendues sur le poste referencent le referentiel
-     * (05_REFERENTIEL_COMPETENCES) plutot que de porter un libelle en texte
-     * libre : c'est par cet identifiant que le matching les rapproche des
-     * EmployeeSkill du candidat, qui referencent deja la competence par ID.
-     * Un nom recopie a la main ne se rapprocherait de rien.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "competence_requise_1")
     private Competence competenceRequise1;
@@ -72,11 +65,7 @@ public class Poste {
     public record ExigenceCompetence(Competence competence, Integer niveauRequis) {
     }
 
-    /**
-     * Les cinq colonnes competenceRequiseN / niveauN vues comme une liste, dans
-     * l'ordre du fichier source. Les emplacements vides sont ecartes : un poste
-     * peut n'exiger que deux competences, les trois autres colonnes sont nulles.
-     */
+    /** Les cinq couples competence/niveau vus comme une liste, sans les emplacements vides. */
     @Transient
     public List<ExigenceCompetence> getExigencesCompetences() {
         Competence[] competences = {competenceRequise1, competenceRequise2, competenceRequise3,

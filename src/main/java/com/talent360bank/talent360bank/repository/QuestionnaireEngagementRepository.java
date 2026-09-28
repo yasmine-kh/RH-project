@@ -14,7 +14,6 @@ public interface QuestionnaireEngagementRepository extends JpaRepository<Questio
 
     Optional<QuestionnaireEngagement> findByEmployeAndTrimestre(Employe employe, Trimestre trimestre);
 
-    @Query("select q from QuestionnaireEngagement q join fetch q.employe "
-            + "where q.trimestre = :trimestre")
+    @Query("select q from QuestionnaireEngagement q join fetch q.employe where q.trimestre = :trimestre")
     List<QuestionnaireEngagement> findByTrimestreAvecEmploye(@Param("trimestre") Trimestre trimestre);
 }
