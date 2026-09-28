@@ -1,27 +1,36 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.controller.dto.ConstitutionVivierResponse;
 import com.talent360bank.talent360bank.controller.dto.MembreVivierReleveResume;
 import com.talent360bank.talent360bank.controller.dto.ScoreResume;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.service.TalentService;
+import com.talent360bank.talent360bank.service.VivierReleveService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
 
-/** Detection des talents et des hauts potentiels, et vivier de releve qui les reunit. */
+/**
+ * Detection des talents et des hauts potentiels, et vivier de releve qui les
+ * reunit : lecture a la demande, ou enregistrement dans AppartenanceVivier.
+ */
 @RestController
 @RequestMapping("/api")
 public class TalentController {
 
     private final TalentService talentService;
+    private final VivierReleveService vivierReleveService;
     private final ChargeurRessources chargeur;
 
-    public TalentController(TalentService talentService, ChargeurRessources chargeur) {
+    public TalentController(TalentService talentService, VivierReleveService vivierReleveService,
+                            ChargeurRessources chargeur) {
         this.talentService = talentService;
+        this.vivierReleveService = vivierReleveService;
         this.chargeur = chargeur;
     }
 
@@ -74,5 +83,16 @@ public class TalentController {
         return talentService.getVivierReleve(trimestre).stream()
                 .map(MembreVivierReleveResume::de)
                 .toList();
+    }
+
+    /**
+     * Enregistre le vivier de releve du trimestre dans AppartenanceVivier.
+     * Rejouable : les lignes du moteur sont remplacees, jamais doublees, et
+     * celles d'un import ou d'une saisie RH ne sont pas touchees.
+     */
+    @PostMapping("/trimestres/{annee}/{numero}/vivier-releve")
+    public ConstitutionVivierResponse enregistrerVivierReleve(@PathVariable int annee, @PathVariable int numero) {
+        Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
+        return ConstitutionVivierResponse.de(vivierReleveService.constituerViviers(trimestre));
     }
 }

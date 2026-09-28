@@ -16,11 +16,13 @@ import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.repository.VivierRepository;
 import com.talent360bank.talent360bank.service.resultat.ResultatConstitutionVivier;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,7 +35,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Constitution du vivier de releve sur une vraie base : idempotence, lignes
- * d'une autre origine et autres trimestres preserves.
+ * d'une autre origine et autres trimestres preserves, unicite de
+ * (employe, vivier, trimestre) garantie par la base.
  */
 @DataJpaTest
 @Import({VivierReleveService.class, TalentService.class, CalculService.class})
@@ -183,6 +186,32 @@ class VivierReleveServiceJpaTest {
         synchroniser();
 
         assertThat(membresMoteur(t3)).containsExactlyInAnyOrder("BP001", "BP002");
+    }
+
+    @Test
+    void la_base_refuse_une_seconde_ligne_pour_le_meme_employe_vivier_et_trimestre() {
+        Vivier releve = service.vivierReleve();
+        appartenance(talent, releve, t3, "IMPORT");
+        synchroniser();
+
+        // Cle IDENTITY : l'insertion part des le save, la violation aussi.
+        assertThatThrownBy(() -> {
+            appartenance(talent, releve, t3, "SAISIE_RH");
+            synchroniser();
+        }).isInstanceOfAny(DataIntegrityViolationException.class, PersistenceException.class);
+    }
+
+    @Test
+    void le_meme_employe_reste_admis_dans_un_autre_vivier_ou_un_autre_trimestre() {
+        Vivier releve = service.vivierReleve();
+        Vivier commercial = vivier("Vivier Commercial");
+        appartenance(talent, releve, t3, "IMPORT");
+        appartenance(talent, commercial, t3, "IMPORT");
+        appartenance(talent, releve, t2, "IMPORT");
+
+        synchroniser();
+
+        assertThat(appartenanceRepository.count()).isEqualTo(3);
     }
 
     // --- outils --------------------------------------------------------------

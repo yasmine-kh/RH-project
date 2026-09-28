@@ -105,7 +105,7 @@ class VigilanceControllerTest {
                 .andExpect(jsonPath("$[0].signaux[0].code").value("ENGAGEMENT_FAIBLE"))
                 .andExpect(jsonPath("$[0].signaux[0].detectable").value(true))
                 .andExpect(jsonPath("$[0].signaux[1].code").value("SANS_MOBILITE_4_ANS"))
-                .andExpect(jsonPath("$[0].signaux[1].detectable").value(false));
+                .andExpect(jsonPath("$[0].signaux[1].detectable").value(true));
     }
 
     @Test

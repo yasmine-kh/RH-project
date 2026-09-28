@@ -1,5 +1,8 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.entity.AppartenanceVivier;
+import com.talent360bank.talent360bank.entity.CategoriePerformance;
+import com.talent360bank.talent360bank.entity.CategoriePotentiel;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.StatutEmploye;
@@ -7,7 +10,9 @@ import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.service.NeufBoxService;
 import com.talent360bank.talent360bank.service.TalentService;
+import com.talent360bank.talent360bank.service.VivierReleveService;
 import com.talent360bank.talent360bank.service.resultat.MembreVivierReleve;
+import com.talent360bank.talent360bank.service.resultat.ResultatConstitutionVivier;
 import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +42,8 @@ class TalentEtNeufBoxControllerTest {
     @MockBean
     private NeufBoxService neufBoxService;
     @MockBean
+    private VivierReleveService vivierReleveService;
+    @MockBean
     private ChargeurRessources chargeur;
 
     private Trimestre trimestre;
@@ -63,6 +70,8 @@ class TalentEtNeufBoxControllerTest {
         score.setScorePerformance(new BigDecimal("92.00"));
         score.setScorePotentiel(new BigDecimal("88.00"));
         score.setPositionBox("Talent cle");
+        score.setCategoriePerformance(CategoriePerformance.EXCEPTIONNELLE);
+        score.setCategoriePotentiel(CategoriePotentiel.ELEVE);
         return score;
     }
 
@@ -75,7 +84,36 @@ class TalentEtNeufBoxControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].employeeId").value("E001"))
                 .andExpect(jsonPath("$[0].scorePerformance").value(92.00))
-                .andExpect(jsonPath("$[0].positionBox").value("Talent cle"));
+                .andExpect(jsonPath("$[0].positionBox").value("Talent cle"))
+                .andExpect(jsonPath("$[0].categoriePerformance").value("Exceptionnelle"))
+                .andExpect(jsonPath("$[0].categoriePotentiel").value("Eleve"));
+    }
+
+    @Test
+    void des_categories_pas_encore_posees_sont_rendues_nulles() throws Exception {
+        Score sansCategorie = score();
+        sansCategorie.setCategoriePerformance(null);
+        sansCategorie.setCategoriePotentiel(null);
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+        when(talentService.detecterTalents(trimestre)).thenReturn(List.of(sansCategorie));
+
+        mockMvc.perform(get("/api/trimestres/2026/1/talents"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoriePerformance").doesNotExist())
+                .andExpect(jsonPath("$[0].categoriePotentiel").doesNotExist());
+    }
+
+    @Test
+    void l_enregistrement_du_vivier_de_releve_rend_le_bilan() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+        when(vivierReleveService.constituerViviers(trimestre)).thenReturn(new ResultatConstitutionVivier(
+                3, List.of(new AppartenanceVivier(), new AppartenanceVivier()), List.of("E009")));
+
+        mockMvc.perform(post("/api/trimestres/2026/1/vivier-releve"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nbRemplaces").value(3))
+                .andExpect(jsonPath("$.nbEcrits").value(2))
+                .andExpect(jsonPath("$.dejaPresents[0]").value("E009"));
     }
 
     @Test

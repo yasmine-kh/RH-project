@@ -23,6 +23,16 @@ public class Score {
     @Column(name = "position_box")
     private String positionBox;
 
+    /** Pose par le recalcul des scores, avec les seuils du trimestre. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "categorie_performance", length = 20)
+    private CategoriePerformance categoriePerformance;
+
+    /** Pose par le placement 9-box : c'est le niveau de l'axe potentiel. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "categorie_potentiel", length = 10)
+    private CategoriePotentiel categoriePotentiel;
+
     @Column(name = "date_calcul")
     private LocalDate dateCalcul;
 
@@ -67,6 +77,22 @@ public class Score {
 
     public void setPositionBox(String positionBox) {
         this.positionBox = positionBox;
+    }
+
+    public CategoriePerformance getCategoriePerformance() {
+        return categoriePerformance;
+    }
+
+    public void setCategoriePerformance(CategoriePerformance categoriePerformance) {
+        this.categoriePerformance = categoriePerformance;
+    }
+
+    public CategoriePotentiel getCategoriePotentiel() {
+        return categoriePotentiel;
+    }
+
+    public void setCategoriePotentiel(CategoriePotentiel categoriePotentiel) {
+        this.categoriePotentiel = categoriePotentiel;
     }
 
     public LocalDate getDateCalcul() {

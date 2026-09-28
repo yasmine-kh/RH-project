@@ -60,10 +60,33 @@ public class Parametre {
     @Embedded
     private BaremeCompetences baremeCompetences;
 
+    /** Axe performance de la matrice 9-box (00_PARAMETRES lignes 24 et 25). */
     @Valid
     @NotNull
     @Embedded
     private SeuilsNeufBox seuilsNeufBox;
+
+    /**
+     * Axe potentiel de la matrice 9-box (00_PARAMETRES lignes 26 et 27). Sans
+     * valeur par defaut en base : une ligne existante recoit les seuils de son
+     * axe performance (voir {@link #completerBlocsAjoutes()}), pour que
+     * l'ajout du bloc ne deplace personne dans la matrice.
+     */
+    @Valid
+    @NotNull
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "seuilEleve",
+                    column = @Column(name = "seuil_box_pot_eleve", precision = 5, scale = 2)),
+            @AttributeOverride(name = "seuilMoyen",
+                    column = @Column(name = "seuil_box_pot_moyen", precision = 5, scale = 2))
+    })
+    private SeuilsNeufBox seuilsNeufBoxPotentiel;
+
+    @Valid
+    @NotNull
+    @Embedded
+    private SeuilsCategoriePerformance seuilsCategoriePerformance;
 
     @Valid
     @NotNull
@@ -120,6 +143,11 @@ public class Parametre {
         parametre.setBaremeCompetences(new BaremeCompetences(new BigDecimal("20"), 3));
         parametre.setSeuilsNeufBox(new SeuilsNeufBox(
                 new BigDecimal("85"), new BigDecimal("70")));
+        parametre.setSeuilsNeufBoxPotentiel(new SeuilsNeufBox(
+                new BigDecimal("85"), new BigDecimal("70")));
+        parametre.setSeuilsCategoriePerformance(new SeuilsCategoriePerformance(
+                new BigDecimal("90"), new BigDecimal("80"),
+                new BigDecimal("70"), new BigDecimal("60")));
         parametre.setSeuilsReadiness(new SeuilsReadiness(
                 new BigDecimal("90"), new BigDecimal("80"), new BigDecimal("65")));
         parametre.setSeuilsCouverture(new SeuilsCouverture(1));
@@ -138,7 +166,9 @@ public class Parametre {
     /**
      * Complete, avec les valeurs de {@link #parDefaut}, les reglages ajoutes
      * apres la mise en service : bareme d'experience, bareme des competences,
-     * seuils de haut potentiel et seuil de couverture des postes critiques.
+     * seuils de haut potentiel, seuil de couverture des postes critiques,
+     * seuils des categories de performance et axe potentiel de la 9-box (ce
+     * dernier repris de l'axe performance de la ligne, pas des defauts).
      *
      * <p>Une ligne creee avant leur ajout a ces colonnes a NULL ; quand toutes
      * les colonnes d'un bloc sont NULL, Hibernate charge le bloc entier a null.
@@ -202,7 +232,59 @@ public class Parametre {
             complete = true;
         }
 
+        // Axe potentiel de la 9-box : repris de l'axe performance de la meme
+        // ligne, qui s'appliquait jusque-la aux deux axes. Les valeurs par
+        // defaut deplaceraient les employes d'un trimestre aux seuils modifies.
+        SeuilsNeufBox reference = seuilsNeufBox != null ? seuilsNeufBox : defauts.getSeuilsNeufBox();
+        if (seuilsNeufBoxPotentiel == null || estLeZeroImpliciteDeMySql(seuilsNeufBoxPotentiel)) {
+            seuilsNeufBoxPotentiel = new SeuilsNeufBox(reference.getSeuilEleve(), reference.getSeuilMoyen());
+            complete = true;
+        } else {
+            if (seuilsNeufBoxPotentiel.getSeuilEleve() == null) {
+                seuilsNeufBoxPotentiel.setSeuilEleve(reference.getSeuilEleve());
+                complete = true;
+            }
+            if (seuilsNeufBoxPotentiel.getSeuilMoyen() == null) {
+                seuilsNeufBoxPotentiel.setSeuilMoyen(reference.getSeuilMoyen());
+                complete = true;
+            }
+        }
+
+        SeuilsCategoriePerformance categoriesParDefaut = defauts.getSeuilsCategoriePerformance();
+        if (seuilsCategoriePerformance == null) {
+            seuilsCategoriePerformance = categoriesParDefaut;
+            complete = true;
+        } else {
+            if (seuilsCategoriePerformance.getSeuilExceptionnelle() == null) {
+                seuilsCategoriePerformance.setSeuilExceptionnelle(categoriesParDefaut.getSeuilExceptionnelle());
+                complete = true;
+            }
+            if (seuilsCategoriePerformance.getSeuilElevee() == null) {
+                seuilsCategoriePerformance.setSeuilElevee(categoriesParDefaut.getSeuilElevee());
+                complete = true;
+            }
+            if (seuilsCategoriePerformance.getSeuilSolide() == null) {
+                seuilsCategoriePerformance.setSeuilSolide(categoriesParDefaut.getSeuilSolide());
+                complete = true;
+            }
+            if (seuilsCategoriePerformance.getSeuilARenforcer() == null) {
+                seuilsCategoriePerformance.setSeuilARenforcer(categoriesParDefaut.getSeuilARenforcer());
+                complete = true;
+            }
+        }
+
         return complete;
+    }
+
+    /**
+     * Colonnes de l'axe potentiel ajoutees NOT NULL sans valeur par defaut :
+     * MySQL remplit les lignes existantes avec 0. Le couple 0 / 0 est de toute
+     * facon invalide (le seuil eleve doit depasser le moyen) : ce n'est pas un
+     * reglage du RH, on le traite comme absent.
+     */
+    private static boolean estLeZeroImpliciteDeMySql(SeuilsNeufBox seuils) {
+        return seuils.getSeuilEleve() != null && seuils.getSeuilMoyen() != null
+                && seuils.getSeuilEleve().signum() == 0 && seuils.getSeuilMoyen().signum() == 0;
     }
 
     /**
@@ -301,6 +383,22 @@ public class Parametre {
 
     public void setSeuilsNeufBox(SeuilsNeufBox seuilsNeufBox) {
         this.seuilsNeufBox = seuilsNeufBox;
+    }
+
+    public SeuilsNeufBox getSeuilsNeufBoxPotentiel() {
+        return seuilsNeufBoxPotentiel;
+    }
+
+    public void setSeuilsNeufBoxPotentiel(SeuilsNeufBox seuilsNeufBoxPotentiel) {
+        this.seuilsNeufBoxPotentiel = seuilsNeufBoxPotentiel;
+    }
+
+    public SeuilsCategoriePerformance getSeuilsCategoriePerformance() {
+        return seuilsCategoriePerformance;
+    }
+
+    public void setSeuilsCategoriePerformance(SeuilsCategoriePerformance seuilsCategoriePerformance) {
+        this.seuilsCategoriePerformance = seuilsCategoriePerformance;
     }
 
     public SeuilsReadiness getSeuilsReadiness() {

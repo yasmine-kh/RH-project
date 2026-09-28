@@ -57,6 +57,46 @@ class ParametreValidationTest {
     }
 
     @Test
+    void desSeuils9BoxDePotentielInversesSontRejetes() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("90"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsNeufBoxPotentiel.ordreValide")
+                .doesNotContain("seuilsNeufBox.ordreValide");
+    }
+
+    @Test
+    void desAxesAuxSeuilsDifferentsSontValides() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("80"));
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("60"));
+
+        assertThat(validator.validate(parametre)).isEmpty();
+    }
+
+    @Test
+    void desCategoriesDePerformanceNonDecroissantesSontRejetees() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsCategoriePerformance().setSeuilARenforcer(new BigDecimal("70"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsCategoriePerformance.ordreValide");
+    }
+
+    @Test
+    void unSeuilDeCategorieAuDelaDeCentEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsCategoriePerformance().setSeuilExceptionnelle(new BigDecimal("101"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsCategoriePerformance.seuilExceptionnelle");
+    }
+
+    @Test
     void unPlafondDExperienceAuDelaDeCentEstRejete() {
         Parametre parametre = parametreValide();
         parametre.getBaremeExperience().setPlafond(new BigDecimal("120"));

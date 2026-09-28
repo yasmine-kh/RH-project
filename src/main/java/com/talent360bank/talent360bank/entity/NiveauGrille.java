@@ -1,8 +1,8 @@
 package com.talent360bank.talent360bank.entity;
 
 /**
- * Niveau d'un axe de la matrice 9-box. Sert indifferemment a la performance
- * et au potentiel : les deux axes utilisent les memes seuils.
+ * Niveau d'un axe de la matrice 9-box. Sert a la performance comme au
+ * potentiel, chaque axe avec ses propres seuils.
  */
 public enum NiveauGrille {
     FAIBLE(1),

@@ -55,7 +55,9 @@ class ParametreControllerTest {
         return new ParametreForm("Reglages revus",
                 source.getPoidsSources(), source.getPoidsPerformance(), source.getPoidsPotentiel(),
                 source.getPoidsSuccession(), source.getBaremeExperience(), source.getBaremeCompetences(),
-                source.getSeuilsNeufBox(), source.getSeuilsReadiness(), source.getSeuilsCouverture(),
+                source.getSeuilsNeufBox(), source.getSeuilsNeufBoxPotentiel(),
+                source.getSeuilsCategoriePerformance(),
+                source.getSeuilsReadiness(), source.getSeuilsCouverture(),
                 source.getSeuilsTalent(), source.getPointsVigilance(), source.getSeuilsVigilance());
     }
 
@@ -77,7 +79,12 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.seuilsTalent.seuilHautPotentielPotentiel").value(85))
                 .andExpect(jsonPath("$.seuilsTalent.seuilHautPotentielPerformance").value(75))
                 .andExpect(jsonPath("$.seuilsVigilance.seuilEngagementFaible").value(60))
-                .andExpect(jsonPath("$.pointsVigilance.pointEngagementFaible").value(25));
+                .andExpect(jsonPath("$.pointsVigilance.pointEngagementFaible").value(25))
+                .andExpect(jsonPath("$.seuilsNeufBox.seuilEleve").value(85))
+                .andExpect(jsonPath("$.seuilsNeufBoxPotentiel.seuilEleve").value(85))
+                .andExpect(jsonPath("$.seuilsNeufBoxPotentiel.seuilMoyen").value(70))
+                .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilExceptionnelle").value(90))
+                .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilARenforcer").value(60));
     }
 
     @Test
@@ -167,6 +174,81 @@ class ParametreControllerTest {
 
         Parametre casse = Parametre.parDefaut(trimestre);
         casse.getSeuilsCouverture().setNbMinSuccesseurs(0);
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(casse))))
+                .andExpect(status().isBadRequest());
+
+        verify(parametreRepository, never()).save(any());
+    }
+
+    @Test
+    void un_client_qui_n_envoie_que_seuilsNeufBox_ne_change_que_l_axe_performance() throws Exception {
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("80"));
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("65"));
+        parametre.getSeuilsCategoriePerformance().setSeuilExceptionnelle(new BigDecimal("95"));
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        // Corps d'un client anterieur aux deux blocs.
+        Parametre voulu = Parametre.parDefaut(trimestre);
+        voulu.getSeuilsNeufBox().setSeuilEleve(new BigDecimal("90"));
+        voulu.getSeuilsNeufBox().setSeuilMoyen(new BigDecimal("75"));
+        ObjectNode corps = objectMapper.valueToTree(formDepuis(voulu));
+        corps.remove("seuilsNeufBoxPotentiel");
+        corps.remove("seuilsCategoriePerformance");
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corps.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seuilsNeufBox.seuilEleve").value(90))
+                .andExpect(jsonPath("$.seuilsNeufBox.seuilMoyen").value(75))
+                .andExpect(jsonPath("$.seuilsNeufBoxPotentiel.seuilEleve").value(80))
+                .andExpect(jsonPath("$.seuilsNeufBoxPotentiel.seuilMoyen").value(65))
+                .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilExceptionnelle").value(95));
+    }
+
+    @Test
+    void les_seuils_potentiel_et_categories_fournis_remplacent_la_valeur_en_place() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        Parametre voulu = Parametre.parDefaut(trimestre);
+        voulu.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("88"));
+        voulu.getSeuilsCategoriePerformance().setSeuilSolide(new BigDecimal("72"));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(voulu))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seuilsNeufBox.seuilEleve").value(85))
+                .andExpect(jsonPath("$.seuilsNeufBoxPotentiel.seuilEleve").value(88))
+                .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilSolide").value(72));
+    }
+
+    @Test
+    void des_seuils_potentiel_inverses_rendent_400() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+
+        Parametre casse = Parametre.parDefaut(trimestre);
+        casse.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("90"));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(casse))))
+                .andExpect(status().isBadRequest());
+
+        verify(parametreRepository, never()).save(any());
+    }
+
+    @Test
+    void des_categories_de_performance_non_decroissantes_rendent_400() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+
+        Parametre casse = Parametre.parDefaut(trimestre);
+        casse.getSeuilsCategoriePerformance().setSeuilSolide(new BigDecimal("85"));
 
         mockMvc.perform(put("/api/trimestres/2026/1/parametre")
                         .contentType(MediaType.APPLICATION_JSON)

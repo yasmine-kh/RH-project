@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.CategoriePotentiel;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.NiveauGrille;
@@ -26,7 +27,10 @@ import java.util.Objects;
 
 /**
  * Place les employes sur la matrice 9-box a partir de leurs scores et des
- * seuils du {@link Parametre} du trimestre.
+ * seuils du {@link Parametre} du trimestre, propres a chaque axe
+ * (seuilsNeufBox pour la performance, seuilsNeufBoxPotentiel pour le
+ * potentiel). Le niveau de l'axe potentiel est aussi la categorie de
+ * potentiel de l'employe, enregistree avec sa case.
  *
  * <p>Les neuf libelles ne sont pas ecrits ici : ils viennent de la table de
  * reference {@link Matrice9Box}, que le RH peut renommer sans toucher au code.
@@ -82,9 +86,8 @@ public class NeufBoxService {
     public Matrice9Box placer(BigDecimal scorePerformance, BigDecimal scorePotentiel, Parametre parametre) {
         Objects.requireNonNull(parametre, "parametre");
 
-        SeuilsNeufBox seuils = parametre.getSeuilsNeufBox();
-        NiveauGrille niveauPerformance = niveauPour(scorePerformance, seuils);
-        NiveauGrille niveauPotentiel = niveauPour(scorePotentiel, seuils);
+        NiveauGrille niveauPerformance = niveauPour(scorePerformance, seuilsPerformance(parametre));
+        NiveauGrille niveauPotentiel = niveauPour(scorePotentiel, seuilsPotentiel(parametre));
 
         return matriceRepository
                 .findByNiveauPerformanceAndNiveauPotentiel(niveauPerformance.getRang(), niveauPotentiel.getRang())
@@ -95,7 +98,17 @@ public class NeufBoxService {
     }
 
     /**
-     * Place un employe et enregistre la categorie dans son Score.
+     * Categorie de potentiel (Eleve / Moyen / Faible), comme la colonne L de
+     * 03_POTENTIEL : le niveau de l'axe potentiel de la matrice.
+     */
+    public CategoriePotentiel categoriePotentiel(BigDecimal scorePotentiel, Parametre parametre) {
+        Objects.requireNonNull(parametre, "parametre");
+        return CategoriePotentiel.depuis(niveauPour(scorePotentiel, seuilsPotentiel(parametre)));
+    }
+
+    /**
+     * Place un employe et enregistre la categorie dans son Score, avec sa
+     * categorie de potentiel.
      *
      * @throws RessourceIntrouvableException si l'employe n'a pas de score sur ce trimestre
      */
@@ -113,6 +126,7 @@ public class NeufBoxService {
         Matrice9Box case9Box = placer(score.getScorePerformance(), score.getScorePotentiel(), parametre);
 
         score.setPositionBox(case9Box.getCategorie());
+        score.setCategoriePotentiel(categoriePotentiel(score.getScorePotentiel(), parametre));
         return scoreRepository.save(score);
     }
 
@@ -128,7 +142,8 @@ public class NeufBoxService {
         Objects.requireNonNull(trimestre, "trimestre");
 
         Parametre parametre = calculService.chargerParametre(trimestre);
-        SeuilsNeufBox seuils = parametre.getSeuilsNeufBox();
+        SeuilsNeufBox seuilsPerformance = seuilsPerformance(parametre);
+        SeuilsNeufBox seuilsPotentiel = seuilsPotentiel(parametre);
         Map<String, Matrice9Box> matriceParCase = indexerMatrice();
 
         List<Score> places = new ArrayList<>();
@@ -149,8 +164,8 @@ public class NeufBoxService {
                 continue;
             }
 
-            NiveauGrille niveauPerformance = niveauPour(score.getScorePerformance(), seuils);
-            NiveauGrille niveauPotentiel = niveauPour(score.getScorePotentiel(), seuils);
+            NiveauGrille niveauPerformance = niveauPour(score.getScorePerformance(), seuilsPerformance);
+            NiveauGrille niveauPotentiel = niveauPour(score.getScorePotentiel(), seuilsPotentiel);
             Matrice9Box case9Box = matriceParCase.get(cle(niveauPerformance.getRang(), niveauPotentiel.getRang()));
 
             if (case9Box == null) {
@@ -161,6 +176,7 @@ public class NeufBoxService {
             }
 
             score.setPositionBox(case9Box.getCategorie());
+            score.setCategoriePotentiel(CategoriePotentiel.depuis(niveauPotentiel));
             places.add(scoreRepository.save(score));
         }
 
@@ -168,6 +184,22 @@ public class NeufBoxService {
                 decrire(trimestre), places.size(), ignores.size());
 
         return new ResultatRecalcul(places, ignores);
+    }
+
+    private static SeuilsNeufBox seuilsPerformance(Parametre parametre) {
+        return exigerSeuils(parametre.getSeuilsNeufBox(), "performance");
+    }
+
+    private static SeuilsNeufBox seuilsPotentiel(Parametre parametre) {
+        return exigerSeuils(parametre.getSeuilsNeufBoxPotentiel(), "potentiel");
+    }
+
+    private static SeuilsNeufBox exigerSeuils(SeuilsNeufBox seuils, String axe) {
+        if (seuils == null) {
+            throw new DonneesIncompletesException(
+                    "Les seuils de l'axe " + axe + " de la matrice 9-box ne sont pas configures");
+        }
+        return seuils;
     }
 
     private Map<String, Matrice9Box> indexerMatrice() {

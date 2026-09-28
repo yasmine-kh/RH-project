@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.CategoriePerformance;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
@@ -13,6 +14,8 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -87,6 +90,40 @@ class CalculServiceTest {
 
         assertThat(score).isEqualByComparingTo("77");
         assertThat(score.scale()).isEqualTo(CalculService.PRECISION_SCORE);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "100, EXCEPTIONNELLE",
+            "90.00, EXCEPTIONNELLE",   // borne inclusive
+            "89.99, ELEVEE",
+            "80.00, ELEVEE",
+            "79.99, SOLIDE",
+            "70.00, SOLIDE",
+            "69.99, A_RENFORCER",
+            "60.00, A_RENFORCER",
+            "59.99, INSUFFISANTE",
+            "0, INSUFFISANTE"
+    })
+    void laCategorieDePerformanceSuitLesSeuilsBornesIncluses(String score, CategoriePerformance attendue) {
+        assertThat(calculService.categoriePerformance(new BigDecimal(score),
+                parametre.getSeuilsCategoriePerformance())).isEqualTo(attendue);
+    }
+
+    @Test
+    void desSeuilsDeCategorieModifiesDeplacentLaFrontiere() {
+        parametre.getSeuilsCategoriePerformance().setSeuilExceptionnelle(new BigDecimal("95"));
+
+        assertThat(calculService.categoriePerformance(new BigDecimal("92"),
+                parametre.getSeuilsCategoriePerformance())).isEqualTo(CategoriePerformance.ELEVEE);
+    }
+
+    @Test
+    void laCategorieExigeUnScoreEtDesSeuils() {
+        assertThatThrownBy(() -> calculService.categoriePerformance(null, parametre.getSeuilsCategoriePerformance()))
+                .isInstanceOf(DonneesIncompletesException.class);
+        assertThatThrownBy(() -> calculService.categoriePerformance(new BigDecimal("80"), null))
+                .isInstanceOf(DonneesIncompletesException.class);
     }
 
     @Test

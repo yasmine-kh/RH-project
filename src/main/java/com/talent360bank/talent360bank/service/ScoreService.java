@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -164,7 +165,10 @@ public class ScoreService {
                     return nouveau;
                 });
 
-        score.setScorePerformance(calculService.calculerScorePerformance(performance, parametre));
+        BigDecimal scorePerformance = calculService.calculerScorePerformance(performance, parametre);
+        score.setScorePerformance(scorePerformance);
+        score.setCategoriePerformance(calculService.categoriePerformance(
+                scorePerformance, parametre.getSeuilsCategoriePerformance()));
         score.setScorePotentiel(calculService.calculerScorePotentiel(potentiel, parametre));
         score.setDateCalcul(LocalDate.now());
 
