@@ -1,4 +1,4 @@
-package com.talent360bank.talent360bank.ui;
+package com.talent360bank.talent360bank.ui.model;
 
 import java.math.BigDecimal;
 

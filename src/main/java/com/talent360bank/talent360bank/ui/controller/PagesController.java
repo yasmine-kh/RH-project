@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.ui.controller;
 
 import com.talent360bank.talent360bank.ui.service.DashboardService;
-import com.talent360bank.talent360bank.ui.service.NineBoxService;
+import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
 import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -11,12 +11,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class PagesController {
 
     private final DashboardService dashboardService;
-    private final NineBoxService nineBoxService;
+    private final NineBoxViewService nineBoxViewService;
     private final VivierService vivierService;
 
-    public PagesController(DashboardService dashboardService, NineBoxService nineBoxService, VivierService vivierService) {
+    public PagesController(DashboardService dashboardService, NineBoxViewService nineBoxViewService, VivierService vivierService) {
         this.dashboardService = dashboardService;
-        this.nineBoxService = nineBoxService;
+        this.nineBoxViewService = nineBoxViewService;
         this.vivierService = vivierService;
     }
 
@@ -29,7 +29,7 @@ public class PagesController {
 
     @GetMapping("/9box")
     public String neufBox(Model model) {
-        model.addAttribute("cells", nineBoxService.buildGrid());
+        model.addAttribute("cells", nineBoxViewService.buildGrid());
         model.addAttribute("activePage", "9box");
         return "9box";
     }
