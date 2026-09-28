@@ -8,6 +8,8 @@ import com.talent360bank.talent360bank.entity.PoidsPerformance;
 import com.talent360bank.talent360bank.entity.PoidsPotentiel;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.SeuilsCategoriePerformance;
+import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
+import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -167,6 +169,32 @@ public class CalculService {
             return CategoriePerformance.A_RENFORCER;
         }
         return CategoriePerformance.INSUFFISANTE;
+    }
+
+    /**
+     * Statut du gap d'une competence, comme la colonne H de 06_EMPLOYEE_SKILLS :
+     * gap = niveau cible - niveau actuel ; gap <= 0 Maitrise ; gap = 1 A
+     * developper, quel que soit le seuil (le classeur teste ce cas en premier) ;
+     * gap >= seuil Prioritaire ; sinon A developper.
+     *
+     * @return null si l'un des deux niveaux est inconnu : le gap l'est aussi
+     * @throws DonneesIncompletesException si le seuil n'est pas configure
+     */
+    public StatutGapCompetence statutGap(Integer niveauActuel, Integer niveauCible, SeuilsGapCompetence seuils) {
+        if (niveauActuel == null || niveauCible == null) {
+            return null;
+        }
+        if (seuils == null || seuils.getSeuilPrioritaire() == null) {
+            throw new DonneesIncompletesException("Le seuil de gap de competence n'est pas configure");
+        }
+        int gap = niveauCible - niveauActuel;
+        if (gap <= 0) {
+            return StatutGapCompetence.MAITRISE;
+        }
+        if (gap == 1) {
+            return StatutGapCompetence.A_DEVELOPPER;
+        }
+        return gap >= seuils.getSeuilPrioritaire() ? StatutGapCompetence.PRIORITAIRE : StatutGapCompetence.A_DEVELOPPER;
     }
 
     /** Reglages applicables au trimestre. */

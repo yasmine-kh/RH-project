@@ -33,11 +33,6 @@ public class Parametre {
     @Valid
     @NotNull
     @Embedded
-    private PoidsSources poidsSources;
-
-    @Valid
-    @NotNull
-    @Embedded
     private PoidsPerformance poidsPerformance;
 
     @Valid
@@ -91,6 +86,11 @@ public class Parametre {
     @Valid
     @NotNull
     @Embedded
+    private SeuilsGapCompetence seuilsGapCompetence;
+
+    @Valid
+    @NotNull
+    @Embedded
     private SeuilsReadiness seuilsReadiness;
 
     @Valid
@@ -117,17 +117,13 @@ public class Parametre {
     }
 
     /**
-     * Jeu de reglages initial pour un trimestre, aux valeurs de la specification.
-     * Les poids des sources d'evaluation sont volontairement repartis a parts
-     * egales : la specification ne les definit pas, ils sont a arbitrer avec le RH.
+     * Jeu de reglages initial pour un trimestre, aux valeurs de la specification
+     * (00_PARAMETRES du classeur).
      */
     public static Parametre parDefaut(Trimestre trimestre) {
         Parametre parametre = new Parametre();
         parametre.setTrimestre(trimestre);
         parametre.setLibelle("Reglages par defaut");
-        parametre.setPoidsSources(new PoidsSources(
-                new BigDecimal("25"), new BigDecimal("25"),
-                new BigDecimal("25"), new BigDecimal("25")));
         parametre.setPoidsPerformance(new PoidsPerformance(
                 new BigDecimal("40"), new BigDecimal("20"), new BigDecimal("20"),
                 new BigDecimal("10"), new BigDecimal("10")));
@@ -148,6 +144,7 @@ public class Parametre {
         parametre.setSeuilsCategoriePerformance(new SeuilsCategoriePerformance(
                 new BigDecimal("90"), new BigDecimal("80"),
                 new BigDecimal("70"), new BigDecimal("60")));
+        parametre.setSeuilsGapCompetence(new SeuilsGapCompetence(2));
         parametre.setSeuilsReadiness(new SeuilsReadiness(
                 new BigDecimal("90"), new BigDecimal("80"), new BigDecimal("65")));
         parametre.setSeuilsCouverture(new SeuilsCouverture(1));
@@ -167,8 +164,9 @@ public class Parametre {
      * Complete, avec les valeurs de {@link #parDefaut}, les reglages ajoutes
      * apres la mise en service : bareme d'experience, bareme des competences,
      * seuils de haut potentiel, seuil de couverture des postes critiques,
-     * seuils des categories de performance et axe potentiel de la 9-box (ce
-     * dernier repris de l'axe performance de la ligne, pas des defauts).
+     * seuils des categories de performance, seuil de gap de competence et axe
+     * potentiel de la 9-box (ce dernier repris de l'axe performance de la
+     * ligne, pas des defauts).
      *
      * <p>Une ligne creee avant leur ajout a ces colonnes a NULL ; quand toutes
      * les colonnes d'un bloc sont NULL, Hibernate charge le bloc entier a null.
@@ -273,6 +271,15 @@ public class Parametre {
             }
         }
 
+        // Bloc a une seule colonne : NULL en base, Hibernate le rend a null.
+        if (seuilsGapCompetence == null) {
+            seuilsGapCompetence = defauts.getSeuilsGapCompetence();
+            complete = true;
+        } else if (seuilsGapCompetence.getSeuilPrioritaire() == null) {
+            seuilsGapCompetence.setSeuilPrioritaire(defauts.getSeuilsGapCompetence().getSeuilPrioritaire());
+            complete = true;
+        }
+
         return complete;
     }
 
@@ -327,14 +334,6 @@ public class Parametre {
 
     public void setLibelle(String libelle) {
         this.libelle = libelle;
-    }
-
-    public PoidsSources getPoidsSources() {
-        return poidsSources;
-    }
-
-    public void setPoidsSources(PoidsSources poidsSources) {
-        this.poidsSources = poidsSources;
     }
 
     public PoidsPerformance getPoidsPerformance() {
@@ -399,6 +398,14 @@ public class Parametre {
 
     public void setSeuilsCategoriePerformance(SeuilsCategoriePerformance seuilsCategoriePerformance) {
         this.seuilsCategoriePerformance = seuilsCategoriePerformance;
+    }
+
+    public SeuilsGapCompetence getSeuilsGapCompetence() {
+        return seuilsGapCompetence;
+    }
+
+    public void setSeuilsGapCompetence(SeuilsGapCompetence seuilsGapCompetence) {
+        this.seuilsGapCompetence = seuilsGapCompetence;
     }
 
     public SeuilsReadiness getSeuilsReadiness() {
