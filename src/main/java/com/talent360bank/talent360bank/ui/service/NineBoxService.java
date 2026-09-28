@@ -1,5 +1,5 @@
 package com.talent360bank.talent360bank.ui.service;
-
+import com.talent360bank.talent360bank.ui.model.NineBoxCell;
 import com.talent360bank.talent360bank.entity.Employe;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.Score;
@@ -7,7 +7,6 @@ import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
-import com.talent360bank.talent360bank.ui.model.NineBoxCell;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
