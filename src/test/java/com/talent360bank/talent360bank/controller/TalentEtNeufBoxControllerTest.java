@@ -15,7 +15,6 @@ import com.talent360bank.talent360bank.service.resultat.MembreVivierReleve;
 import com.talent360bank.talent360bank.service.resultat.ResultatConstitutionVivier;
 import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -32,7 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled("Contrôleur obsolète : remplacé par TalentController")
+@WebMvcTest({TalentController.class, NeufBoxController.class})
 class TalentEtNeufBoxControllerTest {
 
     @Autowired
