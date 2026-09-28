@@ -7,7 +7,7 @@ import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.AppartenanceVivierRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
-import com.talent360bank.talent360bank.ui.VivierRow;
+import com.talent360bank.talent360bank.ui.model.VivierRow;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
