@@ -15,6 +15,9 @@ public interface TrimestreRepository extends JpaRepository<Trimestre, Integer> {
 
     Optional<Trimestre> findTopByOrderByAnneeDescNumeroDesc();
 
+    /** Tous les trimestres, du plus recent au plus ancien (selecteur des ecrans). */
+    List<Trimestre> findAllByOrderByAnneeDescNumeroDesc();
+
     @Query("select t from Trimestre t "
             + "where t.annee < :annee or (t.annee = :annee and t.numero < :numero) "
             + "order by t.annee desc, t.numero desc")
