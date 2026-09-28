@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.dataset;
-
+import com.talent360bank.talent360bank.excel.LecteurXlsx;
+import com.talent360bank.talent360bank.excel.LecteurXlsx.Feuille;
 import com.talent360bank.talent360bank.config.Matrice9BoxInitializer;
 import com.talent360bank.talent360bank.entity.Competence;
 import com.talent360bank.talent360bank.entity.Employe;
@@ -442,10 +443,9 @@ class DatasetExcelComparaisonTest {
         employe.setPrenom(ligne.get("C"));
         employe.setDirection(ligne.get("H"));
         employe.setStatut(StatutEmploye.ACTIF);
-        // Le moteur mesure l'anciennete a aujourd'hui, le classeur au 15/09/2026 :
-        // la date d'entree est decalee d'autant pour comparer la meme duree.
-        employe.setDateEntree(dateExcel(ligne.get("F"))
-                .plusDays(ChronoUnit.DAYS.between(DATE_REFERENCE_CLASSEUR, LocalDate.now())));
+
+        // Conserver la date d'entrée exacte du fichier Excel :
+        employe.setDateEntree(dateExcel(ligne.get("F")));
         return employe;
     }
 

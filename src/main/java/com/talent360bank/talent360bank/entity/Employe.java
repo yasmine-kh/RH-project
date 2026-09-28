@@ -94,11 +94,16 @@ public class Employe {
      * Retourne null si la date d'entree est inconnue.
      */
     @Transient
-    public Integer getAnciennete() {
-        if (dateEntree == null) {
+    public Integer getAnciennete(LocalDate dateReference) {
+        if (dateEntree == null || dateReference == null) {
             return null;
         }
-        return Period.between(dateEntree, LocalDate.now()).getYears();
+        return Period.between(dateEntree, dateReference).getYears();
+    }
+
+    @Transient
+    public Integer getAnciennete() {
+        return getAnciennete(LocalDate.now());
     }
 
     /** Seuls les employes actifs entrent dans les calculs de scores. */

@@ -23,15 +23,15 @@ import java.util.Optional;
  * champ Score.positionBox, deja rempli par NeufBoxService (Jas).
  */
 @Service
-public class NineBoxViewService {
+public class NineBoxService {
 
     private final Matrice9BoxRepository matriceRepository;
     private final ScoreRepository scoreRepository;
     private final TrimestreRepository trimestreRepository;
 
-    public NineBoxViewService(Matrice9BoxRepository matriceRepository,
-                              ScoreRepository scoreRepository,
-                              TrimestreRepository trimestreRepository) {
+    public NineBoxService(Matrice9BoxRepository matriceRepository,
+                          ScoreRepository scoreRepository,
+                          TrimestreRepository trimestreRepository) {
         this.matriceRepository = matriceRepository;
         this.scoreRepository = scoreRepository;
         this.trimestreRepository = trimestreRepository;
