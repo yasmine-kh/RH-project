@@ -624,13 +624,30 @@ Create the database once. The tables are created by Hibernate at the first start
 mysql -u root -p -e "CREATE DATABASE talent360bank CHARACTER SET utf8mb4;"
 ```
 
-### Password
+### Accounts and environment variables
 
-Set the MySQL password as a **user** environment variable, then open a new terminal or restart the IDE so it picks it up:
+**1. A dedicated MySQL user (never `root`).** Once, as `root`:
+
+```sql
+CREATE USER 'talent360'@'localhost' IDENTIFIED BY 'a-long-password';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES
+    ON talent360bank.* TO 'talent360'@'localhost';
+```
+
+`CREATE`, `ALTER`, `INDEX` and `REFERENCES` are needed because Hibernate creates and updates the tables (`ddl-auto=update`).
+
+**2. Environment variables.** The app has no default values: it refuses to start without the MySQL ones, and nobody can log in without an RH account. Set them as **user** variables, then open a new terminal or restart the IDE:
 
 ```powershell
-setx SPRING_DATASOURCE_PASSWORD "your-mysql-password"
+setx SPRING_DATASOURCE_USERNAME "talent360"
+setx SPRING_DATASOURCE_PASSWORD "a-long-password"
+setx TALENT360_ADMIN_LOGIN "rh.admin"
+setx TALENT360_ADMIN_PASSWORD "at-least-12-characters"
 ```
+
+**3. First RH account.** At startup, if no RH account exists, `PremierCompteRhInitializer` creates one from `TALENT360_ADMIN_LOGIN` / `TALENT360_ADMIN_PASSWORD` (password: 12 characters minimum, stored as a BCrypt hash). If the variables are missing, it logs a warning and creates nothing. Once the account exists, the two variables are no longer read. Remove them (`reg delete HKCU\Environment /v TALENT360_ADMIN_PASSWORD /f`, same for the login) so the password does not stay in the environment.
+
+Then open http://localhost:8080/login. RH lands on `/`; the other profiles on `/moi`, `/manager` or `/comite`.
 
 ### Commands
 

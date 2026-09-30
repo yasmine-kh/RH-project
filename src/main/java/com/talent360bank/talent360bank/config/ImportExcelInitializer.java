@@ -55,7 +55,7 @@ public class ImportExcelInitializer implements ApplicationRunner {
         if (!aLiberer) {
             return;
         }
-        // Integer de UtilisateurRH.idUtilisateur : INT sous MySQL.
+        // Integer de Utilisateur.idUtilisateur : INT sous MySQL.
         jdbcTemplate.execute(mysql
                 ? "ALTER TABLE " + TABLE + " MODIFY COLUMN " + COLONNE + " INT NULL"
                 : "ALTER TABLE " + TABLE + " ALTER COLUMN " + COLONNE + " SET NULL");

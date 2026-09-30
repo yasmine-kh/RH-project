@@ -3,6 +3,10 @@ package com.talent360bank.talent360bank.service;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
+import com.talent360bank.talent360bank.repository.UtilisateurRepository;
+import com.talent360bank.talent360bank.securite.ConnexionHttpDeTest;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,6 +40,16 @@ class ImportApiIntegrationTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
+    @Autowired
+    private UtilisateurRepository utilisateurRepository;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    /** Chaque test part connecte en RH : les ecritures sur l'API lui sont reservees. */
+    @BeforeEach
+    void connecterRh() {
+        ConnexionHttpDeTest.connecterRh(restTemplate, utilisateurRepository, passwordEncoder);
+    }
 
     private static HttpHeaders ecriture(MediaType type) {
         HttpHeaders entetes = new HttpHeaders();

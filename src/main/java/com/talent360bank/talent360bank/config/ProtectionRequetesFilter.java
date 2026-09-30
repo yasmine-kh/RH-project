@@ -23,16 +23,19 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Deux protections pour une application monoposte sans authentification.
+ * Deux protections, en amont de Spring Security (voir {@link SecurityConfig}).
  *
- * <p><strong>Ecritures (CSRF).</strong> Toute requete POST, PUT, PATCH ou
- * DELETE doit porter l'en-tete {@link #EN_TETE_ECRITURE}. Un navigateur ne
- * peut pas ajouter un en-tete personnalise a une requete envoyee depuis un
- * autre site sans une verification CORS prealable, que l'application refuse
- * (aucune configuration CORS) : une page malveillante ne peut donc pas
- * declencher un recalcul, un import ou une modification des reglages. Les
- * ecrans ne font que des GET et ne sont pas concernes ; un ecran qui ecrit
- * doit envoyer l'en-tete (voir docs/requetes-ecriture.md).
+ * <p><strong>Ecritures sur l'API (CSRF).</strong> Toute requete POST, PUT,
+ * PATCH ou DELETE sur /api/** doit porter l'en-tete {@link #EN_TETE_ECRITURE}.
+ * Un navigateur ne peut pas ajouter un en-tete personnalise a une requete
+ * envoyee depuis un autre site sans une verification CORS prealable, que
+ * l'application refuse (aucune configuration CORS) : une page malveillante ne
+ * peut donc pas declencher un recalcul, un import ou une modification des
+ * reglages. C'est la protection CSRF de l'API : le jeton CSRF de Spring
+ * Security y est desactive. Les formulaires HTML (connexion, deconnexion...)
+ * ne sont pas concernes : ils portent le jeton CSRF de Spring Security. Un
+ * ecran qui ecrit par fetch doit envoyer l'en-tete (voir
+ * docs/requetes-ecriture.md).
  *
  * <p><strong>Hote (DNS rebinding).</strong> Toute requete dont l'en-tete Host
  * ne designe pas la machine locale est refusee, lectures comprises : un site
@@ -73,7 +76,8 @@ public class ProtectionRequetesFilter extends OncePerRequestFilter {
         }
 
         String valeur = requete.getHeader(EN_TETE_ECRITURE);
-        if (METHODES_ECRITURE.contains(requete.getMethod()) && (valeur == null || valeur.isBlank())) {
+        if (SecurityConfig.estRequeteApi(requete) && METHODES_ECRITURE.contains(requete.getMethod())
+                && (valeur == null || valeur.isBlank())) {
             log.warn("Requete refusee : en-tete {} absent ({} {})", EN_TETE_ECRITURE,
                     requete.getMethod(), requete.getRequestURI());
             refuser(reponse, "en_tete_manquant",

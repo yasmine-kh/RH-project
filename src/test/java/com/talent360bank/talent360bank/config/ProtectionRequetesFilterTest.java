@@ -63,6 +63,26 @@ class ProtectionRequetesFilterTest {
         assertThat(executer(requete, new MockFilterChain()).getStatus()).isEqualTo(403);
     }
 
+    /** Formulaires HTML (connexion, deconnexion) : proteges par le jeton CSRF de Spring Security, pas par l'en-tete. */
+    @ParameterizedTest
+    @ValueSource(strings = {"/login", "/logout"})
+    void un_formulaire_hors_api_n_exige_pas_l_en_tete(String chemin) throws Exception {
+        MockHttpServletRequest requete = new MockHttpServletRequest("POST", chemin);
+        requete.setServerName("localhost");
+        MockFilterChain chaine = new MockFilterChain();
+
+        assertThat(executer(requete, chaine).getStatus()).isEqualTo(200);
+        assertThat(chaine.getRequest()).isNotNull();
+    }
+
+    @Test
+    void le_controle_d_hote_s_applique_aussi_hors_api() throws Exception {
+        MockHttpServletRequest requete = new MockHttpServletRequest("POST", "/login");
+        requete.setServerName("attaquant.example");
+
+        assertThat(executer(requete, new MockFilterChain()).getStatus()).isEqualTo(403);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"GET", "HEAD", "OPTIONS"})
     void une_lecture_n_exige_pas_l_en_tete(String methode) throws Exception {

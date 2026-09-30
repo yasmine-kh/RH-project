@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -137,6 +138,16 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErreurApi> fichierTropVolumineux(MaxUploadSizeExceededException exception) {
         log.debug("Fichier refuse", exception);
         return reponse(HttpStatus.PAYLOAD_TOO_LARGE, "fichier_trop_volumineux", "Fichier trop volumineux");
+    }
+
+    /**
+     * Refus leve dans un controleur ou un service (controle de perimetre),
+     * apres le filtre de Spring Security. Meme corps que le refus du filtre
+     * (SecurityConfig) ; sans ce handler, le filet de securite rendrait 500.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErreurApi> accesRefuse(AccessDeniedException exception) {
+        return reponse(HttpStatus.FORBIDDEN, "acces_refuse", "Votre profil ne permet pas cette action");
     }
 
     /** Statut deja porte par l'exception : on le respecte au lieu de le reecrire. */
