@@ -31,7 +31,7 @@ The detailed business formulas, with every default value and workbook column, ar
 TALENT 360 BANK is a talent-management application for a bank's HR department.
 
 - **Offline and single-workstation ("monoposte").** It runs on one HR workstation, against a local MySQL database. It is not a web service for many users.
-- **One HR user.** There is no user management today.
+- **Only HR logs in.** One account type, RH, which sees everyone's results. Employees and managers never use the app: they only fill in the Excel files that HR imports.
 - **Sensitive personal data.** It holds employee records (identity, birth date, evaluations, engagement). This drives the security choices in [section 9](#9-security).
 
 ### The problem it solves
@@ -85,8 +85,9 @@ All screens are read-only. Everything else is available through the REST API (`/
 ### The quarterly workflow
 
 1. **Import** the quarter's data.
-   - Today only employees can be imported, through `POST /api/collaborateurs/import?cheminFichier=...`.
-   - Skills, positions, evaluation marks, questionnaire answers and HR decisions are not imported yet ([section 12](#12-current-status-and-whats-left)).
+   - HR uploads the client's workbook with `POST /api/imports` (multipart, field `fichier`, plus `annee` and `numero`). One upload loads employees, org chart, managers, skills, positions, critical positions, performance and potential marks, successors, committee decisions and vigilance facts ([`import-donnees.md`](import-donnees.md)).
+   - `11_DEVELOPMENT_PLAN` is not imported yet.
+   - The quarter's **reference date** (the date seniority is measured at) defaults to the last day of the quarter. Change it with `PUT /api/trimestres/{annee}/{numero}` `{"dateReference": "2026-09-15"}` if the campaign uses another date.
 2. **Create the quarter's settings** with `POST /api/trimestres/{year}/{quarter}/parametre`, which copies the workbook defaults. Adjust them with `PUT` if needed.
 3. **Recalculate the scores:** `POST .../scores/recalcul`.
 4. **Place employees in the 9-Box:** `POST .../9box/placement`.
@@ -127,10 +128,11 @@ The application is a classic layered Spring Boot application. Each layer only ca
 | Entities | `entity` | JPA-mapped tables, plus the value blocks of `Parametre` (`Poids*`, `Seuils*`, `Bareme*`) and small enums stored in tables | Jas (engine settings, `Score`), Dou (reference data) |
 | Repositories | `repository` | Spring Data JPA interfaces, with explicit `join fetch` queries where the engine needs related entities | Dou, Jas |
 | Engine (services) | `service`, `service.enums`, `service.resultat` | All calculations. `service.resultat` holds immutable result records (`ResultatMatching`, `DecisionComite`…). | **Jas** |
-| Import | `service.ExcelReader`, `service.ImportService`, `excel` | Reading the workbook | **Dou** |
+| Import | `service.ImportService`, `service.ImportClasseurService`, `service.FormatClasseur`, `service.PeriodeClasseur`, `excel.Cellules` | Reading the workbook | **Dou** |
 | REST API | `controller`, `controller.dto` | JSON endpoints, input forms, response DTOs, error handling | Jas (engine endpoints), Dou (`CollaborateurController`, `CompetenceController`) |
 | UI | `ui.controller`, `ui.service`, `ui.model`, `templates`, `static/css` | Server-rendered screens. View services assemble data; they never calculate. | **Ima** |
-| Configuration | `config` | Startup initializers and the request protection filter | Jas |
+| Configuration | `config` | Startup initializers, `SecurityConfig` (RH login) and the request protection filter | Jas |
+| Security | `securite` | Login and 403 pages, `UtilisateurDetailsService` (loads the RH account) | Jas |
 | Errors | `exception` | `RessourceIntrouvableException` (→ 404), `DonneesIncompletesException` (→ 422) | Jas |
 
 ```mermaid
@@ -140,7 +142,7 @@ flowchart TB
         CLI[API clients<br/>curl, future JS]
     end
     subgraph App[Spring Boot application - 127.0.0.1:8080]
-        F[ProtectionRequetesFilter<br/>Host check + write header]
+        F[ProtectionRequetesFilter + Spring Security<br/>Host check, write header, RH login]
         subgraph UIL[UI - Ima]
             PC[PagesController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService,<br/>VivierService, DashboardService]
             VS --> UM[ui.model rows]
@@ -158,7 +160,7 @@ flowchart TB
             SRC[/...Source interfaces<br/>implemented by the import/]
         end
         subgraph IMP[Import - Dou]
-            IS[ImportService] --> ER[ExcelReader - Apache POI]
+            IS[ImportService] --> ER[ImportClasseurService - Apache POI]
         end
         REPO[Repositories - Spring Data JPA]
         CFG[config: initializers]
@@ -191,6 +193,10 @@ com.talent360bank.talent360bank
 │   ├── ParametreInitializer          completes settings created before a block existed
 │   ├── ColonnesObsoletesInitializer  makes removed settings columns nullable (MySQL)
 │   ├── VivierReleveInitializer       creates the relief pool row
+│   ├── ImportExcelInitializer        makes import_excel.id_utilisateur nullable (old DBs)
+│   ├── TrimestreDateReferenceInitializer  fills trimestre.date_reference (old DBs)
+│   ├── PremierCompteRhInitializer    first RH account from environment variables
+│   ├── SecurityConfig                form login, RH only
 │   └── ProtectionRequetesFilter      Host check + X-Talent360 header on writes
 ├── entity (37)                     tables, Parametre blocks, stored enums
 ├── repository (17)                 Spring Data JPA
@@ -201,7 +207,8 @@ com.talent360bank.talent360bank
 │   + 3 helpers) + dto (17)           parts into entities, ApiExceptionHandler
 │                                     maps exceptions to ErreurApi
 ├── exception (2)
-├── excel (1)                       LecteurXlsx - unused (see section 12)
+├── excel (1)                       Cellules - cell reading helpers for the import
+├── securite                        login and 403 pages, UtilisateurDetailsService
 └── ui
     ├── controller                    PagesController
     ├── service (4)                   view services
@@ -210,7 +217,7 @@ com.talent360bank.talent360bank
 
 ### REST API
 
-Every write (POST, PUT, DELETE) needs the header `X-Talent360: 1` ([section 9](#9-security)). "Quarter" is always `{annee}/{numero}` in paths, or `?annee=&numero=` in query strings.
+Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); without a session the API answers 401 in JSON. Every write (POST, PUT, PATCH, DELETE) also needs the header `X-Talent360: 1`. "Quarter" is always `{annee}/{numero}` in paths, or `?annee=&numero=` in query strings.
 
 | Area | Endpoints |
 |---|---|
@@ -226,7 +233,10 @@ Every write (POST, PUT, DELETE) needs the header `X-Talent360: 1` ([section 9](#
 | Vigilance | `GET .../vigilance[?minimum=MODEREE]`, `GET .../vigilance/{id}` |
 | Skills | `GET /api/collaborateurs/{id}/competences[?annee=&numero=]` |
 | Dashboard | `GET /api/dashboard/synthese` |
-| Reference data (Dou) | `GET` / `POST /api/collaborateurs`, `DELETE /api/collaborateurs/{id}`, `POST /api/collaborateurs/import`, `GET` / `POST /api/competences`, `DELETE /api/competences/{id}` |
+| Quarters | `GET /api/trimestres`, `POST /api/trimestres` (`annee`, `numero`, optional `dateReference`), `PUT /api/trimestres/{annee}/{numero}` (`dateReference`), `POST .../calcul` |
+| Import | `POST /api/imports` (workbook upload), `GET /api/imports` (journal) |
+| Employees | `GET /api/collaborateurs`, `GET /api/collaborateurs/{id}` (both return `CollaborateurResponse`, never the entity), `POST /api/collaborateurs`, `DELETE /api/collaborateurs/{id}` |
+| Reference data | `GET` / `POST /api/competences`, `DELETE /api/competences/{id}` |
 
 Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message, details }`. `ApiExceptionHandler` maps the exceptions:
 
@@ -237,6 +247,8 @@ Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message,
 | Bean validation failure | 400 | `corps_invalide` |
 | `ParametreInvalideException` (cross-block rule) | 400 | `reglages_invalides` |
 | `IllegalArgumentException` | 400 | `argument_invalide` |
+| Not logged in (`SecurityConfig`) | 401 | `non_authentifie` |
+| Logged in without the RH role (`AccessDeniedException`) | 403 | `acces_refuse` |
 | Anything unexpected | 500 | `erreur_interne` (generic message, details only in the log) |
 
 ---
@@ -249,12 +261,13 @@ Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message,
 | **Spring Boot** | 3.5.16 | Framework that assembles Spring, an embedded web server and sensible defaults | One executable application with no separate server to install, which fits an offline workstation | `pom.xml` parent, `Talent360bankApplication` |
 | Spring Framework | 6.2.19 (via Boot) | Dependency injection, transactions | Services receive their dependencies through constructors; `@Transactional` on the engine | All `@Service`, `@Component` |
 | **Spring Web (MVC)** + embedded Tomcat 10.1.55 | via Boot | HTTP server, controllers, JSON (Jackson) | REST API and page routing | `controller`, `ui.controller` |
+| **Spring Security** + `thymeleaf-extras-springsecurity6` | via Boot | Form login, BCrypt, CSRF tokens for HTML forms | Only HR may open the app, on a workstation others may use | `config.SecurityConfig`, `securite` |
 | **Spring Data JPA** + **Hibernate** 6.6.53 | via Boot | Object–relational mapping; repositories generated from interfaces | Engine code works on objects; queries are declared, not hand-written | `entity`, `repository` |
 | **Bean Validation** (Hibernate Validator) | via `spring-boot-starter-validation` | Declarative constraints (`@NotNull`, `@DecimalMax`, `@AssertTrue`) | Settings are validated before saving: sums of 100, decreasing thresholds, ranges | `entity` blocks, `ParametreForm` |
 | **Thymeleaf** | 3.1.x (via Boot) | Server-side HTML templates | Screens rendered on the server with no JavaScript framework; escaped output by default (`th:text`) | `src/main/resources/templates` |
 | **Spring Boot DevTools** | via Boot, `optional` | Automatic restart during development | Faster development loop. Active only with the `dev` profile, and absent from the packaged jar. | `application-dev.properties` |
 | **MySQL** | server 8.4 (local); driver Connector/J 9.7.0 | Relational database | Durable local storage of the quarter data and results | `application.properties` |
-| **Apache POI** | 5.5.1 | Reads and writes Excel `.xlsx` files | Import the client's workbook; the Excel comparison test | `ExcelReader`, test `LecteurXlsx` |
+| **Apache POI** | 5.5.1 | Reads and writes Excel `.xlsx` files | Import the client's workbook; the Excel comparison test | `ImportClasseurService`, test `dataset/LecteurXlsx` |
 | **Bootstrap** + Bootstrap Icons | 5.3.3 / 1.11.3, **from the jsDelivr CDN** | CSS framework and icon font | Clean, consistent screens with little custom CSS. Because the app is meant to run offline, these files should be served locally ([section 12](#12-current-status-and-whats-left)). | Templates `<link>` tags, `static/css/style.css` |
 | **Maven** (wrapper `mvnw`) | — | Build and dependency tool | Reproducible build; nothing to install besides the JDK | `pom.xml`, `mvnw`, `mvnw.cmd` |
 | **JUnit 5**, **Mockito**, **AssertJ** | via `spring-boot-starter-test` | Test framework, mocks, fluent assertions | Unit tests of the engine with mocked repositories | `src/test` |
@@ -272,7 +285,7 @@ Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message,
 | `Collaborateur` (`collaborateur`) | `idCollaborateur` (key, workbook `Employee_ID`), `nom`, `prenom`, `sexe`, `dateNaissance`, `dateEntree`, `fonction`, `grade`, `statut` (ACTIF / INACTIF / ARCHIVE) | `entite` → `Entite` (most specific known), `manager` → `Manager` | Only `ACTIF` employees enter the calculations. `getDirection()`, `getDepartement()`, `getRegion()`, `getAgence()` walk up the `Entite` tree |
 | `Entite` (`entite`) | `code` (unique: path from the direction, e.g. `DIR:RESEAU_RETAIL/DEP:…/REG:…/AGE:…`), `libelle`, `type` (DIRECTION / DEPARTEMENT / REGION / AGENCE) | `parent` → `Entite` (null for a direction) | Org chart built by the import from `01_COLLABORATEURS` H–K. The same region under two departments is two nodes |
 | `Manager` (`manager`) | — | `collaborateur` → `Collaborateur` (1–1, unique), `entiteGeree` → `Entite` (optional, not in the workbook) | One per distinct `Manager_ID` (`01_COLLABORATEURS` N) |
-| `Trimestre` (`trimestre`) | `numero`, `annee` | — | Unique on (`numero`, `annee`) |
+| `Trimestre` (`trimestre`) | `numero`, `annee`, `dateReference` | — | Unique on (`numero`, `annee`). `dateReference` (not null) is the date the quarter is evaluated at: seniority is measured there, never at today's date. Default: last day of the quarter |
 | `Parametre` (`parametre`) | `libelle` + 14 embedded blocks: `PoidsPerformance`, `PoidsPotentiel`, `PoidsSuccession`, `BaremeExperience`, `BaremeCompetences`, `SeuilsNeufBox` (performance axis), `SeuilsNeufBox` (potential axis, `seuil_box_pot_*` columns), `SeuilsCategoriePerformance`, `SeuilsGapCompetence`, `SeuilsReadiness`, `SeuilsCouverture`, `SeuilsTalent`, `PointsVigilance`, `SeuilsVigilance` | → `Trimestre` | One per quarter (unique) |
 | `Performance` (`performance`) | 5 marks /100: objectives, competences, behaviour, contribution, development | → `Collaborateur`, → `Trimestre`, `evaluateur` → `Manager` (optional) | Unique per employee and quarter. The evaluator is the employee's manager at import time: `02_PERFORMANCE` does not name it |
 | `Potentiel` (`potentiel`) | 7 marks /100: learning, leadership, adaptability, complexity, mobility, strategy, autonomy | → `Collaborateur`, → `Trimestre` | Unique per employee and quarter |
@@ -284,7 +297,8 @@ Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message,
 | `Vivier` (`vivier`) | `code` (unique), `nomCategorie`, `description` | — | Only the relief pool (`RELEVE`) is created today |
 | `AppartenanceVivier` (`appartenance_vivier`) | `origine` (MOTEUR, IMPORT, SAISIE_RH…) | → `Collaborateur`, → `Vivier`, → `Trimestre` | Unique on (employee, pool, quarter) |
 | `QuestionnaireEngagement` (`questionnaire_engagement`) | `scoreEngagement` /100, `dateReponse`, `statut` | → `Collaborateur`, → `Trimestre` | No uniqueness constraint yet |
-| `Alerte`, `Rapport`, `ImportExcel`, `UtilisateurRH` | — | `UtilisateurRH` has `login` and `motDePasseHash` | **Not used by any code yet** |
+| `Utilisateur` (`utilisateur`) | `login` (unique), `motDePasseHash` (BCrypt), `role` (RH only), `actif`, `dateCreation` | — | Login account. Only HR has one; it is never deleted, only deactivated |
+| `ImportExcel` (`import_excel`) | `source`, `nomFichier`, `dateImport`, `statut`, `nbLignes`, `nbErreurs`, `message` | → `Trimestre`, `utilisateur` → `Utilisateur` (optional) | Import journal, written by `ImportService` and read by `GET /api/imports` |
 
 The full MCD, with every entity, key and cardinality, is in [`mcd.puml`](mcd.puml) (PlantUML).
 
@@ -401,7 +415,7 @@ All values below are the **defaults** of `Parametre.parDefaut`, identical to `00
 | **Talent** | `TalentService` | Performance ≥ 85 **and** potential ≥ 85. An AND, never an average. |
 | **High potential** | `TalentService` | Potential ≥ 85 **and** performance ≥ 75. Independent of "talent". |
 | **Relief pool** | `TalentService`, `VivierReleveService` | Talent **or** high potential. Saving replaces only the engine's rows (`origine = MOTEUR`); imported or HR-entered rows are never touched or duplicated. |
-| **Succession matching** | `SuccessionService` | Weighted average of 6 criteria: skills 25, performance 20, potential 20, experience 15, leadership 10, mobility 10. Skills: 100 − 20 per missing level for each required skill, floored at 0; a missing skill is assumed at level 3. Experience: 8 points per year of seniority, capped at 100. The current holder is excluded. |
+| **Succession matching** | `SuccessionService` | Weighted average of 6 criteria: skills 25, performance 20, potential 20, experience 15, leadership 10, mobility 10. Skills: 100 − 20 per missing level for each required skill, floored at 0; a missing skill is assumed at level 3. Experience: 8 points per year of seniority, capped at 100; seniority is measured at the quarter's `dateReference` (`ROUND(days / 365.25, 1)`, as in the workbook), so a quarter gives the same result whatever day it is computed. The current holder is excluded. |
 | **Readiness** | `SuccessionService` | Matching ≥ 90 Ready Now, ≥ 80 < 1 year, ≥ 65 1–2 years, else > 2 years. |
 | **Critical positions** | `PosteCritiqueService` | A position flagged "Oui". Fewer than 1 identified successor → **ALERT**; otherwise the best successor's matching gives "Ready Now" (≥ 90), "< 1 year" (≥ 80) or "Partielle". Coverage rate = positions not in alert ÷ critical positions. |
 | **Talent Committee** | `ValidationComiteService` | Validated talent = proposed talent **and** committee decision "Oui". A decision not entered counts as "En attente". |
@@ -481,6 +495,8 @@ Screens are Thymeleaf templates rendered on the server. There's no JavaScript fr
 - thematic pools;
 - vigilance index and level (55 / 35 / 10);
 - all 2,500 skill gap statuses.
+
+The dataset quarter (T3 2026) uses the workbook's reference date, 15/09/2026, as its `dateReference`: entry dates are compared as they are, with no shifting.
 
 It is the proof that the engine implements the client's rules. The workbook is gitignored, so the test is skipped in CI; run it locally before merging engine changes.
 
@@ -588,7 +604,10 @@ The application holds personal data, so it is designed to be reachable **only fr
 | Localhost binding | `server.address=127.0.0.1` in `application.properties` | The server does not listen on the network at all |
 | Host check | `ProtectionRequetesFilter` | Any request whose `Host` is not `localhost` or `127.0.0.1` gets 403, reads included. This blocks "DNS rebinding", where a malicious site makes its domain point to 127.0.0.1 to read the data. Configurable with `talent360.securite.hotes-autorises`. |
 | Write header (CSRF) | `ProtectionRequetesFilter.EN_TETE_ECRITURE` = `X-Talent360` | POST / PUT / PATCH / DELETE without the header get 403. A browser cannot add a custom header to a cross-site request without a CORS check, which the app refuses (no CORS config), so a malicious page cannot trigger writes. Screens send it with `fetch` ([`requetes-ecriture.md`](requetes-ecriture.md)). |
-| No secrets in the code | `spring.datasource.password=${SPRING_DATASOURCE_PASSWORD:}` | The database password comes from an environment variable |
+| Login | `SecurityConfig`, `UtilisateurDetailsService`, `Utilisateur` | Only HR logs in. Every page and every `/api/**` endpoint needs an authenticated RH; after login, HR lands on `/`. Form login, BCrypt hashes, 15-minute session, `HttpOnly` + `SameSite=Strict` cookie. A deactivated account is refused. Not logged in: pages redirect to `/login`, the API answers 401 in JSON |
+| First account | `PremierCompteRhInitializer` | Created from environment variables ([section 10](#accounts-and-environment-variables)); there is no default password |
+| CSRF on HTML forms | Spring Security | Login and logout forms carry the CSRF token (`th:action`) |
+| No secrets in the code | `spring.datasource.username/password=${SPRING_DATASOURCE_…}` (no default) | The database account and password come from environment variables; the app refuses to start without them |
 | Escaped output | Thymeleaf `th:text` everywhere, no `th:utext` | No XSS from data |
 | Bound parameters | JPQL queries with parameters; the only concatenated SQL uses constants | No SQL injection |
 | Generic 500 errors | `ApiExceptionHandler` | No stack trace or internal message is sent to the client |
@@ -597,12 +616,8 @@ The application holds personal data, so it is designed to be reachable **only fr
 
 **What's still missing**
 
-- **No login.** Anyone with a session on the workstation can use the app. The unused `UtilisateurRH` entity already has `login` and `motDePasseHash`. The natural next step is Spring Security with one BCrypt-hashed user, which would also give standard CSRF tokens.
 - **An old MySQL password is in the public git history** (commits `17a709c`, `414361d`; the repository is public). It must be changed wherever it was used; it's no longer in the code.
-- **Dangerous write endpoints** in `CollaborateurController` and `CompetenceController`:
-  - they bind entities directly, with no validation, and allow deletions;
-  - `POST /api/collaborateurs/import` reads any file path it is given.
-- **The app runs as MySQL `root`.** A dedicated MySQL account limited to `talent360bank` would be safer.
+- **Write endpoints bind entities** in `CollaborateurController` and `CompetenceController` (`POST` with an entity as `@RequestBody`, no validation) and allow deletions. They are RH only, but should take a validated form.
 - **Bootstrap is loaded from a CDN.** That's an outside request, and the screens break with no internet.
 
 ---
@@ -647,7 +662,7 @@ setx TALENT360_ADMIN_PASSWORD "at-least-12-characters"
 
 **3. First RH account.** At startup, if no RH account exists, `PremierCompteRhInitializer` creates one from `TALENT360_ADMIN_LOGIN` / `TALENT360_ADMIN_PASSWORD` (password: 12 characters minimum, stored as a BCrypt hash). If the variables are missing, it logs a warning and creates nothing. Once the account exists, the two variables are no longer read. Remove them (`reg delete HKCU\Environment /v TALENT360_ADMIN_PASSWORD /f`, same for the login) so the password does not stay in the environment.
 
-Then open http://localhost:8080/login. RH lands on `/`; the other profiles on `/moi`, `/manager` or `/comite`.
+Then open http://localhost:8080/login. After login, HR lands on `/`.
 
 ### Commands
 
@@ -662,25 +677,26 @@ Then open http://localhost:8080/login. RH lands on `/`; the other profiles on `/
 
 - **default:** safe settings. Local binding, no SQL log, template cache on, DevTools off.
 - **`dev`** (`application-dev.properties`): SQL printed, template reload, automatic restart. Never for a client demo.
-- **`demo`:** loads the workbook into an empty database, runs the engine, and plugs the workbook in as the four sources. **It exists only on Jas's machine:** the classes (`dev/DemoDataLoader`, `dev/DemoClasseurSources`) are deliberately excluded from git through `.git/info/exclude`. Other developers must get the files from Jas, or wait for Dou's import.
+- **`demo`:** loads the workbook into an empty database, runs the engine, and plugs the workbook in as the four sources. **It exists only on Jas's machine:** the classes (`dev/DemoDataLoader`, `dev/DemoClasseurSources`) are deliberately excluded from git through `.git/info/exclude`. Other developers load the same data with the import ([`import-donnees.md`](import-donnees.md)).
 
 ### URLs
 
+- Log in first: http://localhost:8080/login
 - Screens: http://localhost:8080/, `/9box`, `/viviers`, `/comite-talent`
-- API example: http://localhost:8080/api/dashboard/synthese?annee=2026&numero=3
-- Write example: `curl -X POST -H "X-Talent360: 1" http://localhost:8080/api/trimestres/2026/3/scores/recalcul`
+- API example (browser, once logged in): http://localhost:8080/api/dashboard/synthese?annee=2026&numero=3
+- From `curl`, pass the session cookie of a logged-in RH, plus the header on writes: `curl -X POST -b "JSESSIONID=…" -H "X-Talent360: 1" http://localhost:8080/api/trimestres/2026/3/scores/recalcul`
 
 Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host check.
 
 ### Tests
 
-**475 test executions from 361 test methods in 36 test classes** (parameterized tests run once per case), all passing on `develop`.
+**597 test executions in 50 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
 
 | Folder | What it covers |
 |---|---|
 | `service` | Unit tests of every engine module with mocked repositories, and in-memory doubles for the sources |
 | `controller` | `@WebMvcTest` slices per controller, plus `ApiIntegrationTest`: full application on H2, real HTTP calls |
-| `config` | Initializers and the protection filter, including JPA tests on H2 that reproduce old database shapes |
+| `config` | Initializers, the protection filter and `SecurityConfigTest` (anonymous → `/login` or 401, RH everywhere, login, CSRF, first RH account), including JPA tests on H2 that reproduce old database shapes |
 | `entity` | Bean Validation of the settings and marks |
 | `ui` | The Comité screen: view service and real template rendering |
 | `dataset` | The Excel comparison, skipped when the workbook is absent |
@@ -722,18 +738,16 @@ git push -u origin feature/my-change
 - Every workbook calculation, with every `00_PARAMETRES` row (6–77) configurable per quarter.
 - Results verified against the workbook for all the modules listed in [section 7](#the-excel-comparison-test).
 - REST API for all modules; Comité screen; security fixes.
+- RH-only login (Spring Security, BCrypt, first RH account from environment variables), dedicated MySQL account, `CollaborateurResponse` instead of the entity.
+- Quarter reference date (`Trimestre.dateReference`): seniority no longer depends on today's date (audit C4).
 
 ### Left, by owner
 
 **Dou — data and import**
 
-- Import skills, positions and critical positions, performance and potential marks, engagement questionnaire. Only employees are imported today.
-- Store and implement the four sources: identified successors, committee decisions, direction → pool mapping and the 5 pool rows, vigilance flags F–K.
-- Make the import safe: file upload with a size limit or a fixed folder, `@Transactional`, per-row error report, explicit error for a missing sheet, no silent overwrite.
+- Import `11_DEVELOPMENT_PLAN`.
 - Secure `CollaborateurController` / `CompetenceController`: DTOs and validation, and no deletion in the demo build.
 - Uniqueness on `CompetenceCollaborateur` (employee, skill) and `QuestionnaireEngagement` (employee, quarter).
-- Remove unused code: `excel/LecteurXlsx`, and the `Alerte`, `Rapport`, `ImportExcel`, `UtilisateurRH` repositories, unless they are planned.
-- Tests for `ExcelReader` and `ImportService` (none today).
 
 **Ima — UI**
 
@@ -746,15 +760,12 @@ git push -u origin feature/my-change
 
 **Jas — engine and platform**
 
-- Login (Spring Security, one user) and standard CSRF tokens once there is a login.
 - Schema migrations (Flyway) instead of `ddl-auto=update`.
-- A dedicated MySQL account instead of `root`.
 - Plan the move to Spring Boot 4.x: 3.5 no longer receives free security fixes after June 2026.
 - Make CI a required check on `develop`, and set `develop` as the default branch.
 
 ### Known limitations
 
-- **Outside the demo profile, most results are empty or all-alert**, because the import and the four sources are missing.
 - Stored results (scores, boxes, categories, relief pool) don't update themselves when settings change; rerun the recalculation steps.
 - Skills are not tied to a quarter; the quarter only selects the gap threshold.
 - The engine compares rounded scores with thresholds, while the workbook compares unrounded ones. No employee in the dataset is affected.

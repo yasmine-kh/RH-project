@@ -30,7 +30,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -141,7 +140,8 @@ class PosteCritiqueServiceTest {
                 List.of("BP020", "BP010"), index(fort, faible),
                 scores(score(fort, "95"), score(faible, "60")),
                 potentiels(potentiel(fort, "95"), potentiel(faible, "60")),
-                Map.of("BP010", List.of(skill(fort, 5)), "BP020", List.of(skill(faible, 3))), parametre);
+                Map.of("BP010", List.of(skill(fort, 5)), "BP020", List.of(skill(faible, 3))), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isEqualTo(2);
         assertThat(couverture.successeurs()).extracting(r -> r.candidat().getIdCollaborateur())
@@ -155,7 +155,8 @@ class PosteCritiqueServiceTest {
     @Test
     void sans_successeur_identifie_le_poste_est_en_alerte() {
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"), List.of(),
-                Map.of(), Map.of(), Map.of(), Map.of(), parametre);
+                Map.of(), Map.of(), Map.of(), Map.of(), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isZero();
         assertThat(couverture.estEnAlerte()).isTrue();
@@ -170,7 +171,8 @@ class PosteCritiqueServiceTest {
 
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"),
                 List.of("BP075", "BP999", "BP030"), index(titulaire, parti),
-                scores(score(titulaire, "95"), score(parti, "95")), Map.of(), Map.of(), parametre);
+                scores(score(titulaire, "95"), score(parti, "95")), Map.of(), Map.of(), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isZero();
         assertThat(couverture.estEnAlerte()).isTrue();
@@ -183,7 +185,8 @@ class PosteCritiqueServiceTest {
         Collaborateur nouveau = collaborateur("BP040", StatutCollaborateur.ACTIF);
 
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"),
-                List.of("BP040"), index(nouveau), Map.of(), Map.of(), Map.of(), parametre);
+                List.of("BP040"), index(nouveau), Map.of(), Map.of(), Map.of(), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isEqualTo(1);
         assertThat(couverture.successeurs()).isEmpty();
@@ -198,7 +201,8 @@ class PosteCritiqueServiceTest {
 
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"),
                 List.of("BP010", "BP010"), index(candidat), scores(score(candidat, "95")),
-                Map.of(), Map.of(), parametre);
+                Map.of(), Map.of(), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isEqualTo(1);
         assertThat(couverture.successeurs()).hasSize(1);
@@ -281,7 +285,7 @@ class PosteCritiqueServiceTest {
         collaborateur.setIdCollaborateur(idCollaborateur);
         collaborateur.setNom("Nom" + idCollaborateur);
         collaborateur.setPrenom("Prenom" + idCollaborateur);
-        collaborateur.setDateEntree(LocalDate.now().minusYears(15));
+        collaborateur.setDateEntree(trimestre.getDateReference().minusYears(15));
         collaborateur.setStatut(statut);
         return collaborateur;
     }

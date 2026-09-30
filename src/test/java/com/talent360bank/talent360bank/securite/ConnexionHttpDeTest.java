@@ -46,7 +46,7 @@ public final class ConnexionHttpDeTest {
                                      PasswordEncoder passwordEncoder) {
         if (utilisateurRepository.findByLogin(LOGIN_RH).isEmpty()) {
             utilisateurRepository.save(new Utilisateur(LOGIN_RH, passwordEncoder.encode(MOT_DE_PASSE_RH),
-                    Role.RH, null));
+                    Role.RH));
         }
         String cookie = seConnecter(client, LOGIN_RH, MOT_DE_PASSE_RH);
         ClientHttpRequestInterceptor session = (requete, corps, execution) -> {

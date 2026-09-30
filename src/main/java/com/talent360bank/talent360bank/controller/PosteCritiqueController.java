@@ -31,7 +31,7 @@ public class PosteCritiqueController {
     public List<CouverturePosteResponse> postesCritiques(@RequestParam int annee, @RequestParam int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return posteCritiqueService.listerPostesCritiques(trimestre).stream()
-                .map(CouverturePosteResponse::de).toList();
+                .map(couverture -> CouverturePosteResponse.de(couverture, trimestre.getDateReference())).toList();
     }
 
     /** Postes critiques en alerte, a traiter en priorite. */
@@ -39,7 +39,7 @@ public class PosteCritiqueController {
     public List<CouverturePosteResponse> alertes(@RequestParam int annee, @RequestParam int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return posteCritiqueService.detecterAlertes(trimestre).stream()
-                .map(CouverturePosteResponse::de).toList();
+                .map(couverture -> CouverturePosteResponse.de(couverture, trimestre.getDateReference())).toList();
     }
 
     /** Chiffres cles pour le tableau de bord, en un seul calcul. */
@@ -49,7 +49,7 @@ public class PosteCritiqueController {
         List<CouverturePoste> couvertures = posteCritiqueService.listerPostesCritiques(trimestre);
         List<CouverturePosteResponse> alertes = couvertures.stream()
                 .filter(CouverturePoste::estEnAlerte)
-                .map(CouverturePosteResponse::de)
+                .map(couverture -> CouverturePosteResponse.de(couverture, trimestre.getDateReference()))
                 .toList();
         return new SyntheseCouvertureResponse(couvertures.size(), alertes.size(),
                 posteCritiqueService.tauxCouverture(couvertures), alertes);
@@ -60,6 +60,7 @@ public class PosteCritiqueController {
     public CouverturePosteResponse posteCritique(@PathVariable String posteId,
                                                  @RequestParam int annee, @RequestParam int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
-        return CouverturePosteResponse.de(posteCritiqueService.evaluerCouverture(posteId, trimestre));
+        return CouverturePosteResponse.de(posteCritiqueService.evaluerCouverture(posteId, trimestre),
+                trimestre.getDateReference());
     }
 }

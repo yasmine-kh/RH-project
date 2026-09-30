@@ -81,7 +81,7 @@ public class PremierCompteRhInitializer implements ApplicationRunner {
             return false;
         }
 
-        utilisateurRepository.save(new Utilisateur(login, passwordEncoder.encode(motDePasse), Role.RH, null));
+        utilisateurRepository.save(new Utilisateur(login, passwordEncoder.encode(motDePasse), Role.RH));
         // Le mot de passe n'est jamais logue.
         log.info("Premier compte RH cree : {}", login);
         return true;

@@ -57,7 +57,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.Normalizer;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -93,7 +92,10 @@ class DatasetExcelComparaisonTest {
 
     private static final Path FICHIER = Path.of("docs/data/TALENT_360_BANK_Dataset_V1.xlsx");
 
-    /** Date de reference de l'anciennete dans 01_COLLABORATEURS (DATE(2026,9,15)). */
+    /**
+     * Date de reference de l'anciennete dans 01_COLLABORATEURS (DATE(2026,9,15)) :
+     * celle du trimestre du jeu de donnees, T3 2026.
+     */
     private static final LocalDate DATE_REFERENCE_CLASSEUR = LocalDate.of(2026, 9, 15);
 
     private static final int CANDIDATS_SUCCESSION = 6;
@@ -124,6 +126,7 @@ class DatasetExcelComparaisonTest {
         Trimestre trimestre = new Trimestre();
         trimestre.setNumero(3);
         trimestre.setAnnee(2026);
+        trimestre.setDateReference(DATE_REFERENCE_CLASSEUR);
         parametre = Parametre.parDefaut(trimestre);
 
         calculService = new CalculService(mock(ParametreRepository.class),
@@ -240,7 +243,8 @@ class DatasetExcelComparaisonTest {
             }
             Collaborateur candidat = collaborateur(id);
             ResultatMatching resultat = successionService.evaluer(candidat, postes.get(posteId),
-                    score(id), potentiel(id), competences(candidat, referentiel), parametre);
+                    score(id), potentiel(id), competences(candidat, referentiel), parametre,
+                    parametre.getTrimestre().getDateReference());
 
             String prefixe = "09_SUCCESSION " + posteId + ".";
             comparerNombre(ecarts, id, prefixe + "Sc. Competences", ligne.get("E"), resultat.detail().competences());
@@ -468,10 +472,7 @@ class DatasetExcelComparaisonTest {
         collaborateur.setPrenom(ligne.get("C"));
         collaborateur.setEntite(ligne.get("H") == null ? null : new Entite(ligne.get("H"), TypeEntite.DIRECTION, null));
         collaborateur.setStatut(StatutCollaborateur.ACTIF);
-        // Le moteur mesure l'anciennete a aujourd'hui, le classeur au 15/09/2026 :
-        // la date d'entree est decalee d'autant pour comparer la meme duree.
-        collaborateur.setDateEntree(dateExcel(ligne.get("F"))
-                .plusDays(ChronoUnit.DAYS.between(DATE_REFERENCE_CLASSEUR, LocalDate.now())));
+        collaborateur.setDateEntree(dateExcel(ligne.get("F")));
         return collaborateur;
     }
 

@@ -31,7 +31,8 @@ public class VivierThematiqueController {
     @GetMapping
     public ViviersThematiquesResponse viviers(@RequestParam int annee, @RequestParam int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
-        return ViviersThematiquesResponse.de(vivierThematiqueService.getViviersThematiques(trimestre));
+        return ViviersThematiquesResponse.de(vivierThematiqueService.getViviersThematiques(trimestre),
+                trimestre.getDateReference());
     }
 
     /** Un seul vivier, par son code (COMMERCIAL, DIGITAL...), sans tenir compte de la casse. */

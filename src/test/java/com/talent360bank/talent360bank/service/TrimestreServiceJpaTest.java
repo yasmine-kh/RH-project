@@ -9,8 +9,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import javax.sql.DataSource;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,6 +32,8 @@ class TrimestreServiceJpaTest {
     private TrimestreRepository trimestreRepository;
     @Autowired
     private ParametreRepository parametreRepository;
+    @Autowired
+    private DataSource dataSource;
 
     private long trimestresDeLAnnee() {
         return trimestreRepository.findAll().stream().filter(t -> t.getAnnee() == ANNEE).count();
@@ -44,6 +50,46 @@ class TrimestreServiceJpaTest {
         Parametre defauts = Parametre.parDefaut(resultat.trimestre());
         assertThat(parametre.getPoidsPerformance().getPoidsObjectifs())
                 .isEqualByComparingTo(defauts.getPoidsPerformance().getPoidsObjectifs());
+    }
+
+    /** Valeur enregistree en base, et non le repli du getter. */
+    private LocalDate dateReferenceEnBase(Trimestre trimestre) {
+        trimestreRepository.flush();
+        return new JdbcTemplate(dataSource).queryForObject(
+                "SELECT date_reference FROM trimestre WHERE id_trimestre = ?", LocalDate.class,
+                trimestre.getIdTrimestre());
+    }
+
+    @Test
+    void un_trimestre_cree_a_pour_date_de_reference_son_dernier_jour() {
+        assertThat(dateReferenceEnBase(service.creerSiAbsent(ANNEE, 1).trimestre()))
+                .isEqualTo(LocalDate.of(ANNEE, 3, 31));
+        assertThat(dateReferenceEnBase(service.creerSiAbsent(ANNEE, 4).trimestre()))
+                .isEqualTo(LocalDate.of(ANNEE, 12, 31));
+    }
+
+    @Test
+    void un_trimestre_enregistre_sans_date_recoit_son_dernier_jour() {
+        // Chemin hors service (import, tests) : la date est posee a l'insertion.
+        Trimestre trimestre = new Trimestre();
+        trimestre.setAnnee(ANNEE);
+        trimestre.setNumero(2);
+        trimestreRepository.save(trimestre);
+
+        assertThat(dateReferenceEnBase(trimestre)).isEqualTo(LocalDate.of(ANNEE, 6, 30));
+    }
+
+    @Test
+    void la_date_de_reference_choisie_a_la_creation_est_gardee_puis_modifiable() {
+        Trimestre trimestre = service.creerSiAbsent(ANNEE, 3, LocalDate.of(ANNEE, 9, 15)).trimestre();
+        assertThat(dateReferenceEnBase(trimestre)).isEqualTo(LocalDate.of(ANNEE, 9, 15));
+
+        // Rejouer ne touche pas la date d'un trimestre existant.
+        service.creerSiAbsent(ANNEE, 3, LocalDate.of(ANNEE, 1, 1));
+        assertThat(dateReferenceEnBase(trimestre)).isEqualTo(LocalDate.of(ANNEE, 9, 15));
+
+        service.modifierDateReference(trimestre, LocalDate.of(ANNEE, 10, 5));
+        assertThat(dateReferenceEnBase(trimestre)).isEqualTo(LocalDate.of(ANNEE, 10, 5));
     }
 
     @Test

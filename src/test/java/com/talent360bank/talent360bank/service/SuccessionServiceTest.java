@@ -59,6 +59,9 @@ class SuccessionServiceTest {
     private SuccessionService successionService;
 
     private Trimestre trimestre;
+
+    /** Date de reference du trimestre de test : toutes les anciennetes y sont mesurees. */
+    private static final LocalDate REFERENCE = LocalDate.of(2026, 3, 31);
     private Parametre parametre;
     private Competence competenceA;
     private Competence competenceB;
@@ -73,6 +76,7 @@ class SuccessionServiceTest {
         trimestre = new Trimestre();
         trimestre.setNumero(1);
         trimestre.setAnnee(2026);
+        trimestre.setDateReference(REFERENCE);
 
         parametre = Parametre.parDefaut(trimestre);
 
@@ -96,7 +100,7 @@ class SuccessionServiceTest {
         collaborateur.setIdCollaborateur(idCollaborateur);
         collaborateur.setNom("Nom" + idCollaborateur);
         collaborateur.setPrenom("Prenom" + idCollaborateur);
-        collaborateur.setDateEntree(LocalDate.now().minusYears(anneesAnciennete));
+        collaborateur.setDateEntree(REFERENCE.minusYears(anneesAnciennete));
         collaborateur.setStatut(statut);
         return collaborateur;
     }
@@ -341,7 +345,7 @@ class SuccessionServiceTest {
     })
     void experience_vaut_huit_points_par_annee_plafonnes_a_cent(int annees, String attendu) {
         assertThat(successionService.scoreExperience(
-                collaborateur("E001", StatutCollaborateur.ACTIF, annees), parametre.getBaremeExperience()))
+                collaborateur("E001", StatutCollaborateur.ACTIF, annees), parametre.getBaremeExperience(), REFERENCE))
                 .isEqualByComparingTo(attendu);
     }
 
@@ -349,9 +353,9 @@ class SuccessionServiceTest {
     void experience_compte_l_anciennete_au_dixieme_d_annee() {
         // 1205 jours / 365.25 = 3.299 -> 3.3 ans, comme 01_COLLABORATEURS ; 3.3 x 8 = 26.4
         Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 0);
-        candidat.setDateEntree(LocalDate.now().minusDays(1205));
+        candidat.setDateEntree(REFERENCE.minusDays(1205));
 
-        assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience()))
+        assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience(), REFERENCE))
                 .isEqualByComparingTo("26.40");
     }
 
@@ -361,10 +365,10 @@ class SuccessionServiceTest {
         parametre.getBaremeExperience().setPlafond(new BigDecimal("90"));
 
         assertThat(successionService.scoreExperience(
-                collaborateur("E001", StatutCollaborateur.ACTIF, 5), parametre.getBaremeExperience()))
+                collaborateur("E001", StatutCollaborateur.ACTIF, 5), parametre.getBaremeExperience(), REFERENCE))
                 .isEqualByComparingTo("50.00");
         assertThat(successionService.scoreExperience(
-                collaborateur("E001", StatutCollaborateur.ACTIF, 12), parametre.getBaremeExperience()))
+                collaborateur("E001", StatutCollaborateur.ACTIF, 12), parametre.getBaremeExperience(), REFERENCE))
                 .isEqualByComparingTo("90.00");
     }
 
@@ -373,7 +377,7 @@ class SuccessionServiceTest {
         Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         candidat.setDateEntree(null);
 
-        assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience()))
+        assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience(), REFERENCE))
                 .isNull();
     }
 
@@ -383,8 +387,70 @@ class SuccessionServiceTest {
         parametre.getBaremeExperience().setPointsParAnnee(null);
 
         assertThatThrownBy(() -> successionService.scoreExperience(
-                candidat, parametre.getBaremeExperience()))
+                candidat, parametre.getBaremeExperience(), REFERENCE))
                 .isInstanceOf(DonneesIncompletesException.class);
+    }
+
+    // --- date de reference (C4) : jamais la date du jour ----------------------
+
+    /**
+     * Dates choisies loin d'aujourd'hui, dans les deux sens : mesuree a la date
+     * du jour, l'anciennete serait tout autre (environ 11 ans dans le premier
+     * cas, negative donc 0 point dans le second).
+     */
+    @ParameterizedTest
+    @CsvSource({
+            "2015-06-30, 2020-06-30, 40.00",   // 5.0 ans dans le passe
+            "2030-12-31, 2040-12-31, 80.00"    // 10.0 ans dans le futur
+    })
+    void l_experience_se_mesure_a_la_date_de_reference_pas_a_aujourd_hui(LocalDate entree, LocalDate reference,
+                                                                         String attendu) {
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 0);
+        candidat.setDateEntree(entree);
+
+        assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience(), reference))
+                .isEqualByComparingTo(attendu);
+    }
+
+    @Test
+    void le_classement_mesure_l_anciennete_a_la_date_de_reference_du_trimestre() {
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 0);
+        candidat.setDateEntree(LocalDate.of(2010, 1, 1));
+        preparerClassement(List.of(score(candidat, "90.00", "80.00")), List.of(), List.of());
+
+        // 2010-01-01 -> 2015-01-01 : 1826 jours / 365.25 = 5.0 ans -> 40 points.
+        trimestre.setDateReference(LocalDate.of(2015, 1, 1));
+        assertThat(successionService.classerCandidats("P001", trimestre).get(0).detail().experience())
+                .isEqualByComparingTo("40.00");
+
+        // Meme trimestre, date de reference changee par le RH : 2010 -> 2012, 2.0 ans -> 16 points.
+        trimestre.setDateReference(LocalDate.of(2012, 1, 1));
+        assertThat(successionService.classerCandidats("P001", trimestre).get(0).detail().experience())
+                .isEqualByComparingTo("16.00");
+    }
+
+    @Test
+    void sans_date_de_reference_enregistree_le_trimestre_vaut_son_dernier_jour() {
+        Trimestre t3 = new Trimestre();
+        t3.setAnnee(2026);
+        t3.setNumero(3);
+        assertThat(t3.getDateReference()).isEqualTo(LocalDate.of(2026, 9, 30));
+
+        for (int numero = 1; numero <= 4; numero++) {
+            assertThat(Trimestre.dernierJour(2024, numero)).isEqualTo(
+                    List.of(LocalDate.of(2024, 3, 31), LocalDate.of(2024, 6, 30), LocalDate.of(2024, 9, 30),
+                            LocalDate.of(2024, 12, 31)).get(numero - 1));
+        }
+    }
+
+    @Test
+    void l_anciennete_d_un_collaborateur_se_mesure_a_la_date_donnee() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF, 0);
+        collaborateur.setDateEntree(LocalDate.of(2015, 6, 30));
+
+        assertThat(collaborateur.getAnciennete(LocalDate.of(2020, 6, 29))).isEqualTo(4);
+        assertThat(collaborateur.getAnciennete(LocalDate.of(2020, 6, 30))).isEqualTo(5);
+        assertThat(collaborateur.getAnciennete(null)).isNull();
     }
 
     // --- score de matching ---------------------------------------------------
@@ -401,7 +467,7 @@ class SuccessionServiceTest {
                 score(candidat, "90.00", "80.00"),
                 potentiel(candidat, "70.00", "60.00"),
                 List.of(skill(candidat, competenceA, 4), skill(candidat, competenceB, 3)),
-                parametre);
+                parametre, REFERENCE);
 
         assertThat(resultat.scoreMatching()).isEqualByComparingTo("87.00");
         assertThat(resultat.readiness()).isEqualTo(NiveauReadiness.MOINS_1_AN);
@@ -416,7 +482,7 @@ class SuccessionServiceTest {
                 score(candidat, "90.00", "80.00"),
                 potentiel(candidat, "70.00", "60.00"),
                 List.of(skill(candidat, competenceA, 4), skill(candidat, competenceB, 3)),
-                parametre);
+                parametre, REFERENCE);
 
         assertThat(resultat.detail().competences()).isEqualByComparingTo("100.00");
         assertThat(resultat.detail().performance()).isEqualByComparingTo("90.00");
@@ -437,7 +503,7 @@ class SuccessionServiceTest {
                 score(candidat, "90.00", "80.00"),
                 null,
                 List.of(skill(candidat, competenceA, 4), skill(candidat, competenceB, 3)),
-                parametre);
+                parametre, REFERENCE);
 
         assertThat(resultat.scoreMatching()).isEqualByComparingTo("74.00");
         assertThat(resultat.readiness()).isEqualTo(NiveauReadiness.ENTRE_1_ET_2_ANS);
@@ -456,7 +522,7 @@ class SuccessionServiceTest {
                 score(candidat, "90.00", "80.00"),
                 potentiel(candidat, "70.00", "60.00"),
                 List.of(),
-                parametre);
+                parametre, REFERENCE);
 
         assertThat(resultat.scoreMatching()).isEqualByComparingTo("62.00");
     }
@@ -467,7 +533,7 @@ class SuccessionServiceTest {
         parametre.setPoidsSuccession(null);
 
         assertThatThrownBy(() -> successionService.evaluer(candidat, poste("P001"),
-                score(candidat, "90.00", "80.00"), null, List.of(), parametre))
+                score(candidat, "90.00", "80.00"), null, List.of(), parametre, REFERENCE))
                 .isInstanceOf(DonneesIncompletesException.class)
                 .hasMessageContaining("poids");
     }
@@ -479,7 +545,7 @@ class SuccessionServiceTest {
         poids.setPoidsExperience(null);
 
         assertThatThrownBy(() -> successionService.evaluer(candidat, poste("P001"),
-                score(candidat, "90.00", "80.00"), null, List.of(), parametre))
+                score(candidat, "90.00", "80.00"), null, List.of(), parametre, REFERENCE))
                 .isInstanceOf(DonneesIncompletesException.class)
                 .hasMessageContaining("experience");
     }

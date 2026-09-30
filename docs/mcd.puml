@@ -55,6 +55,7 @@ entity "trimestre" as trimestre {
   --
   * numero : INT
   * annee : INT
+  * date_reference : DATE
   <<UK (numero, annee)>>
 }
 
@@ -212,25 +213,16 @@ entity "successeur_identifie" as successeur_identifie {
   <<UK (id_poste, id_collaborateur)>>
 }
 
-entity "alerte" as alerte {
-  * id_alerte : INT <<PK>>
-  --
-  * id_collaborateur : VARCHAR(20) <<FK>>
-  * type_alerte : VARCHAR
-  severite : VARCHAR
-  * date_creation : DATE
-  statut : ENUM
-}
-
 ' ================================================================ utilisateurs et journal
 
-entity "utilisateur_rh" as utilisateur_rh {
+entity "utilisateur" as utilisateur {
   * id_utilisateur : INT <<PK>>
   --
-  * nom : VARCHAR
-  * login : VARCHAR <<UK>>
-  * mot_de_passe_hash : VARCHAR
-  role : VARCHAR
+  * login : VARCHAR(50) <<UK>>
+  * mot_de_passe_hash : VARCHAR(100)
+  * role : ENUM (RH)
+  * actif : BOOLEAN
+  * date_creation : DATETIME
 }
 
 entity "import_excel" as import_excel {
@@ -245,15 +237,6 @@ entity "import_excel" as import_excel {
   message : VARCHAR(1000)
   id_trimestre : INT <<FK>>
   id_utilisateur : INT <<FK>>
-}
-
-entity "rapport" as rapport {
-  * id_rapport : INT <<PK>>
-  --
-  * type : VARCHAR
-  format : VARCHAR
-  * date_generation : DATE
-  * id_utilisateur : INT <<FK>>
 }
 
 ' ================================================================ associations
@@ -293,12 +276,10 @@ collaborateur ||--o{ validation_comite : "decision"
 trimestre ||--o{ validation_comite : ""
 poste ||--o{ successeur_identifie : "succession"
 collaborateur ||--o{ successeur_identifie : "candidat"
-collaborateur ||--o{ alerte : "concerne"
 
 ' Utilisateurs et journal
 trimestre |o--o{ import_excel : "importe pour"
-utilisateur_rh |o--o{ import_excel : "lance"
-utilisateur_rh ||--o{ rapport : "genere"
+utilisateur |o--o{ import_excel : "lance"
 
 note bottom of rattachement_vivier
   Sans cle etrangere : "direction" porte le libelle

@@ -4,6 +4,7 @@ import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
 import com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,8 @@ public record TableauDeBordResponse(int nbTalents, int nbTalentsValides, int nbH
                                     List<CouverturePosteResponse> alertesPostesCritiques,
                                     Map<String, Integer> repartition9Box, int nbNonPlaces9Box) {
 
-    public static TableauDeBordResponse de(SyntheseTableauDeBord synthese) {
+    /** @param dateReference date de reference du trimestre, pour l'anciennete des successeurs */
+    public static TableauDeBordResponse de(SyntheseTableauDeBord synthese, LocalDate dateReference) {
         Map<String, Integer> vigilance = new LinkedHashMap<>();
         for (Map.Entry<NiveauVigilance, Integer> entree : synthese.vigilanceParNiveau().entrySet()) {
             vigilance.put(entree.getKey().name(), entree.getValue());
@@ -28,7 +30,8 @@ public record TableauDeBordResponse(int nbTalents, int nbTalentsValides, int nbH
                 synthese.nbHautsPotentiels(),
                 vigilance, synthese.nbARisque(),
                 synthese.nbPostesCritiques(), synthese.nbAlertesPostesCritiques(), synthese.tauxCouverture(),
-                synthese.alertesPostesCritiques().stream().map(CouverturePosteResponse::de).toList(),
+                synthese.alertesPostesCritiques().stream()
+                        .map(couverture -> CouverturePosteResponse.de(couverture, dateReference)).toList(),
                 synthese.repartition9Box(), synthese.nbNonPlaces9Box());
     }
 }

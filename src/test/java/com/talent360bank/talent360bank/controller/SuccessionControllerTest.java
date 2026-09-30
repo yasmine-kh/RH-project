@@ -20,7 +20,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
@@ -54,7 +53,8 @@ class SuccessionControllerTest {
         candidat.setIdCollaborateur("E001");
         candidat.setNom("Bennani");
         candidat.setPrenom("Sara");
-        candidat.setDateEntree(LocalDate.now().minusYears(10));
+        // Anciennete mesuree a la date de reference du trimestre (31/03/2026), pas a aujourd'hui.
+        candidat.setDateEntree(trimestre.getDateReference().minusYears(10));
         candidat.setStatut(StatutCollaborateur.ACTIF);
         candidat.setEntite(new Entite("Reseau", TypeEntite.DIRECTION, null));
     }
