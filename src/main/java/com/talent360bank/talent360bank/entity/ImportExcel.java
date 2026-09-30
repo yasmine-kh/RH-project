@@ -35,12 +35,13 @@ public class ImportExcel {
     private String statut;
 
     /**
-     * Nul tant que l'application n'a pas de comptes (monoposte, un seul RH).
-     * Colonne creee NOT NULL a l'origine : ImportExcelInitializer la libere.
+     * Compte RH qui a lance l'import. Encore nul : l'import ne le renseigne
+     * pas encore. Colonne creee NOT NULL a l'origine : ImportExcelInitializer
+     * la libere.
      */
     @ManyToOne
     @JoinColumn(name = "id_utilisateur")
-    private UtilisateurRH utilisateur;
+    private Utilisateur utilisateur;
 
     /** Trimestre des notes importees ; nul si l'import a echoue avant de le connaitre. */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -102,11 +103,11 @@ public class ImportExcel {
         this.statut = statut;
     }
 
-    public UtilisateurRH getUtilisateur() {
+    public Utilisateur getUtilisateur() {
         return utilisateur;
     }
 
-    public void setUtilisateur(UtilisateurRH utilisateur) {
+    public void setUtilisateur(Utilisateur utilisateur) {
         this.utilisateur = utilisateur;
     }
 

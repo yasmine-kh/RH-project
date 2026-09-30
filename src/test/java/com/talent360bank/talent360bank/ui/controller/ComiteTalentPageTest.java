@@ -1,5 +1,7 @@
 package com.talent360bank.talent360bank.ui.controller;
 
+import com.talent360bank.talent360bank.config.SecurityConfig;
+import org.springframework.security.test.context.support.WithMockUser;
 import com.talent360bank.talent360bank.entity.Entite;
 import com.talent360bank.talent360bank.entity.TypeEntite;
 import com.talent360bank.talent360bank.entity.CategoriePerformance;
@@ -40,7 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * seuls le moteur et le depot des trimestres sont simules.
  */
 @WebMvcTest(PagesController.class)
-@Import(ComiteTalentViewService.class)
+@Import({ComiteTalentViewService.class, SecurityConfig.class})
+@WithMockUser(roles = "RH")
 class ComiteTalentPageTest {
 
     @Autowired

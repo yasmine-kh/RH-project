@@ -28,6 +28,9 @@ import com.talent360bank.talent360bank.repository.QuestionnaireEngagementReposit
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
+import com.talent360bank.talent360bank.repository.UtilisateurRepository;
+import com.talent360bank.talent360bank.securite.ConnexionHttpDeTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -39,6 +42,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -93,6 +97,10 @@ class ApiIntegrationTest {
     private PosteRepository posteRepository;
     @Autowired
     private QuestionnaireEngagementRepository questionnaireRepository;
+    @Autowired
+    private UtilisateurRepository utilisateurRepository;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     private Trimestre courant;
     private Trimestre precedent;
@@ -110,9 +118,13 @@ class ApiIntegrationTest {
     @LocalServerPort
     private int port;
 
+    /** Cookie de la session RH ouverte au debut, par le vrai formulaire de connexion. */
+    private String sessionRh;
+
     @BeforeAll
     void poserLesDonnees() {
         restTemplate.getRestTemplate().getInterceptors().add(EN_TETE_ECRITURE);
+        sessionRh = ConnexionHttpDeTest.connecterRh(restTemplate, utilisateurRepository, passwordEncoder);
         precedent = trimestre(4, 2025);
         courant = trimestre(1, 2026);
         parametreRepository.save(Parametre.parDefaut(courant));
@@ -429,9 +441,24 @@ class ApiIntegrationTest {
     @Test
     @Order(17)
     void une_lecture_sans_l_en_tete_reste_permise() {
+        // Client sans l'intercepteur d'en-tete, avec seulement le cookie de session.
+        HttpHeaders entetes = new HttpHeaders();
+        entetes.add(HttpHeaders.COOKIE, sessionRh);
+        ResponseEntity<String> reponse = new TestRestTemplate().exchange(
+                "http://localhost:" + port + "/api/trimestres/2026/1/scores", HttpMethod.GET,
+                new HttpEntity<>(entetes), String.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @Order(18)
+    void une_lecture_sans_session_rend_401() {
         ResponseEntity<String> reponse = new TestRestTemplate().getForEntity(
                 "http://localhost:" + port + "/api/trimestres/2026/1/scores", String.class);
 
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(JsonPath.parse(reponse.getBody()).read("$.erreur", String.class))
+                .isEqualTo("non_authentifie");
     }
 }

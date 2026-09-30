@@ -1,5 +1,8 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.config.SecurityConfig;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
 import com.talent360bank.talent360bank.entity.AppartenanceVivier;
 import com.talent360bank.talent360bank.entity.CategoriePerformance;
@@ -32,6 +35,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Import(SecurityConfig.class)
+@WithMockUser(roles = "RH")
 @WebMvcTest({TalentController.class, NeufBoxController.class})
 class TalentEtNeufBoxControllerTest {
 
