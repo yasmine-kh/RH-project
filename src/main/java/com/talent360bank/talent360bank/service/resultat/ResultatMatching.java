@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.service.resultat;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
 
 import java.math.BigDecimal;
@@ -14,7 +14,7 @@ import java.math.BigDecimal;
  * devant un comite : il faut pouvoir dire si le candidat est ecarte pour ses
  * competences ou pour son anciennete.
  */
-public record ResultatMatching(Employe candidat, BigDecimal scoreMatching,
+public record ResultatMatching(Collaborateur candidat, BigDecimal scoreMatching,
                                NiveauReadiness readiness, DetailMatching detail) {
 
     /**

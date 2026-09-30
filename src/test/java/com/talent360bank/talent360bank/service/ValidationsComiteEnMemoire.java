@@ -13,15 +13,15 @@ import java.util.Map;
  */
 public class ValidationsComiteEnMemoire implements ValidationComiteSource {
 
-    private final Map<String, StatutValidationComite> statutParEmploye = new HashMap<>();
+    private final Map<String, StatutValidationComite> statutParCollaborateur = new HashMap<>();
 
-    public ValidationsComiteEnMemoire decider(String employeeId, StatutValidationComite statut) {
-        statutParEmploye.put(employeeId, statut);
+    public ValidationsComiteEnMemoire decider(String idCollaborateur, StatutValidationComite statut) {
+        statutParCollaborateur.put(idCollaborateur, statut);
         return this;
     }
 
     @Override
-    public StatutValidationComite statut(String employeeId, Trimestre trimestre) {
-        return statutParEmploye.getOrDefault(employeeId, StatutValidationComite.EN_ATTENTE);
+    public StatutValidationComite statut(String idCollaborateur, Trimestre trimestre) {
+        return statutParCollaborateur.getOrDefault(idCollaborateur, StatutValidationComite.EN_ATTENTE);
     }
 }

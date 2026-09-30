@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Arrays;
 
-/** Viviers thematiques : tous les employes ranges par vivier, statuts talent / HP compris. */
+/** Viviers thematiques : tous les collaborateurs ranges par vivier, statuts talent / HP compris. */
 @RestController
 @RequestMapping("/api/viviers-thematiques")
 public class VivierThematiqueController {
@@ -27,7 +27,7 @@ public class VivierThematiqueController {
         this.chargeur = chargeur;
     }
 
-    /** Tous les viviers, chacun present meme vide, et les employes non classes. */
+    /** Tous les viviers, chacun present meme vide, et les collaborateurs non classes. */
     @GetMapping
     public ViviersThematiquesResponse viviers(@RequestParam int annee, @RequestParam int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);

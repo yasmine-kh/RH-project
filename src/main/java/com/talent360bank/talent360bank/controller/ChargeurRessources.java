@@ -1,9 +1,9 @@
 package com.talent360bank.talent360bank.controller;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,12 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChargeurRessources {
 
     private final TrimestreRepository trimestreRepository;
-    private final EmployeRepository employeRepository;
+    private final CollaborateurRepository collaborateurRepository;
 
     public ChargeurRessources(TrimestreRepository trimestreRepository,
-                              EmployeRepository employeRepository) {
+                              CollaborateurRepository collaborateurRepository) {
         this.trimestreRepository = trimestreRepository;
-        this.employeRepository = employeRepository;
+        this.collaborateurRepository = collaborateurRepository;
     }
 
     /** @throws RessourceIntrouvableException si aucun trimestre ne porte ce couple */
@@ -55,11 +55,11 @@ public class ChargeurRessources {
         return exigerTrimestre(annee, numero);
     }
 
-    /** @throws RessourceIntrouvableException si l'employe n'existe pas */
+    /** @throws RessourceIntrouvableException si le collaborateur n'existe pas */
     @Transactional(readOnly = true)
-    public Employe exigerEmploye(String employeeId) {
-        return employeRepository.findById(employeeId)
+    public Collaborateur exigerCollaborateur(String idCollaborateur) {
+        return collaborateurRepository.findById(idCollaborateur)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun employe " + employeeId));
+                        "Aucun collaborateur " + idCollaborateur));
     }
 }

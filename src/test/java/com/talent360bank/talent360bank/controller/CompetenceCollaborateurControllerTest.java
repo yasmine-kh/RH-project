@@ -1,13 +1,13 @@
 package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.entity.Competence;
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.EmployeeSkill;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.service.CompetenceEmployeService;
+import com.talent360bank.talent360bank.service.CompetenceCollaborateurService;
 import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
-import com.talent360bank.talent360bank.service.resultat.CompetenceEmploye;
+import com.talent360bank.talent360bank.service.resultat.GapCompetence;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,48 +22,48 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(CompetenceEmployeController.class)
-class CompetenceEmployeControllerTest {
+@WebMvcTest(CompetenceCollaborateurController.class)
+class CompetenceCollaborateurControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
-    private CompetenceEmployeService competenceEmployeService;
+    private CompetenceCollaborateurService competenceCollaborateurService;
     @MockBean
     private ChargeurRessources chargeur;
 
     private Trimestre trimestre;
-    private Employe employe;
+    private Collaborateur collaborateur;
 
     @BeforeEach
     void init() {
         trimestre = new Trimestre();
         trimestre.setNumero(3);
         trimestre.setAnnee(2026);
-        employe = new Employe();
-        employe.setEmployeeId("BP001");
+        collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur("BP001");
     }
 
-    private CompetenceEmploye competence() {
+    private GapCompetence competence() {
         Competence competence = new Competence();
         competence.setCompetenceId("C01");
         competence.setNom("Credit");
         competence.setCategorie("Metier");
-        EmployeeSkill skill = new EmployeeSkill();
+        CompetenceCollaborateur skill = new CompetenceCollaborateur();
         skill.setCompetence(competence);
         skill.setNiveauActuel(1);
         skill.setNiveauCible(3);
-        return new CompetenceEmploye(skill, 2, StatutGapCompetence.PRIORITAIRE);
+        return new GapCompetence(skill, 2, StatutGapCompetence.PRIORITAIRE);
     }
 
     @Test
-    void les_competences_d_un_employe_portent_gap_et_statut() throws Exception {
+    void les_competences_d_un_collaborateur_portent_gap_et_statut() throws Exception {
         when(chargeur.exigerTrimestreOuDernier(2026, 3)).thenReturn(trimestre);
-        when(chargeur.exigerEmploye("BP001")).thenReturn(employe);
-        when(competenceEmployeService.competences(employe, trimestre)).thenReturn(List.of(competence()));
+        when(chargeur.exigerCollaborateur("BP001")).thenReturn(collaborateur);
+        when(competenceCollaborateurService.competences(collaborateur, trimestre)).thenReturn(List.of(competence()));
 
-        mockMvc.perform(get("/api/employes/BP001/competences").param("annee", "2026").param("numero", "3"))
+        mockMvc.perform(get("/api/collaborateurs/BP001/competences").param("annee", "2026").param("numero", "3"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].competenceId").value("C01"))
                 .andExpect(jsonPath("$[0].competence").value("Credit"))
@@ -78,10 +78,10 @@ class CompetenceEmployeControllerTest {
     @Test
     void sans_trimestre_le_plus_recent_est_demande() throws Exception {
         when(chargeur.exigerTrimestreOuDernier(null, null)).thenReturn(trimestre);
-        when(chargeur.exigerEmploye("BP001")).thenReturn(employe);
-        when(competenceEmployeService.competences(employe, trimestre)).thenReturn(List.of(competence()));
+        when(chargeur.exigerCollaborateur("BP001")).thenReturn(collaborateur);
+        when(competenceCollaborateurService.competences(collaborateur, trimestre)).thenReturn(List.of(competence()));
 
-        mockMvc.perform(get("/api/employes/BP001/competences"))
+        mockMvc.perform(get("/api/collaborateurs/BP001/competences"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].statutGap").value("PRIORITAIRE"));
     }
@@ -91,17 +91,18 @@ class CompetenceEmployeControllerTest {
         when(chargeur.exigerTrimestreOuDernier(2026, null))
                 .thenThrow(new IllegalArgumentException("annee et numero vont ensemble"));
 
-        mockMvc.perform(get("/api/employes/BP001/competences").param("annee", "2026"))
+        mockMvc.perform(get("/api/collaborateurs/BP001/competences").param("annee", "2026"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erreur").value("argument_invalide"));
     }
 
     @Test
-    void un_employe_inconnu_rend_404() throws Exception {
+    void un_collaborateur_inconnu_rend_404() throws Exception {
         when(chargeur.exigerTrimestreOuDernier(null, null)).thenReturn(trimestre);
-        when(chargeur.exigerEmploye("BP999")).thenThrow(new RessourceIntrouvableException("Aucun employe BP999"));
+        when(chargeur.exigerCollaborateur("BP999"))
+                .thenThrow(new RessourceIntrouvableException("Aucun collaborateur BP999"));
 
-        mockMvc.perform(get("/api/employes/BP999/competences"))
+        mockMvc.perform(get("/api/collaborateurs/BP999/competences"))
                 .andExpect(status().isNotFound());
     }
 }

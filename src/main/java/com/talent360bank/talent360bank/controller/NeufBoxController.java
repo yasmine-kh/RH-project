@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Placement des employes sur la matrice 9-box.
+ * Placement des collaborateurs sur la matrice 9-box.
  *
- * <p>Il n'y a pas d'endpoint de lecture ici : la case d'un employe est portee
+ * <p>Il n'y a pas d'endpoint de lecture ici : la case d'un collaborateur est portee
  * par son Score (champ positionBox), donc GET /trimestres/{annee}/{numero}/scores
  * suffit a construire la grille. Un second chemin vers la meme donnee
  * risquerait de diverger.
@@ -29,7 +29,7 @@ public class NeufBoxController {
     }
 
     /**
-     * Place tous les employes scores du trimestre et enregistre leur case.
+     * Place tous les collaborateurs scores du trimestre et enregistre leur case.
      * A lancer apres le recalcul des scores : le placement lit les scores, il
      * ne les calcule pas.
      */

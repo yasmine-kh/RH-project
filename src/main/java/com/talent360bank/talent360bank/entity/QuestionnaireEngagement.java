@@ -21,10 +21,10 @@ public class QuestionnaireEngagement {
 
     private String statut;
 
-    @NotNull(message = "L'employé est obligatoire")
+    @NotNull(message = "Le collaborateur est obligatoire")
     @ManyToOne
-    @JoinColumn(name = "id_employe", nullable = false)
-    private Employe employe;
+    @JoinColumn(name = "id_collaborateur", nullable = false)
+    private Collaborateur collaborateur;
 
     @NotNull(message = "Le trimestre est obligatoire")
     @ManyToOne
@@ -41,8 +41,8 @@ public class QuestionnaireEngagement {
     public void setDateReponse(LocalDate dateReponse) { this.dateReponse = dateReponse; }
     public String getStatut() { return statut; }
     public void setStatut(String statut) { this.statut = statut; }
-    public Employe getEmploye() { return employe; }
-    public void setEmploye(Employe employe) { this.employe = employe; }
+    public Collaborateur getCollaborateur() { return collaborateur; }
+    public void setCollaborateur(Collaborateur collaborateur) { this.collaborateur = collaborateur; }
     public Trimestre getTrimestre() { return trimestre; }
     public void setTrimestre(Trimestre trimestre) { this.trimestre = trimestre; }
 }

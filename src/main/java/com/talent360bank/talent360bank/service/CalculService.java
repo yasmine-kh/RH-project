@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.CategoriePerformance;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.PoidsPerformance;
@@ -50,38 +50,38 @@ public class CalculService {
     }
 
     /**
-     * Score de performance d'un employe sur un trimestre, sur 100.
+     * Score de performance d'un collaborateur sur un trimestre, sur 100.
      *
      * @throws RessourceIntrouvableException si les notes ou les reglages du
      *                                       trimestre sont absents
      */
     @Transactional(readOnly = true)
-    public BigDecimal calculerScorePerformance(Employe employe, Trimestre trimestre) {
-        Objects.requireNonNull(employe, "employe");
+    public BigDecimal calculerScorePerformance(Collaborateur collaborateur, Trimestre trimestre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
-        Performance performance = performanceRepository.findByEmployeAndTrimestre(employe, trimestre)
+        Performance performance = performanceRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucune note de performance pour " + employe.getEmployeeId()
+                        "Aucune note de performance pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
 
         return calculerScorePerformance(performance, chargerParametre(trimestre));
     }
 
     /**
-     * Score de potentiel d'un employe sur un trimestre, sur 100.
+     * Score de potentiel d'un collaborateur sur un trimestre, sur 100.
      *
      * @throws RessourceIntrouvableException si les notes ou les reglages du
      *                                       trimestre sont absents
      */
     @Transactional(readOnly = true)
-    public BigDecimal calculerScorePotentiel(Employe employe, Trimestre trimestre) {
-        Objects.requireNonNull(employe, "employe");
+    public BigDecimal calculerScorePotentiel(Collaborateur collaborateur, Trimestre trimestre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
-        Potentiel potentiel = potentielRepository.findByEmployeAndTrimestre(employe, trimestre)
+        Potentiel potentiel = potentielRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucune note de potentiel pour " + employe.getEmployeeId()
+                        "Aucune note de potentiel pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
 
         return calculerScorePotentiel(potentiel, chargerParametre(trimestre));

@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.service.enums;
 
 /**
- * Decision du Comite Talent sur un employe, comme la colonne Validation
+ * Decision du Comite Talent sur un collaborateur, comme la colonne Validation
  * Comite Talent de 10_TALENTS (saisie manuelle Oui / Non / En attente).
  */
 public enum StatutValidationComite {

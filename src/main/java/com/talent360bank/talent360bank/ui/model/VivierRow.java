@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 /**
  * Une ligne du tableau Viviers, prete pour l'affichage.
- * Aucun calcul ici : tout vient de Employe, Score et AppartenanceVivier.
+ * Aucun calcul ici : tout vient de Collaborateur, Score et AppartenanceVivier.
  */
 public class VivierRow {
 

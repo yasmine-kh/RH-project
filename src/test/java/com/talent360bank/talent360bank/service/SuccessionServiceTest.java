@@ -2,18 +2,18 @@ package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.BaremeCompetences;
 import com.talent360bank.talent360bank.entity.Competence;
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.EmployeeSkill;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.PoidsSuccession;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.EmployeeSkillRepository;
+import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
 import com.talent360bank.talent360bank.repository.PosteRepository;
@@ -50,7 +50,7 @@ class SuccessionServiceTest {
     @Mock
     private PotentielRepository potentielRepository;
     @Mock
-    private EmployeeSkillRepository employeeSkillRepository;
+    private CompetenceCollaborateurRepository competenceCollaborateurRepository;
     @Mock
     private ParametreRepository parametreRepository;
     @Mock
@@ -68,7 +68,7 @@ class SuccessionServiceTest {
         CalculService calculService = new CalculService(
                 parametreRepository, performanceRepository, potentielRepository);
         successionService = new SuccessionService(posteRepository, scoreRepository,
-                potentielRepository, employeeSkillRepository, calculService);
+                potentielRepository, competenceCollaborateurRepository, calculService);
 
         trimestre = new Trimestre();
         trimestre.setNumero(1);
@@ -91,14 +91,14 @@ class SuccessionServiceTest {
         return competence;
     }
 
-    private Employe employe(String employeeId, StatutEmploye statut, int anneesAnciennete) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setDateEntree(LocalDate.now().minusYears(anneesAnciennete));
-        employe.setStatut(statut);
-        return employe;
+    private Collaborateur collaborateur(String idCollaborateur, StatutCollaborateur statut, int anneesAnciennete) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setDateEntree(LocalDate.now().minusYears(anneesAnciennete));
+        collaborateur.setStatut(statut);
+        return collaborateur;
     }
 
     /** Poste exigeant C001 au niveau 4 et C002 au niveau 3. */
@@ -113,26 +113,26 @@ class SuccessionServiceTest {
         return poste;
     }
 
-    private EmployeeSkill skill(Employe employe, Competence competence, Integer niveauActuel) {
-        EmployeeSkill employeeSkill = new EmployeeSkill();
-        employeeSkill.setEmploye(employe);
-        employeeSkill.setCompetence(competence);
-        employeeSkill.setNiveauActuel(niveauActuel);
-        return employeeSkill;
+    private CompetenceCollaborateur skill(Collaborateur collaborateur, Competence competence, Integer niveauActuel) {
+        CompetenceCollaborateur competenceCollaborateur = new CompetenceCollaborateur();
+        competenceCollaborateur.setCollaborateur(collaborateur);
+        competenceCollaborateur.setCompetence(competence);
+        competenceCollaborateur.setNiveauActuel(niveauActuel);
+        return competenceCollaborateur;
     }
 
-    private Score score(Employe employe, String performance, String potentiel) {
+    private Score score(Collaborateur collaborateur, String performance, String potentiel) {
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(trimestre);
         score.setScorePerformance(performance == null ? null : new BigDecimal(performance));
         score.setScorePotentiel(potentiel == null ? null : new BigDecimal(potentiel));
         return score;
     }
 
-    private Potentiel potentiel(Employe employe, String leadership, String mobilite) {
+    private Potentiel potentiel(Collaborateur collaborateur, String leadership, String mobilite) {
         Potentiel potentiel = new Potentiel();
-        potentiel.setEmploye(employe);
+        potentiel.setCollaborateur(collaborateur);
         potentiel.setTrimestre(trimestre);
         potentiel.setNoteLeadership(new BigDecimal(leadership));
         potentiel.setNoteMobilite(new BigDecimal(mobilite));
@@ -176,7 +176,7 @@ class SuccessionServiceTest {
 
     @Test
     void competences_au_niveau_exige_donnent_cent() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
 
         assertThat(successionService.scoreCompetences(poste("P001"), List.of(
                 skill(candidat, competenceA, 4),
@@ -186,7 +186,7 @@ class SuccessionServiceTest {
 
     @Test
     void un_niveau_superieur_a_l_exigence_ne_rapporte_pas_de_bonus() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
 
         // C001 a 8 pour un niveau 4 exige : plafonne a 100, il ne compense pas
         // C002 a 1 sur 3 exige = 100 - 20 x 2 = 60. Moyenne 80.
@@ -198,7 +198,7 @@ class SuccessionServiceTest {
 
     @Test
     void une_competence_absente_est_supposee_au_niveau_par_defaut() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
 
         // Comme IFERROR(..., 3) dans 09_SUCCESSION : C001 a 2 sur 4 exige = 60,
         // C002 absente supposee au niveau 3 pour 3 exige = 100. Moyenne 80.
@@ -209,7 +209,7 @@ class SuccessionServiceTest {
 
     @Test
     void le_niveau_par_defaut_vient_du_parametre_pas_du_code() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         bareme().setNiveauParDefaut(1);
 
         // C001 au niveau = 100, C002 absente supposee au niveau 1 pour 3 exige = 60.
@@ -220,7 +220,7 @@ class SuccessionServiceTest {
 
     @Test
     void les_competences_refusent_un_niveau_par_defaut_non_configure() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         bareme().setNiveauParDefaut(null);
 
         assertThatThrownBy(() -> successionService.scoreCompetences(poste("P001"), List.of(
@@ -251,7 +251,7 @@ class SuccessionServiceTest {
         pst08.setCompetenceRequise5(decision);
         pst08.setNiveau5(3);
 
-        Employe bp058 = employe("BP058", StatutEmploye.ACTIF, 5);
+        Collaborateur bp058 = collaborateur("BP058", StatutCollaborateur.ACTIF, 5);
 
         assertThat(successionService.scoreCompetences(pst08, List.of(
                 skill(bp058, conformite, 3),
@@ -264,7 +264,7 @@ class SuccessionServiceTest {
 
     @Test
     void une_competence_tres_en_dessous_ne_descend_pas_sous_zero() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         bareme().setPointsParNiveauManquant(new BigDecimal("40"));
 
         // C001 a 1 sur 4 exige : 100 - 40 x 3 = -20, ramene a 0 ; C002 au niveau = 100.
@@ -276,7 +276,7 @@ class SuccessionServiceTest {
 
     @Test
     void les_points_par_niveau_manquant_viennent_du_parametre_pas_du_code() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         bareme().setPointsParNiveauManquant(new BigDecimal("25"));
 
         // C001 a 2 sur 4 exige : 100 - 25 x 2 = 50 ; C002 au niveau = 100.
@@ -288,7 +288,7 @@ class SuccessionServiceTest {
 
     @Test
     void les_competences_refusent_un_bareme_non_configure() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         bareme().setPointsParNiveauManquant(null);
 
         assertThatThrownBy(() -> successionService.scoreCompetences(poste("P001"), List.of(
@@ -298,7 +298,7 @@ class SuccessionServiceTest {
 
     @Test
     void le_rapprochement_se_fait_par_identifiant_pas_par_libelle() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
 
         // Meme identifiant C001, libelle different : la competence doit etre reconnue.
         Competence memeIdAutreLibelle = competence("C001", "Analyse des risques (v2)");
@@ -311,7 +311,7 @@ class SuccessionServiceTest {
 
     @Test
     void un_poste_sans_competence_exigee_rend_le_critere_non_applicable() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         Poste poste = new Poste();
         poste.setPosteId("P002");
 
@@ -341,14 +341,14 @@ class SuccessionServiceTest {
     })
     void experience_vaut_huit_points_par_annee_plafonnes_a_cent(int annees, String attendu) {
         assertThat(successionService.scoreExperience(
-                employe("E001", StatutEmploye.ACTIF, annees), parametre.getBaremeExperience()))
+                collaborateur("E001", StatutCollaborateur.ACTIF, annees), parametre.getBaremeExperience()))
                 .isEqualByComparingTo(attendu);
     }
 
     @Test
     void experience_compte_l_anciennete_au_dixieme_d_annee() {
         // 1205 jours / 365.25 = 3.299 -> 3.3 ans, comme 01_COLLABORATEURS ; 3.3 x 8 = 26.4
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 0);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 0);
         candidat.setDateEntree(LocalDate.now().minusDays(1205));
 
         assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience()))
@@ -361,16 +361,16 @@ class SuccessionServiceTest {
         parametre.getBaremeExperience().setPlafond(new BigDecimal("90"));
 
         assertThat(successionService.scoreExperience(
-                employe("E001", StatutEmploye.ACTIF, 5), parametre.getBaremeExperience()))
+                collaborateur("E001", StatutCollaborateur.ACTIF, 5), parametre.getBaremeExperience()))
                 .isEqualByComparingTo("50.00");
         assertThat(successionService.scoreExperience(
-                employe("E001", StatutEmploye.ACTIF, 12), parametre.getBaremeExperience()))
+                collaborateur("E001", StatutCollaborateur.ACTIF, 12), parametre.getBaremeExperience()))
                 .isEqualByComparingTo("90.00");
     }
 
     @Test
     void experience_est_non_applicable_sans_date_d_entree() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         candidat.setDateEntree(null);
 
         assertThat(successionService.scoreExperience(candidat, parametre.getBaremeExperience()))
@@ -379,7 +379,7 @@ class SuccessionServiceTest {
 
     @Test
     void experience_refuse_un_bareme_non_configure() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 5);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
         parametre.getBaremeExperience().setPointsParAnnee(null);
 
         assertThatThrownBy(() -> successionService.scoreExperience(
@@ -391,7 +391,7 @@ class SuccessionServiceTest {
 
     @Test
     void le_matching_applique_les_six_poids_du_parametre() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 13);
         Poste poste = poste("P001");
 
         // competences 100, performance 90, potentiel 80, experience 100,
@@ -410,7 +410,7 @@ class SuccessionServiceTest {
 
     @Test
     void le_detail_des_six_criteres_est_restitue() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 13);
 
         ResultatMatching resultat = successionService.evaluer(candidat, poste("P001"),
                 score(candidat, "90.00", "80.00"),
@@ -428,7 +428,7 @@ class SuccessionServiceTest {
 
     @Test
     void un_critere_non_evaluable_compte_pour_zero_sans_redistribuer_son_poids() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 13);
 
         // Sans Potentiel : leadership et mobilite comptent pour zero, comme une
         // cellule vide dans 09_SUCCESSION.
@@ -447,7 +447,7 @@ class SuccessionServiceTest {
 
     @Test
     void un_poste_sans_competence_exigee_compte_zero_au_critere_competences() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 13);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 13);
         Poste poste = new Poste();
         poste.setPosteId("P002");
 
@@ -463,7 +463,7 @@ class SuccessionServiceTest {
 
     @Test
     void le_matching_refuse_des_poids_non_configures() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 10);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
         parametre.setPoidsSuccession(null);
 
         assertThatThrownBy(() -> successionService.evaluer(candidat, poste("P001"),
@@ -474,7 +474,7 @@ class SuccessionServiceTest {
 
     @Test
     void le_matching_refuse_un_poids_manquant_dans_le_bloc() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 10);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
         PoidsSuccession poids = parametre.getPoidsSuccession();
         poids.setPoidsExperience(null);
 
@@ -488,8 +488,8 @@ class SuccessionServiceTest {
 
     @Test
     void le_classement_va_du_meilleur_matching_au_moins_bon() {
-        Employe fort = employe("E001", StatutEmploye.ACTIF, 10);
-        Employe faible = employe("E002", StatutEmploye.ACTIF, 1);
+        Collaborateur fort = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
+        Collaborateur faible = collaborateur("E002", StatutCollaborateur.ACTIF, 1);
 
         preparerClassement(
                 List.of(score(fort, "95.00", "90.00"), score(faible, "60.00", "55.00")),
@@ -499,7 +499,7 @@ class SuccessionServiceTest {
 
         List<ResultatMatching> classement = successionService.classerCandidats("P001", trimestre);
 
-        assertThat(classement).extracting(resultat -> resultat.candidat().getEmployeeId())
+        assertThat(classement).extracting(resultat -> resultat.candidat().getIdCollaborateur())
                 .containsExactly("E001", "E002");
         assertThat(classement.get(0).scoreMatching())
                 .isGreaterThan(classement.get(1).scoreMatching());
@@ -507,31 +507,31 @@ class SuccessionServiceTest {
 
     @Test
     void le_titulaire_du_poste_n_est_pas_son_propre_successeur() {
-        Employe titulaire = employe("E001", StatutEmploye.ACTIF, 10);
-        Employe autre = employe("E002", StatutEmploye.ACTIF, 10);
+        Collaborateur titulaire = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
+        Collaborateur autre = collaborateur("E002", StatutCollaborateur.ACTIF, 10);
 
         Poste poste = poste("P001");
         poste.setTitulaireId("E001");
 
         when(posteRepository.findByIdAvecCompetences("P001")).thenReturn(Optional.of(poste));
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(
                 List.of(score(titulaire, "95.00", "90.00"), score(autre, "70.00", "70.00")));
-        when(potentielRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of());
-        when(employeeSkillRepository.findByEmployeIdsAvecCompetence(anyCollection()))
+        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of());
+        when(competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(anyCollection()))
                 .thenReturn(List.of());
 
         assertThat(successionService.classerCandidats("P001", trimestre))
-                .extracting(resultat -> resultat.candidat().getEmployeeId())
+                .extracting(resultat -> resultat.candidat().getIdCollaborateur())
                 .containsExactly("E002");
     }
 
     @Test
-    void les_employes_hors_perimetre_et_les_scores_incomplets_sont_ecartes() {
-        Employe actif = employe("E001", StatutEmploye.ACTIF, 10);
-        Employe inactif = employe("E002", StatutEmploye.INACTIF, 10);
-        Employe archive = employe("E003", StatutEmploye.ARCHIVE, 10);
-        Employe incomplet = employe("E004", StatutEmploye.ACTIF, 10);
+    void les_collaborateurs_hors_perimetre_et_les_scores_incomplets_sont_ecartes() {
+        Collaborateur actif = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
+        Collaborateur inactif = collaborateur("E002", StatutCollaborateur.INACTIF, 10);
+        Collaborateur archive = collaborateur("E003", StatutCollaborateur.ARCHIVE, 10);
+        Collaborateur incomplet = collaborateur("E004", StatutCollaborateur.ACTIF, 10);
 
         preparerClassement(
                 List.of(score(actif, "90.00", "80.00"),
@@ -542,14 +542,14 @@ class SuccessionServiceTest {
                 List.of());
 
         assertThat(successionService.classerCandidats("P001", trimestre))
-                .extracting(resultat -> resultat.candidat().getEmployeeId())
+                .extracting(resultat -> resultat.candidat().getIdCollaborateur())
                 .containsExactly("E001");
     }
 
     @Test
-    void a_egalite_de_score_l_employee_id_departage() {
-        Employe premier = employe("E001", StatutEmploye.ACTIF, 10);
-        Employe second = employe("E002", StatutEmploye.ACTIF, 10);
+    void a_egalite_de_score_l_id_collaborateur_departage() {
+        Collaborateur premier = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
+        Collaborateur second = collaborateur("E002", StatutCollaborateur.ACTIF, 10);
 
         // Memes notes des deux cotes : seul l'identifiant peut trancher.
         preparerClassement(
@@ -560,7 +560,7 @@ class SuccessionServiceTest {
 
         List<ResultatMatching> classement = successionService.classerCandidats("P001", trimestre);
 
-        assertThat(classement).extracting(resultat -> resultat.candidat().getEmployeeId())
+        assertThat(classement).extracting(resultat -> resultat.candidat().getIdCollaborateur())
                 .containsExactly("E001", "E002");
         assertThat(classement.get(0).scoreMatching())
                 .isEqualByComparingTo(classement.get(1).scoreMatching());
@@ -568,8 +568,8 @@ class SuccessionServiceTest {
 
     @Test
     void les_competences_d_un_candidat_ne_profitent_pas_a_un_autre() {
-        Employe avecCompetences = employe("E001", StatutEmploye.ACTIF, 10);
-        Employe sansCompetences = employe("E002", StatutEmploye.ACTIF, 10);
+        Collaborateur avecCompetences = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
+        Collaborateur sansCompetences = collaborateur("E002", StatutCollaborateur.ACTIF, 10);
 
         preparerClassement(
                 List.of(score(avecCompetences, "90.00", "80.00"),
@@ -580,7 +580,7 @@ class SuccessionServiceTest {
 
         List<ResultatMatching> classement = successionService.classerCandidats("P001", trimestre);
 
-        assertThat(classement.get(0).candidat().getEmployeeId()).isEqualTo("E001");
+        assertThat(classement.get(0).candidat().getIdCollaborateur()).isEqualTo("E001");
         assertThat(classement.get(0).detail().competences()).isEqualByComparingTo("100.00");
         // E002 n'a rien : niveau par defaut 3 partout, C001 = 80 et C002 = 100.
         // Avec les competences de E001, il aurait 100.
@@ -589,9 +589,9 @@ class SuccessionServiceTest {
 
     @Test
     void la_short_list_ne_rend_que_les_meilleurs() {
-        Employe fort = employe("E001", StatutEmploye.ACTIF, 10);
-        Employe moyen = employe("E002", StatutEmploye.ACTIF, 5);
-        Employe faible = employe("E003", StatutEmploye.ACTIF, 1);
+        Collaborateur fort = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
+        Collaborateur moyen = collaborateur("E002", StatutCollaborateur.ACTIF, 5);
+        Collaborateur faible = collaborateur("E003", StatutCollaborateur.ACTIF, 1);
 
         preparerClassement(
                 List.of(score(fort, "95.00", "95.00"), score(moyen, "75.00", "75.00"),
@@ -600,13 +600,13 @@ class SuccessionServiceTest {
                 List.of());
 
         assertThat(successionService.classerCandidats("P001", trimestre, 2))
-                .extracting(resultat -> resultat.candidat().getEmployeeId())
+                .extracting(resultat -> resultat.candidat().getIdCollaborateur())
                 .containsExactly("E001", "E002");
     }
 
     @Test
     void la_short_list_tolere_une_limite_superieure_au_nombre_de_candidats() {
-        Employe seul = employe("E001", StatutEmploye.ACTIF, 10);
+        Collaborateur seul = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
 
         preparerClassement(List.of(score(seul, "90.00", "80.00")), List.of(), List.of());
 
@@ -624,9 +624,9 @@ class SuccessionServiceTest {
 
     @Test
     void un_candidat_sans_score_sur_le_trimestre_est_signale() {
-        Employe candidat = employe("E001", StatutEmploye.ACTIF, 10);
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 10);
         when(posteRepository.findByIdAvecCompetences("P001")).thenReturn(Optional.of(poste("P001")));
-        when(scoreRepository.findByEmployeAndTrimestre(candidat, trimestre))
+        when(scoreRepository.findByCollaborateurAndTrimestre(candidat, trimestre))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> successionService.evaluer(candidat, "P001", trimestre))
@@ -641,12 +641,12 @@ class SuccessionServiceTest {
     }
 
     private void preparerClassement(List<Score> scores, List<Potentiel> potentiels,
-                                    List<EmployeeSkill> competences) {
+                                    List<CompetenceCollaborateur> competences) {
         when(posteRepository.findByIdAvecCompetences("P001")).thenReturn(Optional.of(poste("P001")));
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(new ArrayList<>(scores));
-        when(potentielRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(potentiels);
-        when(employeeSkillRepository.findByEmployeIdsAvecCompetence(anyCollection()))
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(new ArrayList<>(scores));
+        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(potentiels);
+        when(competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(anyCollection()))
                 .thenReturn(competences);
     }
 }

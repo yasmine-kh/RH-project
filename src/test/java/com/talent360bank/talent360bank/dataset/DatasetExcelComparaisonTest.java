@@ -1,9 +1,11 @@
 package com.talent360bank.talent360bank.dataset;
 
 import com.talent360bank.talent360bank.config.Matrice9BoxInitializer;
+import com.talent360bank.talent360bank.entity.Entite;
+import com.talent360bank.talent360bank.entity.TypeEntite;
 import com.talent360bank.talent360bank.entity.Competence;
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.EmployeeSkill;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
@@ -11,10 +13,10 @@ import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
-import com.talent360bank.talent360bank.repository.EmployeeSkillRepository;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
+import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
@@ -77,7 +79,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Rejoue un echantillon d'employes du jeu de donnees Excel dans le moteur et
+ * Rejoue un echantillon de collaborateurs du jeu de donnees Excel dans le moteur et
  * compare nos resultats aux valeurs deja calculees par le classeur.
  *
  * <p>Le fichier est gitignore : sans lui, toute la classe est ignoree.
@@ -107,10 +109,10 @@ class DatasetExcelComparaisonTest {
     private static TalentService talentService;
     private static SuccessionService successionService;
 
-    private record Ecart(String employe, String champ, String attendu, String obtenu) {
+    private record Ecart(String collaborateur, String champ, String attendu, String obtenu) {
         @Override
         public String toString() {
-            return employe + " | " + champ + " | attendu " + attendu + " | obtenu " + obtenu;
+            return collaborateur + " | " + champ + " | attendu " + attendu + " | obtenu " + obtenu;
         }
     }
 
@@ -129,7 +131,7 @@ class DatasetExcelComparaisonTest {
         neufBoxService = new NeufBoxService(matriceDeReference(), mock(ScoreRepository.class), calculService);
         talentService = new TalentService(mock(ScoreRepository.class), calculService);
         successionService = new SuccessionService(mock(PosteRepository.class), mock(ScoreRepository.class),
-                mock(PotentielRepository.class), mock(EmployeeSkillRepository.class), calculService);
+                mock(PotentielRepository.class), mock(CompetenceCollaborateurRepository.class), calculService);
 
         echantillon = choisirEchantillon();
     }
@@ -141,9 +143,9 @@ class DatasetExcelComparaisonTest {
         List<Ecart> ecarts = new ArrayList<>();
         for (String id : echantillon) {
             comparerNombre(ecarts, id, "02_PERFORMANCE.Score Performance",
-                    parEmploye("02_PERFORMANCE").get(id).get("I"), scorePerformance(id));
+                    parCollaborateur("02_PERFORMANCE").get(id).get("I"), scorePerformance(id));
             comparerNombre(ecarts, id, "03_POTENTIEL.Score Potentiel",
-                    parEmploye("03_POTENTIEL").get(id).get("K"), scorePotentiel(id));
+                    parCollaborateur("03_POTENTIEL").get(id).get("K"), scorePotentiel(id));
         }
         verifier(ecarts);
     }
@@ -154,7 +156,7 @@ class DatasetExcelComparaisonTest {
         for (String id : echantillon) {
             Matrice9Box case9Box = neufBoxService.placer(scorePerformance(id), scorePotentiel(id), parametre);
             comparerLibelle(ecarts, id, "04_9BOX.Categorie Talent",
-                    parEmploye("04_9BOX").get(id).get("I"), case9Box.getCategorie());
+                    parCollaborateur("04_9BOX").get(id).get("I"), case9Box.getCategorie());
         }
         verifier(ecarts);
     }
@@ -167,17 +169,17 @@ class DatasetExcelComparaisonTest {
     @Test
     void les_categories_de_performance_et_de_potentiel_sont_celles_du_classeur() {
         List<Ecart> ecarts = new ArrayList<>();
-        for (String id : parEmploye("02_PERFORMANCE").keySet()) {
+        for (String id : parCollaborateur("02_PERFORMANCE").keySet()) {
             comparerLibelle(ecarts, id, "02_PERFORMANCE.Categorie Performance",
-                    parEmploye("02_PERFORMANCE").get(id).get("J"),
+                    parCollaborateur("02_PERFORMANCE").get(id).get("J"),
                     calculService.categoriePerformance(scorePerformance(id),
                             parametre.getSeuilsCategoriePerformance()).getLibelle());
             comparerLibelle(ecarts, id, "03_POTENTIEL.Categorie Potentiel",
-                    parEmploye("03_POTENTIEL").get(id).get("L"),
+                    parCollaborateur("03_POTENTIEL").get(id).get("L"),
                     neufBoxService.categoriePotentiel(scorePotentiel(id), parametre).getLibelle());
         }
         verifier(ecarts);
-        assertThat(parEmploye("02_PERFORMANCE")).hasSize(100);
+        assertThat(parCollaborateur("02_PERFORMANCE")).hasSize(100);
     }
 
     /**
@@ -211,8 +213,8 @@ class DatasetExcelComparaisonTest {
     @Test
     void les_statuts_talent_haut_potentiel_et_releve_sont_ceux_du_classeur() {
         List<Ecart> ecarts = new ArrayList<>();
-        for (String id : parEmploye("10_TALENTS").keySet()) {
-            Map<String, String> ligne = parEmploye("10_TALENTS").get(id);
+        for (String id : parCollaborateur("10_TALENTS").keySet()) {
+            Map<String, String> ligne = parCollaborateur("10_TALENTS").get(id);
             boolean talent = talentService.estTalent(score(id), parametre);
             boolean hautPotentiel = talentService.estHautPotentiel(score(id), parametre);
             comparerLibelle(ecarts, id, "10_TALENTS.Talent propose (auto)", ligne.get("E"), ouiNon(talent));
@@ -236,7 +238,7 @@ class DatasetExcelComparaisonTest {
             if (!posteId.matches("PST\\d+") || !echantillon.contains(id)) {
                 continue;
             }
-            Employe candidat = employe(id);
+            Collaborateur candidat = collaborateur(id);
             ResultatMatching resultat = successionService.evaluer(candidat, postes.get(posteId),
                     score(id), potentiel(id), competences(candidat, referentiel), parametre);
 
@@ -296,26 +298,26 @@ class DatasetExcelComparaisonTest {
     @Test
     void les_talents_valides_par_le_comite_sont_ceux_du_classeur() {
         ValidationsComiteEnMemoire decisions = new ValidationsComiteEnMemoire();
-        for (Map.Entry<String, Map<String, String>> ligne : parEmploye("10_TALENTS").entrySet()) {
+        for (Map.Entry<String, Map<String, String>> ligne : parCollaborateur("10_TALENTS").entrySet()) {
             decisions.decider(ligne.getKey(), statutComite(ligne.getValue().get("G")));
         }
         ValidationComiteService comite = new ValidationComiteService(talentService, decisions);
         Trimestre trimestre = parametre.getTrimestre();
 
         List<Ecart> ecarts = new ArrayList<>();
-        for (String id : parEmploye("10_TALENTS").keySet()) {
+        for (String id : parCollaborateur("10_TALENTS").keySet()) {
             boolean valide = comite.estTalentValide(talentService.estTalent(score(id), parametre),
                     decisions.statut(id, trimestre));
             comparerLibelle(ecarts, id, "10_TALENTS.Talent valide",
-                    parEmploye("10_TALENTS").get(id).get("H"), ouiNon(valide));
+                    parCollaborateur("10_TALENTS").get(id).get("H"), ouiNon(valide));
         }
         verifier(ecarts);
 
         // 00_DASHBOARD E6 : Talents valides (Comite) = COUNTIF(10_TALENTS!H, "Oui").
-        List<Score> scores = parEmploye("01_COLLABORATEURS").keySet().stream()
+        List<Score> scores = parCollaborateur("01_COLLABORATEURS").keySet().stream()
                 .map(DatasetExcelComparaisonTest::score).toList();
         ScoreRepository scoreRepository = mock(ScoreRepository.class);
-        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(scores);
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(scores);
         ParametreRepository parametreRepository = mock(ParametreRepository.class);
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
         TalentService talents = new TalentService(scoreRepository, new CalculService(parametreRepository,
@@ -346,9 +348,9 @@ class DatasetExcelComparaisonTest {
                 .rattacher(VivierThematique.RISQUES, "Risques", "Conformite"));
 
         List<Ecart> ecarts = new ArrayList<>();
-        for (String id : parEmploye("10_TALENTS").keySet()) {
-            comparerLibelle(ecarts, id, "10_TALENTS.Vivier thematique", parEmploye("10_TALENTS").get(id).get("I"),
-                    service.vivierDe(employe(id)).map(VivierThematique::getLibelle).orElse("(non classe)"));
+        for (String id : parCollaborateur("10_TALENTS").keySet()) {
+            comparerLibelle(ecarts, id, "10_TALENTS.Vivier thematique", parCollaborateur("10_TALENTS").get(id).get("I"),
+                    service.vivierDe(collaborateur(id)).map(VivierThematique::getLibelle).orElse("(non classe)"));
         }
         verifier(ecarts);
     }
@@ -363,7 +365,7 @@ class DatasetExcelComparaisonTest {
     @Test
     void l_indice_et_le_niveau_de_vigilance_sont_ceux_du_classeur() {
         Trimestre trimestre = parametre.getTrimestre();
-        Map<String, Map<String, String>> lignes = parEmploye("12_VIGILANCE");
+        Map<String, Map<String, String>> lignes = parCollaborateur("12_VIGILANCE");
 
         List<Score> scores = new ArrayList<>();
         List<QuestionnaireEngagement> engagements = new ArrayList<>();
@@ -375,7 +377,7 @@ class DatasetExcelComparaisonTest {
             scores.add(score);
 
             QuestionnaireEngagement engagement = new QuestionnaireEngagement();
-            engagement.setEmploye(score.getEmploye());
+            engagement.setCollaborateur(score.getCollaborateur());
             engagement.setTrimestre(trimestre);
             engagement.setScoreEngagement(nombre(ligne.get("D")));
             engagements.add(engagement);
@@ -391,9 +393,9 @@ class DatasetExcelComparaisonTest {
         }
 
         ScoreRepository scoreRepository = mock(ScoreRepository.class);
-        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(scores);
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(scores);
         QuestionnaireEngagementRepository questionnaireRepository = mock(QuestionnaireEngagementRepository.class);
-        when(questionnaireRepository.findByTrimestreAvecEmploye(any())).thenReturn(engagements);
+        when(questionnaireRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(engagements);
         TrimestreRepository trimestreRepository = mock(TrimestreRepository.class);
         when(trimestreRepository.findPrecedents(anyInt(), anyInt(), any())).thenReturn(List.of());
         ParametreRepository parametreRepository = mock(ParametreRepository.class);
@@ -408,7 +410,7 @@ class DatasetExcelComparaisonTest {
 
         List<Ecart> ecarts = new ArrayList<>();
         for (ResultatVigilance resultat : resultats) {
-            String id = resultat.employe().getEmployeeId();
+            String id = resultat.collaborateur().getIdCollaborateur();
             Map<String, String> ligne = lignes.get(id);
             comparerNombre(ecarts, id, "12_VIGILANCE.Indice de Vigilance", ligne.get("L"), resultat.indice());
             comparerLibelle(ecarts, id, "12_VIGILANCE.Niveau de vigilance",
@@ -450,7 +452,7 @@ class DatasetExcelComparaisonTest {
         incomplets.stream().limit(CANDIDATS_SUCCESSION / 2).forEach(ids::add);
         complets.stream().filter(id -> !ids.contains(id))
                 .limit(CANDIDATS_SUCCESSION - ids.size()).forEach(ids::add);
-        parEmploye("01_COLLABORATEURS").keySet().stream()
+        parCollaborateur("01_COLLABORATEURS").keySet().stream()
                 .limit(PREMIERS_COLLABORATEURS)
                 .forEach(ids::add);
         return List.copyOf(ids);
@@ -458,23 +460,23 @@ class DatasetExcelComparaisonTest {
 
     // --- construction des donnees d'entree -----------------------------------
 
-    private static Employe employe(String id) {
-        Map<String, String> ligne = parEmploye("01_COLLABORATEURS").get(id);
-        Employe employe = new Employe();
-        employe.setEmployeeId(id);
-        employe.setNom(ligne.get("B"));
-        employe.setPrenom(ligne.get("C"));
-        employe.setDirection(ligne.get("H"));
-        employe.setStatut(StatutEmploye.ACTIF);
+    private static Collaborateur collaborateur(String id) {
+        Map<String, String> ligne = parCollaborateur("01_COLLABORATEURS").get(id);
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(id);
+        collaborateur.setNom(ligne.get("B"));
+        collaborateur.setPrenom(ligne.get("C"));
+        collaborateur.setEntite(ligne.get("H") == null ? null : new Entite(ligne.get("H"), TypeEntite.DIRECTION, null));
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
         // Le moteur mesure l'anciennete a aujourd'hui, le classeur au 15/09/2026 :
         // la date d'entree est decalee d'autant pour comparer la meme duree.
-        employe.setDateEntree(dateExcel(ligne.get("F"))
+        collaborateur.setDateEntree(dateExcel(ligne.get("F"))
                 .plusDays(ChronoUnit.DAYS.between(DATE_REFERENCE_CLASSEUR, LocalDate.now())));
-        return employe;
+        return collaborateur;
     }
 
     private static BigDecimal scorePerformance(String id) {
-        Map<String, String> ligne = parEmploye("02_PERFORMANCE").get(id);
+        Map<String, String> ligne = parCollaborateur("02_PERFORMANCE").get(id);
         Performance performance = new Performance();
         performance.setNoteObjectifs(nombre(ligne.get("D")));
         performance.setNoteCompetences(nombre(ligne.get("E")));
@@ -485,7 +487,7 @@ class DatasetExcelComparaisonTest {
     }
 
     private static Potentiel potentiel(String id) {
-        Map<String, String> ligne = parEmploye("03_POTENTIEL").get(id);
+        Map<String, String> ligne = parCollaborateur("03_POTENTIEL").get(id);
         Potentiel potentiel = new Potentiel();
         potentiel.setNoteLearning(nombre(ligne.get("D")));
         potentiel.setNoteLeadership(nombre(ligne.get("E")));
@@ -503,7 +505,7 @@ class DatasetExcelComparaisonTest {
 
     private static Score score(String id) {
         Score score = new Score();
-        score.setEmploye(employe(id));
+        score.setCollaborateur(collaborateur(id));
         score.setScorePerformance(scorePerformance(id));
         score.setScorePotentiel(scorePotentiel(id));
         return score;
@@ -554,12 +556,13 @@ class DatasetExcelComparaisonTest {
         return postes;
     }
 
-    private static List<EmployeeSkill> competences(Employe employe, Map<String, Competence> referentiel) {
-        List<EmployeeSkill> competences = new ArrayList<>();
+    private static List<CompetenceCollaborateur> competences(Collaborateur collaborateur,
+                                                             Map<String, Competence> referentiel) {
+        List<CompetenceCollaborateur> competences = new ArrayList<>();
         for (Map<String, String> ligne : classeur.feuille("06_EMPLOYEE_SKILLS").values()) {
-            if (employe.getEmployeeId().equals(ligne.get("B")) && referentiel.containsKey(ligne.get("C"))) {
-                EmployeeSkill skill = new EmployeeSkill();
-                skill.setEmploye(employe);
+            if (collaborateur.getIdCollaborateur().equals(ligne.get("B")) && referentiel.containsKey(ligne.get("C"))) {
+                CompetenceCollaborateur skill = new CompetenceCollaborateur();
+                skill.setCollaborateur(collaborateur);
                 skill.setCompetence(referentiel.get(ligne.get("C")));
                 skill.setNiveauActuel(entier(ligne.get("E")));
                 skill.setNiveauCible(entier(ligne.get("F")));
@@ -572,7 +575,7 @@ class DatasetExcelComparaisonTest {
     /**
      * Le service des postes critiques branche sur le classeur : 07_POSTES pour
      * les postes, 09_SUCCESSION (Poste_ID, Employee_ID) pour les successeurs
-     * identifies, et les donnees des employes pour leur matching.
+     * identifies, et les donnees des collaborateurs pour leur matching.
      */
     private static PosteCritiqueService posteCritiqueServiceSurLeClasseur() {
         Map<String, Competence> referentiel = referentielParNom();
@@ -588,45 +591,45 @@ class DatasetExcelComparaisonTest {
 
         List<Score> scores = new ArrayList<>();
         List<Potentiel> potentiels = new ArrayList<>();
-        for (String id : parEmploye("01_COLLABORATEURS").keySet()) {
+        for (String id : parCollaborateur("01_COLLABORATEURS").keySet()) {
             scores.add(score(id));
             Potentiel potentiel = potentiel(id);
-            potentiel.setEmploye(employe(id));
+            potentiel.setCollaborateur(collaborateur(id));
             potentiels.add(potentiel);
         }
 
         PosteRepository posteRepository = mock(PosteRepository.class);
         when(posteRepository.findAll()).thenReturn(new ArrayList<>(postes(referentiel).values()));
 
-        EmployeRepository employeRepository = mock(EmployeRepository.class);
-        when(employeRepository.findAllById(anyIterable())).thenAnswer(appel -> {
-            List<Employe> employes = new ArrayList<>();
+        CollaborateurRepository collaborateurRepository = mock(CollaborateurRepository.class);
+        when(collaborateurRepository.findAllById(anyIterable())).thenAnswer(appel -> {
+            List<Collaborateur> collaborateurs = new ArrayList<>();
             for (Object id : (Iterable<?>) appel.getArgument(0)) {
-                employes.add(employe((String) id));
+                collaborateurs.add(collaborateur((String) id));
             }
-            return employes;
+            return collaborateurs;
         });
 
-        EmployeeSkillRepository employeeSkillRepository = mock(EmployeeSkillRepository.class);
-        when(employeeSkillRepository.findByEmployeIdsAvecCompetence(anyCollection())).thenAnswer(appel -> {
-            List<EmployeeSkill> skills = new ArrayList<>();
+        CompetenceCollaborateurRepository skillRepository = mock(CompetenceCollaborateurRepository.class);
+        when(skillRepository.findByCollaborateurIdsAvecCompetence(anyCollection())).thenAnswer(appel -> {
+            List<CompetenceCollaborateur> skills = new ArrayList<>();
             for (Object id : (Collection<?>) appel.getArgument(0)) {
-                skills.addAll(competences(employe((String) id), referentiel));
+                skills.addAll(competences(collaborateur((String) id), referentiel));
             }
             return skills;
         });
 
         ScoreRepository scoreRepository = mock(ScoreRepository.class);
-        when(scoreRepository.findByTrimestreAvecEmploye(any())).thenReturn(scores);
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(scores);
         PotentielRepository potentielRepository = mock(PotentielRepository.class);
-        when(potentielRepository.findByTrimestreAvecEmploye(any())).thenReturn(potentiels);
+        when(potentielRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(potentiels);
         ParametreRepository parametreRepository = mock(ParametreRepository.class);
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
 
         CalculService calcul = new CalculService(parametreRepository,
                 mock(PerformanceRepository.class), potentielRepository);
-        return new PosteCritiqueService(posteRepository, employeRepository, scoreRepository,
-                potentielRepository, employeeSkillRepository, successionService, calcul, successeurs);
+        return new PosteCritiqueService(posteRepository, collaborateurRepository, scoreRepository,
+                potentielRepository, skillRepository, successionService, calcul, successeurs);
     }
 
     /** La vraie table de reference de l'application, chargee dans un depot en memoire. */
@@ -647,7 +650,7 @@ class DatasetExcelComparaisonTest {
     // --- outils --------------------------------------------------------------
 
     /** Lignes d'une feuille indexees par Employee_ID (colonne A), dans l'ordre. */
-    private static Map<String, Map<String, String>> parEmploye(String feuille) {
+    private static Map<String, Map<String, String>> parCollaborateur(String feuille) {
         Map<String, Map<String, String>> index = new LinkedHashMap<>();
         for (Map<String, String> ligne : classeur.feuille(feuille).values()) {
             String id = ligne.getOrDefault("A", "");

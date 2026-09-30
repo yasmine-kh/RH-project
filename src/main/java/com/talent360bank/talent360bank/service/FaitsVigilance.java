@@ -3,7 +3,7 @@ package com.talent360bank.talent360bank.service;
 import com.talent360bank.talent360bank.service.enums.SignalVigilance;
 
 /**
- * Ce que l'import sait d'un employe sur un trimestre pour les signaux de
+ * Ce que l'import sait d'un collaborateur sur un trimestre pour les signaux de
  * vigilance qui ne se deduisent pas des scores (12_VIGILANCE, colonnes F a K).
  *
  * <p>Chaque signal est un drapeau a trois etats : {@code TRUE} leve le signal,

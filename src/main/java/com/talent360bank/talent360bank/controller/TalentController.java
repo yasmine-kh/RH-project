@@ -44,16 +44,16 @@ public class TalentController {
     }
 
     /**
-     * Statut de talent d'un employe. Rendu comme objet et non comme booleen
+     * Statut de talent d'un collaborateur. Rendu comme objet et non comme booleen
      * nu : un corps JSON scalaire est penible a faire evoluer.
      */
-    @GetMapping("/trimestres/{annee}/{numero}/talents/{employeeId}")
-    public Map<String, Object> pourEmploye(@PathVariable int annee, @PathVariable int numero,
-                                           @PathVariable String employeeId) {
+    @GetMapping("/trimestres/{annee}/{numero}/talents/{idCollaborateur}")
+    public Map<String, Object> pourCollaborateur(@PathVariable int annee, @PathVariable int numero,
+                                                 @PathVariable String idCollaborateur) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return Map.of(
-                "employeeId", employeeId,
-                "estTalent", talentService.estTalent(chargeur.exigerEmploye(employeeId), trimestre));
+                "idCollaborateur", idCollaborateur,
+                "estTalent", talentService.estTalent(chargeur.exigerCollaborateur(idCollaborateur), trimestre));
     }
 
     /** Hauts potentiels du trimestre, du meilleur au moins bon en performance. */
@@ -65,15 +65,15 @@ public class TalentController {
                 .toList();
     }
 
-    /** Statut de haut potentiel d'un employe, rendu comme objet comme celui de talent. */
-    @GetMapping("/trimestres/{annee}/{numero}/hauts-potentiels/{employeeId}")
-    public Map<String, Object> hautPotentielPourEmploye(@PathVariable int annee, @PathVariable int numero,
-                                                        @PathVariable String employeeId) {
+    /** Statut de haut potentiel d'un collaborateur, rendu comme objet comme celui de talent. */
+    @GetMapping("/trimestres/{annee}/{numero}/hauts-potentiels/{idCollaborateur}")
+    public Map<String, Object> hautPotentielPourCollaborateur(@PathVariable int annee, @PathVariable int numero,
+                                                              @PathVariable String idCollaborateur) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return Map.of(
-                "employeeId", employeeId,
+                "idCollaborateur", idCollaborateur,
                 "estHautPotentiel",
-                talentService.estHautPotentiel(chargeur.exigerEmploye(employeeId), trimestre));
+                talentService.estHautPotentiel(chargeur.exigerCollaborateur(idCollaborateur), trimestre));
     }
 
     /** Vivier de releve du trimestre : talents OU hauts potentiels, sans doublon. */

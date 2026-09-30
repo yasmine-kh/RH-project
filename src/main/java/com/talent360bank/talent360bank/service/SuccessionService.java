@@ -3,8 +3,8 @@ package com.talent360bank.talent360bank.service;
 import com.talent360bank.talent360bank.entity.BaremeCompetences;
 import com.talent360bank.talent360bank.entity.BaremeExperience;
 import com.talent360bank.talent360bank.entity.Competence;
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.EmployeeSkill;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.PoidsSuccession;
 import com.talent360bank.talent360bank.entity.Poste;
@@ -14,7 +14,7 @@ import com.talent360bank.talent360bank.entity.SeuilsReadiness;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.EmployeeSkillRepository;
+import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
 import com.talent360bank.talent360bank.repository.PosteRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
@@ -64,18 +64,18 @@ public class SuccessionService {
     private final PosteRepository posteRepository;
     private final ScoreRepository scoreRepository;
     private final PotentielRepository potentielRepository;
-    private final EmployeeSkillRepository employeeSkillRepository;
+    private final CompetenceCollaborateurRepository competenceCollaborateurRepository;
     private final CalculService calculService;
 
     public SuccessionService(PosteRepository posteRepository,
                              ScoreRepository scoreRepository,
                              PotentielRepository potentielRepository,
-                             EmployeeSkillRepository employeeSkillRepository,
+                             CompetenceCollaborateurRepository competenceCollaborateurRepository,
                              CalculService calculService) {
         this.posteRepository = posteRepository;
         this.scoreRepository = scoreRepository;
         this.potentielRepository = potentielRepository;
-        this.employeeSkillRepository = employeeSkillRepository;
+        this.competenceCollaborateurRepository = competenceCollaborateurRepository;
         this.calculService = calculService;
     }
 
@@ -122,7 +122,7 @@ public class SuccessionService {
      *         est alors non evaluable et compte pour zero dans le matching
      * @throws DonneesIncompletesException si le bareme n'est pas configure
      */
-    public BigDecimal scoreCompetences(Poste poste, List<EmployeeSkill> competencesCandidat,
+    public BigDecimal scoreCompetences(Poste poste, List<CompetenceCollaborateur> competencesCandidat,
                                        BaremeCompetences bareme) {
         Objects.requireNonNull(poste, "poste");
         if (bareme == null || bareme.getPointsParNiveauManquant() == null
@@ -132,7 +132,7 @@ public class SuccessionService {
 
         Map<String, Integer> acquis = new HashMap<>();
         if (competencesCandidat != null) {
-            for (EmployeeSkill skill : competencesCandidat) {
+            for (CompetenceCollaborateur skill : competencesCandidat) {
                 Competence competence = skill.getCompetence();
                 if (competence == null || skill.getNiveauActuel() == null) {
                     continue;
@@ -172,13 +172,13 @@ public class SuccessionService {
      *
      * <p>L'anciennete est en annees decimales arrondies au dixieme, comme
      * dans 01_COLLABORATEURS : ROUND((aujourd'hui - date d'entree) / 365.25, 1).
-     * Les annees revolues de {@link Employe#getAnciennete()} feraient perdre
+     * Les annees revolues de {@link Collaborateur#getAnciennete()} feraient perdre
      * jusqu'a une annee de points.
      *
      * @return null si la date d'entree est inconnue
      * @throws DonneesIncompletesException si le bareme n'est pas configure
      */
-    public BigDecimal scoreExperience(Employe candidat, BaremeExperience bareme) {
+    public BigDecimal scoreExperience(Collaborateur candidat, BaremeExperience bareme) {
         Objects.requireNonNull(candidat, "candidat");
         if (bareme == null || bareme.getPointsParAnnee() == null || bareme.getPlafond() == null) {
             throw new DonneesIncompletesException("Le bareme d'experience n'est pas configure");
@@ -208,8 +208,8 @@ public class SuccessionService {
      * comme une cellule vide dans 09_SUCCESSION ; le detail le rend null pour
      * qu'on distingue un zero d'une donnee absente.
      */
-    public ResultatMatching evaluer(Employe candidat, Poste poste, Score score, Potentiel potentiel,
-                                    List<EmployeeSkill> competencesCandidat, Parametre parametre) {
+    public ResultatMatching evaluer(Collaborateur candidat, Poste poste, Score score, Potentiel potentiel,
+                                    List<CompetenceCollaborateur> competencesCandidat, Parametre parametre) {
         Objects.requireNonNull(candidat, "candidat");
         Objects.requireNonNull(poste, "poste");
         Objects.requireNonNull(score, "score");
@@ -249,19 +249,19 @@ public class SuccessionService {
      *                                       score du candidat sont absents
      */
     @Transactional(readOnly = true)
-    public ResultatMatching evaluer(Employe candidat, String posteId, Trimestre trimestre) {
+    public ResultatMatching evaluer(Collaborateur candidat, String posteId, Trimestre trimestre) {
         Objects.requireNonNull(candidat, "candidat");
         Objects.requireNonNull(trimestre, "trimestre");
 
         Poste poste = chargerPoste(posteId);
-        Score score = scoreRepository.findByEmployeAndTrimestre(candidat, trimestre)
+        Score score = scoreRepository.findByCollaborateurAndTrimestre(candidat, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun score calcule pour " + candidat.getEmployeeId()
+                        "Aucun score calcule pour " + candidat.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
 
         return evaluer(candidat, poste, score,
-                potentielRepository.findByEmployeAndTrimestre(candidat, trimestre).orElse(null),
-                employeeSkillRepository.findByEmployeAvecCompetence(candidat),
+                potentielRepository.findByCollaborateurAndTrimestre(candidat, trimestre).orElse(null),
+                competenceCollaborateurRepository.findByCollaborateurAvecCompetence(candidat),
                 calculService.chargerParametre(trimestre));
     }
 
@@ -270,7 +270,7 @@ public class SuccessionService {
      * moins bon.
      *
      * <p>Lecture seule : rien n'est ecrit. Le titulaire actuel du poste est
-     * ecarte, il ne peut pas etre son propre successeur ; les employes hors
+     * ecarte, il ne peut pas etre son propre successeur ; les collaborateurs hors
      * perimetre et les scores incomplets sont comptes et logues plutot que de
      * faire echouer le classement pour tout le monde.
      */
@@ -284,10 +284,10 @@ public class SuccessionService {
         List<Score> retenus = new ArrayList<>();
         int incomplets = 0;
 
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
-            Employe employe = score.getEmploye();
-            if (!employe.estCalculable()
-                    || employe.getEmployeeId().equals(poste.getTitulaireId())) {
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            Collaborateur collaborateur = score.getCollaborateur();
+            if (!collaborateur.estCalculable()
+                    || collaborateur.getIdCollaborateur().equals(poste.getTitulaireId())) {
                 continue;
             }
             if (score.getScorePerformance() == null || score.getScorePotentiel() == null) {
@@ -297,24 +297,24 @@ public class SuccessionService {
             retenus.add(score);
         }
 
-        Map<String, Potentiel> potentielParEmploye = indexerPotentiels(trimestre);
-        Map<String, List<EmployeeSkill>> competencesParEmploye = indexerCompetences(retenus);
+        Map<String, Potentiel> potentielParCollaborateur = indexerPotentiels(trimestre);
+        Map<String, List<CompetenceCollaborateur>> competencesParCollaborateur = indexerCompetences(retenus);
 
         List<ResultatMatching> classement = new ArrayList<>();
         for (Score score : retenus) {
-            Employe candidat = score.getEmploye();
-            String employeeId = candidat.getEmployeeId();
+            Collaborateur candidat = score.getCollaborateur();
+            String idCollaborateur = candidat.getIdCollaborateur();
             classement.add(evaluer(candidat, poste, score,
-                    potentielParEmploye.get(employeeId),
-                    competencesParEmploye.getOrDefault(employeeId, List.of()),
+                    potentielParCollaborateur.get(idCollaborateur),
+                    competencesParCollaborateur.getOrDefault(idCollaborateur, List.of()),
                     parametre));
         }
 
-        // A egalite de score, l'employeeId departage : sans cela deux appels
+        // A egalite de score, l'idCollaborateur departage : sans cela deux appels
         // successifs pourraient rendre le meme classement dans un autre ordre.
         classement.sort(Comparator
                 .comparing(ResultatMatching::scoreMatching, Comparator.reverseOrder())
-                .thenComparing(resultat -> resultat.candidat().getEmployeeId()));
+                .thenComparing(resultat -> resultat.candidat().getIdCollaborateur()));
 
         if (incomplets > 0) {
             log.warn("Succession {} {} : {} score(s) incomplet(s) ecarte(s)",
@@ -372,24 +372,25 @@ public class SuccessionService {
 
     private Map<String, Potentiel> indexerPotentiels(Trimestre trimestre) {
         Map<String, Potentiel> index = new HashMap<>();
-        for (Potentiel potentiel : potentielRepository.findByTrimestreAvecEmploye(trimestre)) {
-            index.put(potentiel.getEmploye().getEmployeeId(), potentiel);
+        for (Potentiel potentiel : potentielRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            index.put(potentiel.getCollaborateur().getIdCollaborateur(), potentiel);
         }
         return index;
     }
 
-    private Map<String, List<EmployeeSkill>> indexerCompetences(List<Score> retenus) {
+    private Map<String, List<CompetenceCollaborateur>> indexerCompetences(List<Score> retenus) {
         if (retenus.isEmpty()) {
             return Map.of();
         }
-        Set<String> employeeIds = new HashSet<>();
+        Set<String> idsCollaborateurs = new HashSet<>();
         for (Score score : retenus) {
-            employeeIds.add(score.getEmploye().getEmployeeId());
+            idsCollaborateurs.add(score.getCollaborateur().getIdCollaborateur());
         }
 
-        Map<String, List<EmployeeSkill>> index = new HashMap<>();
-        for (EmployeeSkill skill : employeeSkillRepository.findByEmployeIdsAvecCompetence(employeeIds)) {
-            index.computeIfAbsent(skill.getEmploye().getEmployeeId(), cle -> new ArrayList<>())
+        Map<String, List<CompetenceCollaborateur>> index = new HashMap<>();
+        for (CompetenceCollaborateur skill
+                : competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(idsCollaborateurs)) {
+            index.computeIfAbsent(skill.getCollaborateur().getIdCollaborateur(), cle -> new ArrayList<>())
                     .add(skill);
         }
         return index;

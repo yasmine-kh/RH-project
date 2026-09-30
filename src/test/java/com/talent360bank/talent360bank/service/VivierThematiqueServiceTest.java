@@ -1,9 +1,11 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Entite;
+import com.talent360bank.talent360bank.entity.TypeEntite;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
@@ -61,7 +63,7 @@ class VivierThematiqueServiceTest {
     }
 
     @Test
-    void chaque_employe_est_range_dans_le_vivier_de_sa_direction_avec_ses_statuts() {
+    void chaque_collaborateur_est_range_dans_le_vivier_de_sa_direction_avec_ses_statuts() {
         donnerLesScores(
                 score("BP001", "Reseau Retail", "60", "65"),      // ni talent ni HP : membre quand meme
                 score("BP005", "Reseau Retail", "95", "92"),      // talent et HP
@@ -72,15 +74,30 @@ class VivierThematiqueServiceTest {
 
         // Deux directions, un vivier, du meilleur au moins bon en performance.
         assertThat(resultat.membresDe(VivierThematique.COMMERCIAL))
-                .extracting(m -> m.score().getEmploye().getEmployeeId(),
+                .extracting(m -> m.score().getCollaborateur().getIdCollaborateur(),
                         MembreVivierThematique::talent, MembreVivierThematique::hautPotentiel)
                 .containsExactly(
                         tuple("BP005", true, true),
                         tuple("BP026", false, true),
                         tuple("BP001", false, false));
         assertThat(resultat.membresDe(VivierThematique.MANAGEMENT))
-                .extracting(m -> m.score().getEmploye().getEmployeeId()).containsExactly("BP083");
+                .extracting(m -> m.score().getCollaborateur().getIdCollaborateur()).containsExactly("BP083");
         assertThat(resultat.nonClasses()).isEmpty();
+    }
+
+    @Test
+    void un_trimestre_passe_garde_la_direction_figee_sur_le_score() {
+        Score score = score("BP005", "Reseau Retail", "95", "92");
+        donnerLesScores(score);
+        // Import suivant : le collaborateur change de direction apres le calcul du trimestre.
+        score.getCollaborateur().setEntite(new Entite("RH", TypeEntite.DIRECTION, null));
+
+        ResultatViviersThematiques resultat = service.getViviersThematiques(trimestre);
+
+        assertThat(resultat.membresDe(VivierThematique.COMMERCIAL))
+                .extracting(m -> m.score().getCollaborateur().getIdCollaborateur()).containsExactly("BP005");
+        assertThat(resultat.membresDe(VivierThematique.MANAGEMENT)).isEmpty();
+        assertThat(score.getDirection()).isEqualTo("Reseau Retail");
     }
 
     @Test
@@ -102,9 +119,10 @@ class VivierThematiqueServiceTest {
 
         ResultatViviersThematiques resultat = service.getViviersThematiques(trimestre);
 
-        assertThat(resultat.nonClasses()).extracting(Employe::getEmployeeId).containsExactly("BP050", "BP051");
+        assertThat(resultat.nonClasses()).extracting(Collaborateur::getIdCollaborateur)
+                .containsExactly("BP050", "BP051");
         assertThat(resultat.membresDe(VivierThematique.MANAGEMENT))
-                .extracting(m -> m.score().getEmploye().getEmployeeId()).containsExactly("BP052");
+                .extracting(m -> m.score().getCollaborateur().getIdCollaborateur()).containsExactly("BP052");
     }
 
     @Test
@@ -115,15 +133,15 @@ class VivierThematiqueServiceTest {
 
         // Scores incomplets en dernier, sans statut de talent ni de HP.
         assertThat(management)
-                .extracting(m -> m.score().getEmploye().getEmployeeId(),
+                .extracting(m -> m.score().getCollaborateur().getIdCollaborateur(),
                         MembreVivierThematique::talent, MembreVivierThematique::hautPotentiel)
                 .containsExactly(tuple("BP011", true, true), tuple("BP010", false, false));
     }
 
     @Test
-    void les_employes_hors_perimetre_sont_ignores() {
+    void les_collaborateurs_hors_perimetre_sont_ignores() {
         Score parti = score("BP099", "RH", "95", "95");
-        parti.getEmploye().setStatut(StatutEmploye.INACTIF);
+        parti.getCollaborateur().setStatut(StatutCollaborateur.INACTIF);
         donnerLesScores(parti);
 
         ResultatViviersThematiques resultat = service.getViviersThematiques(trimestre);
@@ -141,7 +159,7 @@ class VivierThematiqueServiceTest {
         ResultatViviersThematiques resultat = sansSource.getViviersThematiques(trimestre);
 
         assertThat(resultat.membres().values()).allSatisfy(membres -> assertThat(membres).isEmpty());
-        assertThat(resultat.nonClasses()).extracting(Employe::getEmployeeId).containsExactly("BP005");
+        assertThat(resultat.nonClasses()).extracting(Collaborateur::getIdCollaborateur).containsExactly("BP005");
     }
 
     @Test
@@ -156,18 +174,19 @@ class VivierThematiqueServiceTest {
 
     private void donnerLesScores(Score... scores) {
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(Parametre.parDefaut(trimestre)));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of(scores));
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of(scores));
     }
 
-    private Score score(String employeeId, String direction, String performance, String potentiel) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setDirection(direction);
-        employe.setStatut(StatutEmploye.ACTIF);
+    private Score score(String idCollaborateur, String direction, String performance, String potentiel) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setEntite(direction == null ? null : new Entite(direction, TypeEntite.DIRECTION, null));
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
+        score.figerOrganisation();
         score.setTrimestre(trimestre);
         score.setScorePerformance(performance == null ? null : new BigDecimal(performance));
         score.setScorePotentiel(potentiel == null ? null : new BigDecimal(potentiel));

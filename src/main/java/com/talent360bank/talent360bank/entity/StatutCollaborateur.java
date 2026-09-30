@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.entity;
 
-public enum StatutEmploye {
+public enum StatutCollaborateur {
     /** En poste, entre dans tous les calculs. */
     ACTIF,
     /** Toujours dans l'effectif mais exclu des calculs (conge longue duree, suspension). */

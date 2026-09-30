@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.ui.service;
 
 import com.talent360bank.talent360bank.entity.AppartenanceVivier;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.AppartenanceVivierRepository;
@@ -17,7 +17,7 @@ import java.util.Optional;
 /**
  * Assemble le tableau des Viviers pour l'affichage.
  *
- * REGLE : aucun calcul ici. La liste des employes par vivier vient de
+ * REGLE : aucun calcul ici. La liste des collaborateurs par vivier vient de
  * AppartenanceVivierRepository, leurs scores viennent de ScoreRepository.
  */
 @Service
@@ -46,15 +46,16 @@ public class VivierService {
         Trimestre trimestre = dernierTrimestre.get();
 
         for (AppartenanceVivier appartenance : appartenanceVivierRepository.findByTrimestre(trimestre)) {
-            Employe employe = appartenance.getEmploye();
+            Collaborateur collaborateur = appartenance.getCollaborateur();
 
-            Optional<Score> score = scoreRepository.findByEmployeAndTrimestre(employe, trimestre);
+            Optional<Score> score = scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre);
 
             rows.add(new VivierRow(
-                    employe.getNom(),
-                    employe.getPrenom(),
-                    employe.getFonction(),
-                    employe.getDepartement(),
+                    collaborateur.getNom(),
+                    collaborateur.getPrenom(),
+                    collaborateur.getFonction(),
+                    // Departement du trimestre (fige sur le score), sinon l'actuel.
+                    score.map(Score::getDepartement).orElse(collaborateur.getDepartement()),
                     score.map(Score::getScorePotentiel).orElse(null),
                     score.map(Score::getScorePerformance).orElse(null),
                     appartenance.getVivier().getNomCategorie()

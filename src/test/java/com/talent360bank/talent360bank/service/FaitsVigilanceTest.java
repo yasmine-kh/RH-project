@@ -52,7 +52,7 @@ class FaitsVigilanceTest {
     }
 
     @Test
-    void la_source_rend_aucun_fait_pour_un_employe_absent_ou_une_map_nulle() {
+    void la_source_rend_aucun_fait_pour_un_collaborateur_absent_ou_une_map_nulle() {
         FaitsVigilance declares = FaitsVigilance.builder().formationNonFaite(true).build();
         FaitsVigilanceSource source = trimestre -> Map.of("E001", declares);
         FaitsVigilanceSource muette = trimestre -> null;

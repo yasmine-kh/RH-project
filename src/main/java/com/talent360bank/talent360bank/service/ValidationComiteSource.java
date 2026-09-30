@@ -18,8 +18,8 @@ import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 public interface ValidationComiteSource {
 
     /**
-     * Decision du comite pour l'employe sur le trimestre, jamais null :
+     * Decision du comite pour le collaborateur sur le trimestre, jamais null :
      * {@link StatutValidationComite#EN_ATTENTE} tant que rien n'est saisi.
      */
-    StatutValidationComite statut(String employeeId, Trimestre trimestre);
+    StatutValidationComite statut(String idCollaborateur, Trimestre trimestre);
 }

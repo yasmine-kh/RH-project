@@ -12,15 +12,15 @@ import java.util.Map;
  */
 public class FaitsVigilanceEnMemoire implements FaitsVigilanceSource {
 
-    private final Map<String, FaitsVigilance> faitsParEmploye = new HashMap<>();
+    private final Map<String, FaitsVigilance> faitsParCollaborateur = new HashMap<>();
 
-    public FaitsVigilanceEnMemoire declarer(String employeeId, FaitsVigilance faits) {
-        faitsParEmploye.put(employeeId, faits);
+    public FaitsVigilanceEnMemoire declarer(String idCollaborateur, FaitsVigilance faits) {
+        faitsParCollaborateur.put(idCollaborateur, faits);
         return this;
     }
 
     @Override
     public Map<String, FaitsVigilance> faitsDuTrimestre(Trimestre trimestre) {
-        return Map.copyOf(faitsParEmploye);
+        return Map.copyOf(faitsParCollaborateur);
     }
 }

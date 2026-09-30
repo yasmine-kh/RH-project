@@ -17,7 +17,7 @@ public record CouverturePosteResponse(String posteId, String nomPoste, String di
                                       List<MatchingResponse> successeurs,
                                       List<SuccesseurIgnoreResponse> ignores) {
 
-    public record SuccesseurIgnoreResponse(String employeeId, String motif) {
+    public record SuccesseurIgnoreResponse(String idCollaborateur, String motif) {
     }
 
     public static CouverturePosteResponse de(CouverturePoste couverture) {
@@ -28,7 +28,7 @@ public record CouverturePosteResponse(String posteId, String nomPoste, String di
                 couverture.niveau().name(), couverture.niveau().getLibelle(), couverture.estEnAlerte(),
                 couverture.successeurs().stream().map(MatchingResponse::de).toList(),
                 couverture.ignores().stream()
-                        .map(ignore -> new SuccesseurIgnoreResponse(ignore.employeeId(), ignore.motif()))
+                        .map(ignore -> new SuccesseurIgnoreResponse(ignore.idCollaborateur(), ignore.motif()))
                         .toList());
     }
 }

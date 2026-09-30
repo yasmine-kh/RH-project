@@ -161,6 +161,59 @@ public class Parametre {
     }
 
     /**
+     * Copie de ces reglages pour un autre trimestre : une nouvelle campagne
+     * reprend les reglages du trimestre precedent, pas les valeurs par defaut.
+     * Chaque bloc est recopie, jamais partage entre deux lignes.
+     */
+    public Parametre copiePour(Trimestre autreTrimestre) {
+        Parametre copie = new Parametre();
+        copie.setTrimestre(autreTrimestre);
+        copie.setLibelle(libelle);
+        copie.setPoidsPerformance(copierBloc(poidsPerformance));
+        copie.setPoidsPotentiel(copierBloc(poidsPotentiel));
+        copie.setPoidsSuccession(copierBloc(poidsSuccession));
+        copie.setBaremeExperience(copierBloc(baremeExperience));
+        copie.setBaremeCompetences(copierBloc(baremeCompetences));
+        copie.setSeuilsNeufBox(copierBloc(seuilsNeufBox));
+        copie.setSeuilsNeufBoxPotentiel(copierBloc(seuilsNeufBoxPotentiel));
+        copie.setSeuilsCategoriePerformance(copierBloc(seuilsCategoriePerformance));
+        copie.setSeuilsGapCompetence(copierBloc(seuilsGapCompetence));
+        copie.setSeuilsReadiness(copierBloc(seuilsReadiness));
+        copie.setSeuilsCouverture(copierBloc(seuilsCouverture));
+        copie.setSeuilsTalent(copierBloc(seuilsTalent));
+        copie.setPointsVigilance(copierBloc(pointsVigilance));
+        copie.setSeuilsVigilance(copierBloc(seuilsVigilance));
+        return copie;
+    }
+
+    /**
+     * Copie champ a champ d'un bloc @Embeddable. Les champs des blocs sont des
+     * valeurs immuables (BigDecimal, Integer) : une copie superficielle suffit.
+     * Par reflexion pour qu'un champ ajoute a un bloc soit copie sans y penser.
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> T copierBloc(T bloc) {
+        if (bloc == null) {
+            return null;
+        }
+        try {
+            java.lang.reflect.Constructor<?> constructeur = bloc.getClass().getDeclaredConstructor();
+            constructeur.setAccessible(true);
+            T copie = (T) constructeur.newInstance();
+            for (java.lang.reflect.Field champ : bloc.getClass().getDeclaredFields()) {
+                if (java.lang.reflect.Modifier.isStatic(champ.getModifiers())) {
+                    continue;
+                }
+                champ.setAccessible(true);
+                champ.set(copie, champ.get(bloc));
+            }
+            return copie;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Copie impossible du bloc " + bloc.getClass().getSimpleName(), e);
+        }
+    }
+
+    /**
      * Complete, avec les valeurs de {@link #parDefaut}, les reglages ajoutes
      * apres la mise en service : bareme d'experience, bareme des competences,
      * seuils de haut potentiel, seuil de couverture des postes critiques,
@@ -232,7 +285,7 @@ public class Parametre {
 
         // Axe potentiel de la 9-box : repris de l'axe performance de la meme
         // ligne, qui s'appliquait jusque-la aux deux axes. Les valeurs par
-        // defaut deplaceraient les employes d'un trimestre aux seuils modifies.
+        // defaut deplaceraient les collaborateurs d'un trimestre aux seuils modifies.
         SeuilsNeufBox reference = seuilsNeufBox != null ? seuilsNeufBox : defauts.getSeuilsNeufBox();
         if (seuilsNeufBoxPotentiel == null || estLeZeroImpliciteDeMySql(seuilsNeufBoxPotentiel)) {
             seuilsNeufBoxPotentiel = new SeuilsNeufBox(reference.getSeuilEleve(), reference.getSeuilMoyen());

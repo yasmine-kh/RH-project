@@ -2,7 +2,7 @@ package com.talent360bank.talent360bank.service.enums;
 
 /**
  * Viviers thematiques de 10_TALENTS (colonne Vivier thematique). Chaque
- * employe en a un, deduit de sa direction.
+ * collaborateur en a un, deduit de sa direction.
  *
  * <p>Le code est celui du {@link com.talent360bank.talent360bank.entity.Vivier}
  * correspondant : le moteur retrouve ses viviers par code, jamais par nom,

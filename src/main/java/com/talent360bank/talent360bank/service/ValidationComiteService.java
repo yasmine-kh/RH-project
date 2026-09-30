@@ -42,7 +42,7 @@ public class ValidationComiteService {
         this(talentService, validationComiteSource.getIfAvailable(() -> {
             log.warn("Aucune source de decisions du Comite Talent : aucun talent ne sera valide "
                     + "tant que l'import ne les fournit pas");
-            return (employeeId, trimestre) -> StatutValidationComite.EN_ATTENTE;
+            return (idCollaborateur, trimestre) -> StatutValidationComite.EN_ATTENTE;
         }));
     }
 
@@ -78,7 +78,7 @@ public class ValidationComiteService {
         List<DecisionComite> decisions = new ArrayList<>(talentsProposes.size());
         for (Score score : talentsProposes) {
             StatutValidationComite statut = validationComiteSource.statut(
-                    score.getEmploye().getEmployeeId(), trimestre);
+                    score.getCollaborateur().getIdCollaborateur(), trimestre);
             decisions.add(new DecisionComite(score,
                     Objects.requireNonNullElse(statut, StatutValidationComite.EN_ATTENTE)));
         }

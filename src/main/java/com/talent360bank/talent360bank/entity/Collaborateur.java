@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,22 +12,23 @@ import java.time.Period;
 import java.util.Objects;
 
 @Entity
-@Table(name = "employe", indexes = {
-        @Index(name = "idx_employe_statut", columnList = "statut"),
-        @Index(name = "idx_employe_manager", columnList = "manager_id")
+@Table(name = "collaborateur", indexes = {
+        @Index(name = "idx_collaborateur_statut", columnList = "statut"),
+        @Index(name = "idx_collaborateur_manager", columnList = "id_manager"),
+        @Index(name = "idx_collaborateur_entite", columnList = "id_entite")
 })
-public class Employe {
+public class Collaborateur {
 
     /**
      * Employee_ID du fichier source, utilise directement comme cle primaire.
-     * EmployeRepository et la cle etrangere employee_id d'EmployeeSkill en
-     * dependent : ce n'est pas un identifiant technique interchangeable.
+     * CollaborateurRepository et les cles etrangeres id_collaborateur des autres
+     * tables en dependent : ce n'est pas un identifiant technique interchangeable.
      */
     @Id
     @NotBlank
     @Size(max = 20)
-    @Column(name = "employee_id", length = 20)
-    private String employeeId;
+    @Column(name = "id_collaborateur", length = 20)
+    private String idCollaborateur;
 
     @NotBlank
     @Size(max = 100)
@@ -51,21 +53,15 @@ public class Employe {
     @Column(name = "date_entree", nullable = false)
     private LocalDate dateEntree;
 
-    @Size(max = 100)
-    @Column(length = 100)
-    private String direction;
-
-    @Size(max = 100)
-    @Column(length = 100)
-    private String departement;
-
-    @Size(max = 100)
-    @Column(length = 100)
-    private String region;
-
-    @Size(max = 100)
-    @Column(length = 100)
-    private String agence;
+    /**
+     * Entite la plus fine connue (agence, sinon region, departement ou
+     * direction). Direction, departement, region et agence s'en deduisent en
+     * remontant l'arbre : voir {@link #getDirection()}. Chargee avec le
+     * collaborateur, car la plupart des ecrans regroupent par direction.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id_entite")
+    private Entite entite;
 
     @Size(max = 100)
     @Column(length = 100)
@@ -77,15 +73,15 @@ public class Employe {
 
     /** Manager_ID du fichier source, resolu en relation a l'import. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id")
-    private Employe manager;
+    @JoinColumn(name = "id_manager")
+    private Manager manager;
 
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private StatutEmploye statut = StatutEmploye.ACTIF;
+    private StatutCollaborateur statut = StatutCollaborateur.ACTIF;
 
-    public Employe() {
+    public Collaborateur() {
     }
 
     /**
@@ -106,10 +102,10 @@ public class Employe {
         return getAnciennete(LocalDate.now());
     }
 
-    /** Seuls les employes actifs entrent dans les calculs de scores. */
+    /** Seuls les collaborateurs actifs entrent dans les calculs de scores. */
     @Transient
     public boolean estCalculable() {
-        return statut == StatutEmploye.ACTIF;
+        return statut == StatutCollaborateur.ACTIF;
     }
 
     @Transient
@@ -117,12 +113,12 @@ public class Employe {
         return prenom + " " + nom;
     }
 
-    public String getEmployeeId() {
-        return employeeId;
+    public String getIdCollaborateur() {
+        return idCollaborateur;
     }
 
-    public void setEmployeeId(String employeeId) {
-        this.employeeId = employeeId;
+    public void setIdCollaborateur(String idCollaborateur) {
+        this.idCollaborateur = idCollaborateur;
     }
 
     public String getNom() {
@@ -165,36 +161,33 @@ public class Employe {
         this.dateEntree = dateEntree;
     }
 
+    public Entite getEntite() {
+        return entite;
+    }
+
+    public void setEntite(Entite entite) {
+        this.entite = entite;
+    }
+
+    /** Libelle de la direction, en remontant depuis {@link #getEntite()} ; null si inconnue. */
+    @Transient
     public String getDirection() {
-        return direction;
+        return entite == null ? null : entite.libelleDe(TypeEntite.DIRECTION);
     }
 
-    public void setDirection(String direction) {
-        this.direction = direction;
-    }
-
+    @Transient
     public String getDepartement() {
-        return departement;
+        return entite == null ? null : entite.libelleDe(TypeEntite.DEPARTEMENT);
     }
 
-    public void setDepartement(String departement) {
-        this.departement = departement;
-    }
-
+    @Transient
     public String getRegion() {
-        return region;
+        return entite == null ? null : entite.libelleDe(TypeEntite.REGION);
     }
 
-    public void setRegion(String region) {
-        this.region = region;
-    }
-
+    @Transient
     public String getAgence() {
-        return agence;
-    }
-
-    public void setAgence(String agence) {
-        this.agence = agence;
+        return entite == null ? null : entite.libelleDe(TypeEntite.AGENCE);
     }
 
     public String getFonction() {
@@ -213,19 +206,21 @@ public class Employe {
         this.grade = grade;
     }
 
-    public Employe getManager() {
+    /** Ignore en JSON : relation paresseuse, et le manager renverrait a son propre collaborateur. */
+    @JsonIgnore
+    public Manager getManager() {
         return manager;
     }
 
-    public void setManager(Employe manager) {
+    public void setManager(Manager manager) {
         this.manager = manager;
     }
 
-    public StatutEmploye getStatut() {
+    public StatutCollaborateur getStatut() {
         return statut;
     }
 
-    public void setStatut(StatutEmploye statut) {
+    public void setStatut(StatutCollaborateur statut) {
         this.statut = statut;
     }
 
@@ -234,16 +229,16 @@ public class Employe {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Employe)) {
+        if (!(o instanceof Collaborateur)) {
             return false;
         }
-        Employe autre = (Employe) o;
-        return employeeId != null && employeeId.equals(autre.getEmployeeId());
+        Collaborateur autre = (Collaborateur) o;
+        return idCollaborateur != null && idCollaborateur.equals(autre.getIdCollaborateur());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(employeeId);
+        return Objects.hashCode(idCollaborateur);
     }
 
     /**
@@ -252,6 +247,6 @@ public class Employe {
      */
     @Override
     public String toString() {
-        return "Employe{employeeId='" + employeeId + "', statut=" + statut + "}";
+        return "Collaborateur{idCollaborateur='" + idCollaborateur + "', statut=" + statut + "}";
     }
 }

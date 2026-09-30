@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.CategoriePotentiel;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.NiveauGrille;
 import com.talent360bank.talent360bank.entity.Parametre;
@@ -26,11 +26,11 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Place les employes sur la matrice 9-box a partir de leurs scores et des
+ * Place les collaborateurs sur la matrice 9-box a partir de leurs scores et des
  * seuils du {@link Parametre} du trimestre, propres a chaque axe
  * (seuilsNeufBox pour la performance, seuilsNeufBoxPotentiel pour le
  * potentiel). Le niveau de l'axe potentiel est aussi la categorie de
- * potentiel de l'employe, enregistree avec sa case.
+ * potentiel de le collaborateur, enregistree avec sa case.
  *
  * <p>Les neuf libelles ne sont pas ecrits ici : ils viennent de la table de
  * reference {@link Matrice9Box}, que le RH peut renommer sans toucher au code.
@@ -107,19 +107,19 @@ public class NeufBoxService {
     }
 
     /**
-     * Place un employe et enregistre la categorie dans son Score, avec sa
+     * Place un collaborateur et enregistre la categorie dans son Score, avec sa
      * categorie de potentiel.
      *
-     * @throws RessourceIntrouvableException si l'employe n'a pas de score sur ce trimestre
+     * @throws RessourceIntrouvableException si le collaborateur n'a pas de score sur ce trimestre
      */
     @Transactional
-    public Score placerEtEnregistrer(Employe employe, Trimestre trimestre) {
-        Objects.requireNonNull(employe, "employe");
+    public Score placerEtEnregistrer(Collaborateur collaborateur, Trimestre trimestre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
-        Score score = scoreRepository.findByEmployeAndTrimestre(employe, trimestre)
+        Score score = scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun score calcule pour " + employe.getEmployeeId()
+                        "Aucun score calcule pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
 
         Parametre parametre = calculService.chargerParametre(trimestre);
@@ -131,10 +131,10 @@ public class NeufBoxService {
     }
 
     /**
-     * Place tous les employes scores du trimestre. La table de reference est
+     * Place tous les collaborateurs scores du trimestre. La table de reference est
      * chargee une seule fois, les seuils aussi.
      *
-     * <p>Un score incomplet ou un employe hors perimetre est remonte dans le
+     * <p>Un score incomplet ou un collaborateur hors perimetre est remonte dans le
      * bilan avec son motif plutot qu'ecarte en silence.
      */
     @Transactional
@@ -147,20 +147,23 @@ public class NeufBoxService {
         Map<String, Matrice9Box> matriceParCase = indexerMatrice();
 
         List<Score> places = new ArrayList<>();
-        List<ResultatRecalcul.EmployeIgnore> ignores = new ArrayList<>();
+        List<ResultatRecalcul.CollaborateurIgnore> ignores = new ArrayList<>();
 
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
-            Employe employe = score.getEmploye();
-            String matricule = employe.getEmployeeId();
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            Collaborateur collaborateur = score.getCollaborateur();
+            String matricule = collaborateur.getIdCollaborateur();
 
-            if (!employe.estCalculable()) {
-                ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,
-                        "Statut " + employe.getStatut() + ", hors perimetre de calcul"));
+            // Un score non place perd sa case : elle viendrait d'un placement precedent.
+            if (!collaborateur.estCalculable()) {
+                ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
+                        "Statut " + collaborateur.getStatut() + ", hors perimetre de calcul"));
+                effacerCase(score);
                 continue;
             }
             if (score.getScorePerformance() == null || score.getScorePotentiel() == null) {
-                ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,
+                ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
                         "Score incomplet, les deux axes sont necessaires au placement"));
+                effacerCase(score);
                 continue;
             }
 
@@ -169,9 +172,10 @@ public class NeufBoxService {
             Matrice9Box case9Box = matriceParCase.get(cle(niveauPerformance.getRang(), niveauPotentiel.getRang()));
 
             if (case9Box == null) {
-                ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,
+                ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
                         "Aucune case de reference pour performance " + niveauPerformance
                                 + " et potentiel " + niveauPotentiel));
+                effacerCase(score);
                 continue;
             }
 
@@ -180,10 +184,18 @@ public class NeufBoxService {
             places.add(scoreRepository.save(score));
         }
 
-        log.info("Placement 9-box {} : {} employe(s) place(s), {} ignore(s)",
+        log.info("Placement 9-box {} : {} collaborateur(s) place(s), {} ignore(s)",
                 decrire(trimestre), places.size(), ignores.size());
 
         return new ResultatRecalcul(places, ignores);
+    }
+
+    private void effacerCase(Score score) {
+        if (score.getPositionBox() != null || score.getCategoriePotentiel() != null) {
+            score.setPositionBox(null);
+            score.setCategoriePotentiel(null);
+            scoreRepository.save(score);
+        }
     }
 
     private static SeuilsNeufBox seuilsPerformance(Parametre parametre) {

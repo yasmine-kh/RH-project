@@ -1,10 +1,10 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
@@ -80,7 +80,7 @@ class TableauDeBordServiceTest {
         when(posteCritiqueService.tauxCouverture(couvertures)).thenReturn(new BigDecimal("50.00"));
         when(matrice9BoxRepository.findAll()).thenReturn(List.of(
                 case9Box(1, 1, "A surveiller"), case9Box(3, 3, "Talent cle"), case9Box(3, 2, "Performant")));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of(
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of(
                 score("BP001", "Talent cle"), score("BP002", "Talent cle"),
                 score("BP003", "A surveiller"), score("BP004", null)));
 
@@ -114,7 +114,7 @@ class TableauDeBordServiceTest {
         when(vigilanceService.evaluerTrimestre(trimestre)).thenReturn(List.of());
         when(posteCritiqueService.listerPostesCritiques(trimestre)).thenReturn(List.of());
         when(matrice9BoxRepository.findAll()).thenReturn(List.of(case9Box(3, 3, "Talent cle")));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of());
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of());
 
         SyntheseTableauDeBord synthese = service.synthese(trimestre);
 
@@ -140,25 +140,25 @@ class TableauDeBordServiceTest {
         return java.util.Map.entry(cle, valeur);
     }
 
-    private Employe employe(String employeeId) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setStatut(StatutEmploye.ACTIF);
-        return employe;
+    private Collaborateur collaborateur(String idCollaborateur) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
+        return collaborateur;
     }
 
-    private Score score(String employeeId, String positionBox) {
+    private Score score(String idCollaborateur, String positionBox) {
         Score score = new Score();
-        score.setEmploye(employe(employeeId));
+        score.setCollaborateur(collaborateur(idCollaborateur));
         score.setTrimestre(trimestre);
         score.setPositionBox(positionBox);
         return score;
     }
 
-    private ResultatVigilance vigilance(String employeeId, NiveauVigilance niveau) {
-        return new ResultatVigilance(employe(employeeId), new BigDecimal("40"), niveau, Set.of());
+    private ResultatVigilance vigilance(String idCollaborateur, NiveauVigilance niveau) {
+        return new ResultatVigilance(collaborateur(idCollaborateur), new BigDecimal("40"), niveau, Set.of());
     }
 
     private CouverturePoste couverture(String posteId, NiveauCouverture niveau) {

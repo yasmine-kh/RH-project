@@ -47,13 +47,13 @@ public class SuccessionController {
     }
 
     /** Matching d'un seul candidat sur un poste. */
-    @GetMapping("/postes/{posteId}/candidats/{employeeId}")
+    @GetMapping("/postes/{posteId}/candidats/{idCollaborateur}")
     public MatchingResponse candidat(@PathVariable String posteId,
-                                     @PathVariable String employeeId,
+                                     @PathVariable String idCollaborateur,
                                      @RequestParam int annee,
                                      @RequestParam int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return MatchingResponse.de(successionService.evaluer(
-                chargeur.exigerEmploye(employeeId), posteId, trimestre));
+                chargeur.exigerCollaborateur(idCollaborateur), posteId, trimestre));
     }
 }

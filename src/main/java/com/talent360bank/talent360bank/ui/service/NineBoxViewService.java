@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.ui.service;
 import com.talent360bank.talent360bank.ui.model.NineBoxCell;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
@@ -19,7 +19,7 @@ import java.util.Optional;
  * Assemble la grille 9-Box pour l'affichage.
  *
  * REGLE : aucun calcul ici. Les 9 cases de reference viennent de
- * Matrice9BoxRepository (Dou), le placement de chaque employe vient du
+ * Matrice9BoxRepository (Dou), le placement de chaque collaborateur vient du
  * champ Score.positionBox, deja rempli par NeufBoxService (Jas).
  */
 @Service
@@ -38,15 +38,15 @@ public class NineBoxViewService {
     }
 
     public List<NineBoxCell> buildGrid() {
-        Map<String, List<String>> employesParCategorie = new HashMap<>();
+        Map<String, List<String>> collaborateursParCategorie = new HashMap<>();
 
         Optional<Trimestre> dernierTrimestre = trimestreRepository.findTopByOrderByAnneeDescNumeroDesc();
         if (dernierTrimestre.isPresent()) {
-            for (Score score : scoreRepository.findByTrimestreAvecEmploye(dernierTrimestre.get())) {
+            for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(dernierTrimestre.get())) {
                 if (score.getPositionBox() != null) {
-                    Employe employe = score.getEmploye();
-                    String nomComplet = employe.getPrenom() + " " + employe.getNom();
-                    employesParCategorie
+                    Collaborateur collaborateur = score.getCollaborateur();
+                    String nomComplet = collaborateur.getPrenom() + " " + collaborateur.getNom();
+                    collaborateursParCategorie
                             .computeIfAbsent(score.getPositionBox(), k -> new ArrayList<>())
                             .add(nomComplet);
                 }
@@ -55,8 +55,9 @@ public class NineBoxViewService {
 
         List<NineBoxCell> grille = new ArrayList<>();
         for (Matrice9Box box : matriceRepository.findAll()) {
-            List<String> employes = employesParCategorie.getOrDefault(box.getCategorie(), List.of());
-            grille.add(new NineBoxCell(box.getCategorie(), box.getNiveauPerformance(), box.getNiveauPotentiel(), employes));
+            List<String> collaborateurs = collaborateursParCategorie.getOrDefault(box.getCategorie(), List.of());
+            grille.add(new NineBoxCell(box.getCategorie(), box.getNiveauPerformance(), box.getNiveauPotentiel(),
+                    collaborateurs));
         }
 
         // Tri pour affichage : performance elevee en haut, potentiel faible a gauche

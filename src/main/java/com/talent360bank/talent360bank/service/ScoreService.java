@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Potentiel;
@@ -53,37 +53,41 @@ public class ScoreService {
     }
 
     /**
-     * Calcule les deux scores d'un employe sur un trimestre et les enregistre.
+     * Calcule les deux scores d'un collaborateur sur un trimestre et les enregistre.
      * Un recalcul met a jour la ligne existante : il n'y a qu'un Score par
-     * employe et par trimestre.
+     * collaborateur et par trimestre.
      *
      * @throws RessourceIntrouvableException si les notes ou les reglages sont absents
      */
     @Transactional
-    public Score calculerEtEnregistrer(Employe employe, Trimestre trimestre) {
-        Objects.requireNonNull(employe, "employe");
+    public Score calculerEtEnregistrer(Collaborateur collaborateur, Trimestre trimestre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
         Parametre parametre = calculService.chargerParametre(trimestre);
 
-        Performance performance = performanceRepository.findByEmployeAndTrimestre(employe, trimestre)
+        Performance performance = performanceRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucune note de performance pour " + employe.getEmployeeId()
+                        "Aucune note de performance pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
-        Potentiel potentiel = potentielRepository.findByEmployeAndTrimestre(employe, trimestre)
+        Potentiel potentiel = potentielRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucune note de potentiel pour " + employe.getEmployeeId()
+                        "Aucune note de potentiel pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
 
-        return enregistrer(employe, trimestre, performance, potentiel, parametre);
+        return enregistrer(collaborateur, trimestre, performance, potentiel, parametre);
     }
 
     /**
      * Recalcule tout un trimestre. Les reglages et les notes sont charges une
      * seule fois, puis ponderees en memoire.
      *
-     * <p>Un employe n'est score que s'il est actif et dispose des deux jeux de
+     * <p>Un collaborateur n'est score que s'il est actif et dispose des deux jeux de
      * notes. Les autres sont remontes dans le bilan avec leur motif.
+     *
+     * <p>Idempotent : les scores du trimestre que ce recalcul ne produit pas
+     * (collaborateur passe inactif, notes retirees par un fichier corrige) sont
+     * supprimes, avec leur case 9-box. Un second passage rend les memes lignes.
      */
     @Transactional
     public ResultatRecalcul recalculerTrimestre(Trimestre trimestre) {
@@ -91,76 +95,81 @@ public class ScoreService {
 
         Parametre parametre = calculService.chargerParametre(trimestre);
 
-        List<Performance> performances = performanceRepository.findByTrimestreAvecEmploye(trimestre);
-        List<Potentiel> potentiels = potentielRepository.findByTrimestreAvecEmploye(trimestre);
+        List<Performance> performances = performanceRepository.findByTrimestreAvecCollaborateur(trimestre);
+        List<Potentiel> potentiels = potentielRepository.findByTrimestreAvecCollaborateur(trimestre);
 
         Map<String, Potentiel> potentielParMatricule = new HashMap<>();
         for (Potentiel potentiel : potentiels) {
-            potentielParMatricule.put(potentiel.getEmploye().getEmployeeId(), potentiel);
+            potentielParMatricule.put(potentiel.getCollaborateur().getIdCollaborateur(), potentiel);
         }
 
         List<Score> enregistres = new ArrayList<>();
-        List<ResultatRecalcul.EmployeIgnore> ignores = new ArrayList<>();
+        List<ResultatRecalcul.CollaborateurIgnore> ignores = new ArrayList<>();
         Set<String> matriculesVus = new HashSet<>();
 
         for (Performance performance : performances) {
-            Employe employe = performance.getEmploye();
-            String matricule = employe.getEmployeeId();
+            Collaborateur collaborateur = performance.getCollaborateur();
+            String matricule = collaborateur.getIdCollaborateur();
             matriculesVus.add(matricule);
 
-            if (!employe.estCalculable()) {
-                ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,
-                        "Statut " + employe.getStatut() + ", hors perimetre de calcul"));
+            if (!collaborateur.estCalculable()) {
+                ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
+                        "Statut " + collaborateur.getStatut() + ", hors perimetre de calcul"));
                 continue;
             }
 
             Potentiel potentiel = potentielParMatricule.get(matricule);
             if (potentiel == null) {
-                ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,
+                ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
                         "Notes de potentiel absentes"));
                 continue;
             }
 
-            enregistres.add(enregistrer(employe, trimestre, performance, potentiel, parametre));
+            enregistres.add(enregistrer(collaborateur, trimestre, performance, potentiel, parametre));
         }
 
-        // Employes notes en potentiel mais pas en performance : sans les deux
+        // Collaborateurs notes en potentiel mais pas en performance : sans les deux
         // axes, la matrice 9-box ne peut pas les placer.
         for (Potentiel potentiel : potentiels) {
-            String matricule = potentiel.getEmploye().getEmployeeId();
+            String matricule = potentiel.getCollaborateur().getIdCollaborateur();
             if (!matriculesVus.contains(matricule)) {
-                ignores.add(new ResultatRecalcul.EmployeIgnore(matricule,
+                ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
                         "Notes de performance absentes"));
             }
         }
 
-        log.info("Recalcul {} : {} score(s) enregistre(s), {} employe(s) ignore(s)",
-                decrire(trimestre), enregistres.size(), ignores.size());
+        List<Integer> conserves = enregistres.stream().map(Score::getIdScore).filter(Objects::nonNull).toList();
+        int supprimes = conserves.isEmpty()
+                ? scoreRepository.supprimerTous(trimestre)
+                : scoreRepository.supprimerSaufCeux(trimestre, conserves);
+
+        log.info("Recalcul {} : {} score(s) enregistre(s), {} collaborateur(s) ignore(s), {} score(s) obsolete(s) "
+                + "supprime(s)", decrire(trimestre), enregistres.size(), ignores.size(), supprimes);
 
         return new ResultatRecalcul(enregistres, ignores);
     }
 
     @Transactional(readOnly = true)
-    public Optional<Score> rechercher(Employe employe, Trimestre trimestre) {
-        return scoreRepository.findByEmployeAndTrimestre(employe, trimestre);
+    public Optional<Score> rechercher(Collaborateur collaborateur, Trimestre trimestre) {
+        return scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre);
     }
 
-    /** Historique d'un employe, du trimestre le plus recent au plus ancien. */
+    /** Historique d'un collaborateur, du trimestre le plus recent au plus ancien. */
     @Transactional(readOnly = true)
-    public List<Score> historique(Employe employe) {
-        return scoreRepository.findHistorique(employe);
+    public List<Score> historique(Collaborateur collaborateur) {
+        return scoreRepository.findHistorique(collaborateur);
     }
 
     /**
      * Cree ou met a jour la ligne de Score. positionBox est laissee intacte :
      * elle releve de NeufBoxService, qui la posera a partir de ces deux scores.
      */
-    private Score enregistrer(Employe employe, Trimestre trimestre, Performance performance,
+    private Score enregistrer(Collaborateur collaborateur, Trimestre trimestre, Performance performance,
                               Potentiel potentiel, Parametre parametre) {
-        Score score = scoreRepository.findByEmployeAndTrimestre(employe, trimestre)
+        Score score = scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseGet(() -> {
                     Score nouveau = new Score();
-                    nouveau.setEmploye(employe);
+                    nouveau.setCollaborateur(collaborateur);
                     nouveau.setTrimestre(trimestre);
                     return nouveau;
                 });
@@ -171,6 +180,8 @@ public class ScoreService {
                 scorePerformance, parametre.getSeuilsCategoriePerformance()));
         score.setScorePotentiel(calculService.calculerScorePotentiel(potentiel, parametre));
         score.setDateCalcul(LocalDate.now());
+        // Direction et manager du moment : l'import suivant ecrasera ceux du collaborateur.
+        score.figerOrganisation();
 
         return scoreRepository.save(score);
     }

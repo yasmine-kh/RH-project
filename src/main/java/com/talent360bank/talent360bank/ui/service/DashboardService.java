@@ -1,9 +1,10 @@
 package com.talent360bank.talent360bank.ui.service;
 
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.repository.PosteRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.TalentService;
@@ -16,23 +17,23 @@ import java.util.Optional;
 @Service
 public class DashboardService {
 
-    private final EmployeRepository employeRepository;
+    private final CollaborateurRepository collaborateurRepository;
     private final TrimestreRepository trimestreRepository;
     private final PosteRepository posteRepository;
     private final TalentService talentService;
 
-    public DashboardService(EmployeRepository employeRepository,
+    public DashboardService(CollaborateurRepository collaborateurRepository,
                             TrimestreRepository trimestreRepository,
                             PosteRepository posteRepository,
                             TalentService talentService) {
-        this.employeRepository = employeRepository;
+        this.collaborateurRepository = collaborateurRepository;
         this.trimestreRepository = trimestreRepository;
         this.posteRepository = posteRepository;
         this.talentService = talentService;
     }
 
     public List<KpiCard> buildKpis() {
-        long collaborateursActifs = employeRepository.count();
+        long collaborateursActifs = collaborateurRepository.countByStatut(StatutCollaborateur.ACTIF);
         int talentsValides = compterTalentsTrimestreCourant();
         long postesCritiques = posteRepository.findByPosteCritique("Oui").size();
 

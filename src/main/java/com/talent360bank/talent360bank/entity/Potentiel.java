@@ -7,14 +7,14 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
- * Notes brutes des 7 criteres de potentiel d'un employe sur un trimestre.
+ * Notes brutes des 7 criteres de potentiel d'un collaborateur sur un trimestre.
  * Le score pondere qui en decoule est calcule par le service et stocke
  * dans {@link Score} : cette entite ne porte que la saisie.
  */
 @Entity
 @Table(name = "potentiel", uniqueConstraints = @UniqueConstraint(
-        name = "uk_potentiel_employe_trimestre",
-        columnNames = {"id_employe", "id_trimestre"}))
+        name = "uk_potentiel_collaborateur_trimestre",
+        columnNames = {"id_collaborateur", "id_trimestre"}))
 public class Potentiel {
 
     @Id
@@ -23,8 +23,8 @@ public class Potentiel {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_employe", nullable = false)
-    private Employe employe;
+    @JoinColumn(name = "id_collaborateur", nullable = false)
+    private Collaborateur collaborateur;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
@@ -76,11 +76,11 @@ public class Potentiel {
     public Potentiel() {
     }
 
-    public Potentiel(Employe employe, Trimestre trimestre, BigDecimal noteLearning,
+    public Potentiel(Collaborateur collaborateur, Trimestre trimestre, BigDecimal noteLearning,
                      BigDecimal noteLeadership, BigDecimal noteAdaptabilite,
                      BigDecimal noteComplexite, BigDecimal noteMobilite,
                      BigDecimal noteStrategie, BigDecimal noteAutonomie) {
-        this.employe = employe;
+        this.collaborateur = collaborateur;
         this.trimestre = trimestre;
         this.noteLearning = noteLearning;
         this.noteLeadership = noteLeadership;
@@ -99,12 +99,12 @@ public class Potentiel {
         this.idPotentiel = idPotentiel;
     }
 
-    public Employe getEmploye() {
-        return employe;
+    public Collaborateur getCollaborateur() {
+        return collaborateur;
     }
 
-    public void setEmploye(Employe employe) {
-        this.employe = employe;
+    public void setCollaborateur(Collaborateur collaborateur) {
+        this.collaborateur = collaborateur;
     }
 
     public Trimestre getTrimestre() {

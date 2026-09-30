@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.ui.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
@@ -87,11 +87,11 @@ public class ComiteTalentViewService {
 
     private ComiteTalentRow ligne(DecisionComite decision) {
         Score score = decision.score();
-        Employe employe = score.getEmploye();
+        Collaborateur collaborateur = score.getCollaborateur();
         StatutValidationComite statut = decision.statut();
         return new ComiteTalentRow(
-                employe.getPrenom() + " " + employe.getNom(),
-                employe.getDirection(),
+                collaborateur.getPrenom() + " " + collaborateur.getNom(),
+                score.getDirection(),
                 score.getScorePerformance(),
                 score.getCategoriePerformance() == null ? null : score.getCategoriePerformance().getLibelle(),
                 score.getScorePotentiel(),

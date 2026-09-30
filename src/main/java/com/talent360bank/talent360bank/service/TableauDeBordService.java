@@ -96,7 +96,7 @@ public class TableauDeBordService {
                         .thenComparing(Matrice9Box::getNiveauPotentiel, Comparator.reverseOrder()))
                 .forEach(case9Box -> repartition.put(case9Box.getCategorie(), 0));
         int nonPlaces = 0;
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
             if (score.getPositionBox() == null) {
                 nonPlaces++;
             } else {

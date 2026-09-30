@@ -1,17 +1,17 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.Competence;
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.EmployeeSkill;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.EmployeeSkillRepository;
+import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
-import com.talent360bank.talent360bank.service.resultat.CompetenceEmploye;
+import com.talent360bank.talent360bank.service.resultat.GapCompetence;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,10 +26,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class CompetenceEmployeServiceTest {
+class CompetenceCollaborateurServiceTest {
 
     @Mock
-    private EmployeeSkillRepository employeeSkillRepository;
+    private CompetenceCollaborateurRepository competenceCollaborateurRepository;
     @Mock
     private ParametreRepository parametreRepository;
     @Mock
@@ -37,29 +37,29 @@ class CompetenceEmployeServiceTest {
     @Mock
     private PotentielRepository potentielRepository;
 
-    private CompetenceEmployeService service;
-    private Employe employe;
+    private CompetenceCollaborateurService service;
+    private Collaborateur collaborateur;
     private Trimestre trimestre;
     private Parametre parametre;
 
     @BeforeEach
     void init() {
-        service = new CompetenceEmployeService(employeeSkillRepository,
+        service = new CompetenceCollaborateurService(competenceCollaborateurRepository,
                 new CalculService(parametreRepository, performanceRepository, potentielRepository));
-        employe = new Employe();
-        employe.setEmployeeId("BP001");
+        collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur("BP001");
         trimestre = new Trimestre();
         trimestre.setNumero(3);
         trimestre.setAnnee(2026);
         parametre = Parametre.parDefaut(trimestre);
     }
 
-    private EmployeeSkill skill(String competenceId, Integer actuel, Integer cible, String statutImporte) {
+    private CompetenceCollaborateur skill(String competenceId, Integer actuel, Integer cible, String statutImporte) {
         Competence competence = new Competence();
         competence.setCompetenceId(competenceId);
         competence.setNom("Competence " + competenceId);
-        EmployeeSkill skill = new EmployeeSkill();
-        skill.setEmploye(employe);
+        CompetenceCollaborateur skill = new CompetenceCollaborateur();
+        skill.setCollaborateur(collaborateur);
         skill.setCompetence(competence);
         skill.setNiveauActuel(actuel);
         skill.setNiveauCible(cible);
@@ -70,15 +70,15 @@ class CompetenceEmployeServiceTest {
     @Test
     void les_competences_sont_rendues_dans_l_ordre_du_referentiel_avec_gap_et_statut() {
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
-        when(employeeSkillRepository.findByEmployeAvecCompetence(employe)).thenReturn(List.of(
+        when(competenceCollaborateurRepository.findByCollaborateurAvecCompetence(collaborateur)).thenReturn(List.of(
                 skill("C03", 1, 3, null), skill("C01", 3, 3, null), skill("C02", 2, 3, null)));
 
-        List<CompetenceEmploye> competences = service.competences(employe, trimestre);
+        List<GapCompetence> competences = service.competences(collaborateur, trimestre);
 
         assertThat(competences).extracting(c -> c.competence().getCompetence().getCompetenceId())
                 .containsExactly("C01", "C02", "C03");
-        assertThat(competences).extracting(CompetenceEmploye::gap).containsExactly(0, 1, 2);
-        assertThat(competences).extracting(CompetenceEmploye::statut).containsExactly(
+        assertThat(competences).extracting(GapCompetence::gap).containsExactly(0, 1, 2);
+        assertThat(competences).extracting(GapCompetence::statut).containsExactly(
                 StatutGapCompetence.MAITRISE, StatutGapCompetence.A_DEVELOPPER, StatutGapCompetence.PRIORITAIRE);
     }
 
@@ -86,20 +86,20 @@ class CompetenceEmployeServiceTest {
     void le_seuil_vient_du_parametre_du_trimestre_et_non_du_statut_importe() {
         parametre.getSeuilsGapCompetence().setSeuilPrioritaire(3);
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
-        when(employeeSkillRepository.findByEmployeAvecCompetence(employe))
+        when(competenceCollaborateurRepository.findByCollaborateurAvecCompetence(collaborateur))
                 .thenReturn(List.of(skill("C01", 1, 3, "Prioritaire")));
 
-        assertThat(service.competences(employe, trimestre).get(0).statut())
+        assertThat(service.competences(collaborateur, trimestre).get(0).statut())
                 .isEqualTo(StatutGapCompetence.A_DEVELOPPER);
     }
 
     @Test
     void un_niveau_manquant_rend_gap_et_statut_inconnus() {
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
-        when(employeeSkillRepository.findByEmployeAvecCompetence(employe))
+        when(competenceCollaborateurRepository.findByCollaborateurAvecCompetence(collaborateur))
                 .thenReturn(List.of(skill("C01", null, 3, null)));
 
-        CompetenceEmploye competence = service.competences(employe, trimestre).get(0);
+        GapCompetence competence = service.competences(collaborateur, trimestre).get(0);
 
         assertThat(competence.gap()).isNull();
         assertThat(competence.statut()).isNull();
@@ -109,7 +109,7 @@ class CompetenceEmployeServiceTest {
     void un_trimestre_sans_reglages_est_signale() {
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.competences(employe, trimestre))
+        assertThatThrownBy(() -> service.competences(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class);
     }
 }

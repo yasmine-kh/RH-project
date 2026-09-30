@@ -13,9 +13,9 @@ public class SuccesseursIdentifiesEnMemoire implements SuccesseurIdentifieSource
 
     private final Map<String, List<String>> successeursParPoste = new HashMap<>();
 
-    public SuccesseursIdentifiesEnMemoire identifier(String posteId, String... employeeIds) {
+    public SuccesseursIdentifiesEnMemoire identifier(String posteId, String... idsCollaborateurs) {
         List<String> successeurs = successeursParPoste.computeIfAbsent(posteId, cle -> new ArrayList<>());
-        successeurs.addAll(List.of(employeeIds));
+        successeurs.addAll(List.of(idsCollaborateurs));
         return this;
     }
 

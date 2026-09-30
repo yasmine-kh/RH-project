@@ -1,8 +1,10 @@
 package com.talent360bank.talent360bank.ui.service;
 
+import com.talent360bank.talent360bank.entity.Entite;
+import com.talent360bank.talent360bank.entity.TypeEntite;
 import com.talent360bank.talent360bank.entity.CategoriePerformance;
 import com.talent360bank.talent360bank.entity.CategoriePotentiel;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -57,13 +59,14 @@ class ComiteTalentViewServiceTest {
     }
 
     private DecisionComite decision(String prenom, StatutValidationComite statut) {
-        Employe employe = new Employe();
-        employe.setEmployeeId("ID-" + prenom);
-        employe.setPrenom(prenom);
-        employe.setNom("Nom");
-        employe.setDirection("Risques");
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur("ID-" + prenom);
+        collaborateur.setPrenom(prenom);
+        collaborateur.setNom("Nom");
+        collaborateur.setEntite(new Entite("Risques", TypeEntite.DIRECTION, null));
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
+        score.figerOrganisation();
         score.setScorePerformance(new BigDecimal("91.20"));
         score.setCategoriePerformance(CategoriePerformance.EXCEPTIONNELLE);
         score.setScorePotentiel(new BigDecimal("95.95"));
