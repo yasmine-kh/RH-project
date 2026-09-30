@@ -5,6 +5,7 @@ import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import com.talent360bank.talent360bank.entity.Manager;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,4 +26,20 @@ public interface CollaborateurRepository extends JpaRepository<Collaborateur, St
     @Query("select c from Collaborateur c left join fetch c.manager m left join fetch m.collaborateur "
             + "where c.idCollaborateur = :idCollaborateur")
     Optional<Collaborateur> findByIdAvecManager(@Param("idCollaborateur") String idCollaborateur);
+
+    /**
+     * Equipe directe d'un manager (collaborateurs dont il est le manager), hors
+     * statut exclu, avec entite et parents, triee par nom : vue manager.
+     */
+    @Query("select c from Collaborateur c "
+            + "left join fetch c.entite e left join fetch e.parent e1 "
+            + "left join fetch e1.parent e2 left join fetch e2.parent "
+            + "where c.manager = :manager and c.statut <> :exclu order by c.nom, c.prenom, c.idCollaborateur")
+    List<Collaborateur> findEquipeDirecte(@Param("manager") Manager manager,
+                                          @Param("exclu") StatutCollaborateur exclu);
+
+    /** Taille de l'equipe directe de chaque manager, hors statut exclu : {idManager, nombre}. */
+    @Query("select c.manager.idManager, count(c) from Collaborateur c "
+            + "where c.manager is not null and c.statut <> :exclu group by c.manager.idManager")
+    List<Object[]> compterEquipesDirectes(@Param("exclu") StatutCollaborateur exclu);
 }

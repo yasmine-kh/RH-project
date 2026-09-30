@@ -4,6 +4,7 @@ import com.talent360bank.talent360bank.entity.AppartenanceVivier;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Competence;
 import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
+import com.talent360bank.talent360bank.entity.DeclarationVigilance;
 import com.talent360bank.talent360bank.entity.Entite;
 import com.talent360bank.talent360bank.entity.Manager;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
@@ -24,6 +25,7 @@ import com.talent360bank.talent360bank.repository.AppartenanceVivierRepository;
 import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
 import com.talent360bank.talent360bank.repository.CompetenceRepository;
+import com.talent360bank.talent360bank.repository.DeclarationVigilanceRepository;
 import com.talent360bank.talent360bank.repository.EntiteRepository;
 import com.talent360bank.talent360bank.repository.ManagerRepository;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
@@ -130,6 +132,8 @@ class FicheCollaborateurViewServiceTest {
     @Autowired
     private AppartenanceVivierRepository appartenanceVivierRepository;
     @Autowired
+    private DeclarationVigilanceRepository declarationRepository;
+    @Autowired
     private Matrice9BoxRepository matrice9BoxRepository;
 
     private Trimestre t1SansReglages;
@@ -186,6 +190,13 @@ class FicheCollaborateurViewServiceTest {
         successeurIdentifieRepository.save(new SuccesseurIdentifie(nonCritique, complet));
 
         validationComiteRepository.save(new ValidationComite(complet, courant, StatutValidationComite.OUI));
+
+        // F004 : seule donnee de vigilance, une declaration de faits.
+        Collaborateur declarationSeule = collaborateur("F004", "Tazi", "Rim", agence, manager,
+                LocalDate.of(2019, 5, 1));
+        DeclarationVigilance declaration = new DeclarationVigilance(declarationSeule, courant);
+        declaration.setFormationNonFaite(true);
+        declarationRepository.save(declaration);
 
         // Scores, 9-box et vivier de releve du trimestre, par le vrai moteur.
         calculTrimestreService.calculer(courant);
@@ -401,6 +412,30 @@ class FicheCollaborateurViewServiceTest {
         assertThat(fiche.competences()).hasSize(2)
                 .extracting(FicheCollaborateur.Competence::statut).doesNotContainNull();
         assertThat(fiche.donneesManquantes()).anyMatch(ligne -> ligne.startsWith("Vigilance : "));
+    }
+
+    @Test
+    void sans_aucune_donnee_de_vigilance_la_vigilance_est_absente() {
+        // F001 (le manager) n'a ni questionnaire, ni declaration, ni evaluation sur T1 2026.
+        FicheCollaborateur fiche = service.construire("F001", 2026, 1);
+
+        assertThat(fiche.vigilance()).isNull();
+        assertThat(fiche.donneesManquantes()).contains("Aucune donnée de vigilance pour ce trimestre");
+    }
+
+    @Test
+    void une_seule_donnee_de_vigilance_suffit_pour_la_calculer() {
+        // F003 n'a qu'une evaluation de performance : aucun signal, mais un vrai 0 / FAIBLE.
+        FicheCollaborateur evaluationSeule = service.construire("F003", 2026, 1);
+        assertThat(evaluationSeule.vigilance().indice()).isEqualByComparingTo("0");
+        assertThat(evaluationSeule.vigilance().niveau()).isEqualTo("FAIBLE");
+        assertThat(evaluationSeule.donneesManquantes()).doesNotContain("Aucune donnée de vigilance pour ce trimestre");
+
+        // F004 n'a qu'une declaration de faits.
+        FicheCollaborateur declarationSeule = service.construire("F004", 2026, 1);
+        assertThat(declarationSeule.vigilance().raisons())
+                .extracting(FicheCollaborateur.RaisonVigilance::code).containsExactly("FORMATION_NON_FAITE");
+        assertThat(declarationSeule.donneesManquantes()).doesNotContain("Aucune donnée de vigilance pour ce trimestre");
     }
 
     @Test

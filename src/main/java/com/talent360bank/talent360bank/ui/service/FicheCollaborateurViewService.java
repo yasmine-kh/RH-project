@@ -3,10 +3,7 @@ package com.talent360bank.talent360bank.ui.service;
 import com.talent360bank.talent360bank.entity.AppartenanceVivier;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
-import com.talent360bank.talent360bank.entity.Entite;
 import com.talent360bank.talent360bank.entity.Manager;
-import com.talent360bank.talent360bank.entity.Matrice9Box;
-import com.talent360bank.talent360bank.entity.NiveauGrille;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.PoidsPerformance;
@@ -63,7 +60,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -113,6 +109,7 @@ public class FicheCollaborateurViewService {
     private final SuccessionService successionService;
     private final CompetenceCollaborateurService competenceCollaborateurService;
     private final VivierThematiqueService vivierThematiqueService;
+    private final EntreesVigilance entreesVigilance;
 
     public FicheCollaborateurViewService(CollaborateurRepository collaborateurRepository,
                                          TrimestreRepository trimestreRepository,
@@ -132,7 +129,8 @@ public class FicheCollaborateurViewService {
                                          VigilanceService vigilanceService,
                                          SuccessionService successionService,
                                          CompetenceCollaborateurService competenceCollaborateurService,
-                                         VivierThematiqueService vivierThematiqueService) {
+                                         VivierThematiqueService vivierThematiqueService,
+                                         EntreesVigilance entreesVigilance) {
         this.collaborateurRepository = collaborateurRepository;
         this.trimestreRepository = trimestreRepository;
         this.parametreRepository = parametreRepository;
@@ -152,6 +150,7 @@ public class FicheCollaborateurViewService {
         this.successionService = successionService;
         this.competenceCollaborateurService = competenceCollaborateurService;
         this.vivierThematiqueService = vivierThematiqueService;
+        this.entreesVigilance = entreesVigilance;
     }
 
     /**
@@ -170,8 +169,7 @@ public class FicheCollaborateurViewService {
         d.performance = performanceRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null);
         d.potentiel = potentielRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null);
         d.competences = competenceCollaborateurRepository.findByCollaborateurAvecCompetence(collaborateur);
-        d.cases = matrice9BoxRepository.findAll().stream()
-                .collect(Collectors.toMap(FicheCollaborateurViewService::cle, Matrice9Box::getCategorie, (a, b) -> a));
+        d.cases = new CasesNeufBox(neufBoxService, matrice9BoxRepository.findAll());
 
         if (d.parametre == null) {
             d.manque("Aucun réglage pour " + libelle(trimestre)
@@ -206,20 +204,9 @@ public class FicheCollaborateurViewService {
         ManagerFiche managerFiche = manager == null || manager.getCollaborateur() == null ? null
                 : new ManagerFiche(manager.getIdCollaborateur(), manager.getCollaborateur().getNomComplet());
         return new Identite(collaborateur.getIdCollaborateur(), collaborateur.getNom(), collaborateur.getPrenom(),
-                collaborateur.getFonction(), collaborateur.getGrade(), entite(collaborateur.getEntite()),
+                collaborateur.getFonction(), collaborateur.getGrade(), EntiteFiche.de(collaborateur.getEntite()),
                 managerFiche, nom(collaborateur.getStatut()), collaborateur.getDateEntree(),
                 successionService.ancienneteEnAnnees(collaborateur, trimestre.getDateReference()));
-    }
-
-    private static EntiteFiche entite(Entite entite) {
-        if (entite == null) {
-            return null;
-        }
-        LinkedList<String> chemin = new LinkedList<>();
-        for (Entite niveau = entite; niveau != null; niveau = niveau.getParent()) {
-            chemin.addFirst(niveau.getLibelle());
-        }
-        return new EntiteFiche(entite.getCode(), entite.getLibelle(), nom(entite.getType()), List.copyOf(chemin));
     }
 
     // --- performance et potentiel ----------------------------------------------
@@ -316,34 +303,13 @@ public class FicheCollaborateurViewService {
             return null;
         }
         try {
-            return caseDe(d.score, d.parametre, d.cases);
+            return d.cases.caseDe(d.score, d.parametre);
         } catch (DonneesIncompletesException e) {
             d.manque("Case 9-box : " + e.getMessage());
             return null;
         }
     }
 
-    /**
-     * Case d'un score place : numero deduit des niveaux par la regle du placement
-     * (NeufBoxService.niveauxDe, reglages du trimestre du score), jamais du libelle
-     * enregistre ; libelle actuel de cette case dans la matrice (un renommage s'y
-     * voit), a defaut celui enregistre.
-     *
-     * @throws DonneesIncompletesException si un score ou les seuils manquent
-     */
-    private CaseNeufBox caseDe(Score score, Parametre parametre, Map<String, String> cases) {
-        NiveauGrille[] niveaux = neufBoxService.niveauxDe(score, parametre);
-        String libelle = cases.getOrDefault(cle(niveaux[0].getRang(), niveaux[1].getRang()), score.getPositionBox());
-        return new CaseNeufBox(NeufBoxService.numeroCase(niveaux[0], niveaux[1]), libelle);
-    }
-
-    private static String cle(Matrice9Box case9Box) {
-        return cle(case9Box.getNiveauPerformance(), case9Box.getNiveauPotentiel());
-    }
-
-    private static String cle(int niveauPerformance, int niveauPotentiel) {
-        return niveauPerformance + "/" + niveauPotentiel;
-    }
 
     // --- talent et viviers -----------------------------------------------------
 
@@ -427,11 +393,19 @@ public class FicheCollaborateurViewService {
         if (score == null) {
             d.manque("Pas de questionnaire d'engagement pour ce trimestre");
         }
+        d.engagement = score;
         return score;
     }
 
     private Vigilance vigilance(Donnees d) {
         if (d.parametre == null) {
+            return null;
+        }
+        // Sans aucune donnee de vigilance, l'indice vaudrait 0 sans rien dire du risque (EntreesVigilance).
+        String matricule = d.collaborateur.getIdCollaborateur();
+        if (!entreesVigilance.sansDonnee(List.of(matricule), d.trimestre,
+                id -> d.engagement != null, id -> d.performance != null || d.potentiel != null).isEmpty()) {
+            d.manque(EntreesVigilance.AUCUNE_DONNEE);
             return null;
         }
         try {
@@ -505,12 +479,12 @@ public class FicheCollaborateurViewService {
     }
 
     /** Case d'un trimestre passe ; null s'il n'a pas ete place ou si ses reglages manquent. */
-    private CaseNeufBox caseHistorique(Score ancien, Parametre parametre, Map<String, String> cases) {
+    private static CaseNeufBox caseHistorique(Score ancien, Parametre parametre, CasesNeufBox cases) {
         if (ancien.getPositionBox() == null || parametre == null) {
             return null;
         }
         try {
-            return caseDe(ancien, parametre, cases);
+            return cases.caseDe(ancien, parametre);
         } catch (DonneesIncompletesException e) {
             return null;
         }
@@ -541,8 +515,9 @@ public class FicheCollaborateurViewService {
         Performance performance;
         Potentiel potentiel;
         List<CompetenceCollaborateur> competences;
-        /** Libelle actuel de chaque case, par "niveau performance/niveau potentiel". */
-        Map<String, String> cases;
+        /** Score du questionnaire d'engagement, pose par le bloc engagement (lu avant la vigilance). */
+        BigDecimal engagement;
+        CasesNeufBox cases;
 
         Donnees(Collaborateur collaborateur, Trimestre trimestre) {
             this.collaborateur = collaborateur;

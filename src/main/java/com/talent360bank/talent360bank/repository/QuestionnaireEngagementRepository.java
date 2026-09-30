@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface QuestionnaireEngagementRepository extends JpaRepository<QuestionnaireEngagement, Integer> {
 
@@ -16,4 +17,10 @@ public interface QuestionnaireEngagementRepository extends JpaRepository<Questio
 
     @Query("select q from QuestionnaireEngagement q join fetch q.collaborateur where q.trimestre = :trimestre")
     List<QuestionnaireEngagement> findByTrimestreAvecCollaborateur(@Param("trimestre") Trimestre trimestre);
+
+    /** Questionnaires d'un trimestre pour un lot de collaborateurs (une equipe) : vue manager. */
+    @Query("select q from QuestionnaireEngagement q join fetch q.collaborateur "
+            + "where q.trimestre = :trimestre and q.collaborateur.idCollaborateur in :ids")
+    List<QuestionnaireEngagement> findByTrimestreEtCollaborateurs(@Param("trimestre") Trimestre trimestre,
+                                                                 @Param("ids") Collection<String> ids);
 }

@@ -1,7 +1,10 @@
 package com.talent360bank.talent360bank.ui.model;
 
+import com.talent360bank.talent360bank.entity.Entite;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -58,6 +61,19 @@ public record FicheCollaborateur(
      * @param chemin libelles de la direction jusqu'a l'entite, ex. ["Reseau Retail", "Nord", "Tanger"]
      */
     public record EntiteFiche(String code, String libelle, String type, List<String> chemin) {
+
+        /** null pour une entite inconnue ; le chemin remonte les parents jusqu'a la direction. */
+        public static EntiteFiche de(Entite entite) {
+            if (entite == null) {
+                return null;
+            }
+            LinkedList<String> chemin = new LinkedList<>();
+            for (Entite niveau = entite; niveau != null; niveau = niveau.getParent()) {
+                chemin.addFirst(niveau.getLibelle());
+            }
+            return new EntiteFiche(entite.getCode(), entite.getLibelle(),
+                    entite.getType() == null ? null : entite.getType().name(), List.copyOf(chemin));
+        }
     }
 
     public record ManagerFiche(String matricule, String nom) {

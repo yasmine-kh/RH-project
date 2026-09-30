@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface PotentielRepository extends JpaRepository<Potentiel, Integer> {
 
@@ -25,4 +26,10 @@ public interface PotentielRepository extends JpaRepository<Potentiel, Integer> {
     List<Potentiel> findByTrimestreAvecCollaborateur(@Param("trimestre") Trimestre trimestre);
 
     boolean existsByCollaborateurAndTrimestre(Collaborateur collaborateur, Trimestre trimestre);
+
+    /** Parmi un lot de collaborateurs, les matricules qui ont des notes de potentiel sur le trimestre. */
+    @Query("select x.collaborateur.idCollaborateur from Potentiel x "
+            + "where x.trimestre = :trimestre and x.collaborateur.idCollaborateur in :ids")
+    List<String> findMatriculesEvalues(@Param("trimestre") Trimestre trimestre,
+                                       @Param("ids") Collection<String> ids);
 }

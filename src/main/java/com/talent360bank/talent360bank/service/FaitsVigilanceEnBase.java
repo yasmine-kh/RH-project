@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Fallback;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,6 +32,21 @@ public class FaitsVigilanceEnBase implements FaitsVigilanceSource {
     public Map<String, FaitsVigilance> faitsDuTrimestre(Trimestre trimestre) {
         Map<String, FaitsVigilance> faits = new HashMap<>();
         for (DeclarationVigilance declaration : repository.findByTrimestreAvecCollaborateur(trimestre)) {
+            faits.put(declaration.getCollaborateur().getIdCollaborateur(), declaration.versFaits());
+        }
+        return faits;
+    }
+
+    /** Lit les seuls faits du lot, sans charger les collaborateurs. */
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, FaitsVigilance> faitsDe(Collection<String> idsCollaborateurs, Trimestre trimestre) {
+        Map<String, FaitsVigilance> faits = new HashMap<>();
+        if (idsCollaborateurs.isEmpty()) {
+            return faits;
+        }
+        for (DeclarationVigilance declaration
+                : repository.findByTrimestreEtCollaborateurs(trimestre, idsCollaborateurs)) {
             faits.put(declaration.getCollaborateur().getIdCollaborateur(), declaration.versFaits());
         }
         return faits;
