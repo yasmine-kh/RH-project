@@ -77,6 +77,46 @@ public class NeufBoxService {
     }
 
     /**
+     * Numero de la case, de 1 a 9, comme la colonne H de 04_9BOX :
+     * (niveau de performance - 1) x 3 + niveau de potentiel, niveaux de 1
+     * (faible) a 3 (eleve). 9 = performance et potentiel eleves, 1 = les deux faibles.
+     */
+    public static int numeroCase(Matrice9Box case9Box) {
+        Objects.requireNonNull(case9Box, "case9Box");
+        return numeroCase(NiveauGrille.depuisRang(case9Box.getNiveauPerformance()),
+                NiveauGrille.depuisRang(case9Box.getNiveauPotentiel()));
+    }
+
+    /** Numero de la case (1 a 9) pour une ligne et une colonne de la matrice, comme 04_9BOX!H. */
+    public static int numeroCase(NiveauGrille niveauPerformance, NiveauGrille niveauPotentiel) {
+        Objects.requireNonNull(niveauPerformance, "niveauPerformance");
+        Objects.requireNonNull(niveauPotentiel, "niveauPotentiel");
+        return (niveauPerformance.getRang() - 1) * 3 + niveauPotentiel.getRang();
+    }
+
+    /**
+     * Ligne et colonne de la case d'un score enregistre, par la meme regle que le
+     * placement ({@link #placerEtEnregistrer}) : colonne = categorie de potentiel
+     * enregistree (le niveau de l'axe potentiel), ligne = niveau du score de
+     * performance sur l'axe performance des reglages du trimestre. La
+     * categorie de performance (5 niveaux, ses propres seuils) ne donne pas la
+     * ligne. Ne depend pas du libelle de la case : renommer une case ne change
+     * rien.
+     *
+     * @return {niveau performance, niveau potentiel}
+     * @throws DonneesIncompletesException si un score ou les seuils manquent
+     */
+    public NiveauGrille[] niveauxDe(Score score, Parametre parametre) {
+        Objects.requireNonNull(score, "score");
+        Objects.requireNonNull(parametre, "parametre");
+        NiveauGrille performance = niveauPour(score.getScorePerformance(), seuilsPerformance(parametre));
+        NiveauGrille potentiel = score.getCategoriePotentiel() != null
+                ? NiveauGrille.valueOf(score.getCategoriePotentiel().name())
+                : niveauPour(score.getScorePotentiel(), seuilsPotentiel(parametre));
+        return new NiveauGrille[]{performance, potentiel};
+    }
+
+    /**
      * Case de la matrice correspondant a un couple de scores.
      *
      * @throws RessourceIntrouvableException si la table de reference ne couvre

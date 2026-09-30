@@ -236,6 +236,7 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Quarters | `GET /api/trimestres`, `POST /api/trimestres` (`annee`, `numero`, optional `dateReference`), `PUT /api/trimestres/{annee}/{numero}` (`dateReference`), `POST .../calcul` |
 | Import | `POST /api/imports` (workbook upload), `GET /api/imports` (journal) |
 | Employees | `GET /api/collaborateurs`, `GET /api/collaborateurs/{id}` (both return `CollaborateurResponse`, never the entity), `POST /api/collaborateurs`, `DELETE /api/collaborateurs/{id}` |
+| Employee record (fiche) | `GET /api/trimestres/{annee}/{numero}/collaborateurs/{matricule}/fiche` ([below](#fiche-collaborateur)) |
 | Reference data | `GET` / `POST /api/competences`, `DELETE /api/competences/{id}` |
 
 Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message, details }`. `ApiExceptionHandler` maps the exceptions:
@@ -250,6 +251,69 @@ Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message,
 | Not logged in (`SecurityConfig`) | 401 | `non_authentifie` |
 | Logged in without the RH role (`AccessDeniedException`) | 403 | `acces_refuse` |
 | Anything unexpected | 500 | `erreur_interne` (generic message, details only in the log) |
+
+### Fiche collaborateur
+
+One call returns everything HR sees for **one** employee in **one** quarter:
+`GET /api/trimestres/{annee}/{numero}/collaborateurs/{matricule}/fiche` (RH only, like every endpoint).
+
+- **Backend:** `ui/service/FicheCollaborateurViewService.construire(matricule, annee, numero)` builds `ui/model/FicheCollaborateur`; `controller/FicheCollaborateurController` returns it as JSON. The page (Ima) calls the same service. The service calculates nothing itself: it reads the stored scores and 9-box case, and calls the engine's methods for talent, skill gaps, vigilance and matching.
+- **404** only for an unknown quarter or matricule. **Missing data never fails the call:** the block is `null` (or an empty list) and one sentence is added to `donneesManquantes`, ready to display.
+- **Seniority** (`identite.anciennete`) is in decimal years rounded to one place at `trimestre.dateReference`, like `01_COLLABORATEURS` column G: the same calculation as the succession experience criterion (`SuccessionService.ancienneteEnAnnees`).
+- Every key is always present, with `null` for a missing value. Codes (`categorie`, `statut`, `niveau`, `readiness`, `decisionComite`) are stable enum names; show the matching `...Libelle` field.
+
+| Block | Content | Empty when |
+|---|---|---|
+| `trimestre` | `annee`, `numero`, `libelle` ("T3 2026"), `dateReference` | — |
+| `identite` | `matricule`, `nom`, `prenom`, `fonction` (job), `grade`, `entite` {`code`, `libelle`, `type`, `chemin`: labels from the direction down}, `manager` {`matricule`, `nom`} or null, `statut`, `dateEntree`, `anciennete` | — |
+| `performance` / `potentiel` | `score` /100 (stored), `categorie` + `categorieLibelle`, `criteres`: [{`code`, `libelle`, `note` /100, `poids` (quarter's weight)}] — 5 criteria / 7 criteria | no marks for the quarter (`score` alone is null when marks exist but the quarter was not calculated) |
+| `neufBox` | `numero` 1–9 (9 = high performance and potential, as `04_9BOX` column H) + `libelle` (the case's current name). The number comes from the placement rule (column = stored potential category, row = performance score on the quarter's 9-box axis), never from the stored label: renaming a case does not break the fiche or the history | no score, 9-box placement not run, or no settings for the quarter |
+| `talent` | `estTalent`, `estHautPotentiel`, `estVivierSuccession` (talent OR high potential), `decisionComite` (`OUI` / `NON` / `EN_ATTENTE`, null if nothing entered) + `decisionComiteLibelle`, `viviers`: [{`code`, `libelle`, `origine`}] (`origine` = `MOTEUR`/`IMPORT`/`SAISIE_RH` for saved pools, `THEMATIQUE` for the direction's pool) | flags null without scores |
+| `competences` | [{`competenceId`, `nom`, `categorie`, `niveauRequis`, `niveauActuel`, `gap`, `statut` (`MAITRISE` / `A_DEVELOPPER` / `PRIORITAIRE`) + `statutLibelle`}], by skill id | empty list |
+| `engagement` | questionnaire score /100 | no questionnaire |
+| `vigilance` | `indice` /100, `niveau` (`FAIBLE` / `MODEREE` / `ELEVEE`) + `niveauLibelle`, `raisons`: [{`code`, `libelle`, `points`}] (the points add up to `indice`) | no settings for the quarter |
+| `successions` | critical positions where the employee is an identified successor: [{`posteId`, `nomPoste`, `direction`, `criticite`, `scoreMatching`, `readiness` + `readinessLibelle`}] | empty list |
+| `historique` | earlier quarters, most recent first: [{`annee`, `numero`, `libelle`, `scorePerformance`, `scorePotentiel`, `neufBox` {`numero`, `libelle`} or null (not placed, or no settings that quarter)}] | empty list |
+| `autoEvaluation` | always `null` for now (self-evaluation model pending) | — |
+| `donneesManquantes` | sentences, e.g. "Pas d'évaluation de potentiel pour ce trimestre" | empty list |
+
+Shortened example (BP005, dataset T3 2026):
+
+```json
+{
+  "trimestre": { "annee": 2026, "numero": 3, "libelle": "T3 2026", "dateReference": "2026-09-15" },
+  "identite": {
+    "matricule": "BP005", "nom": "Chraibi", "prenom": "Meryem",
+    "fonction": "Directeur regional", "grade": "Directeur",
+    "entite": { "code": "DIR:RESEAU_RETAIL/DEP:RESEAU_RETAIL_SUD/REG:TANGER_TETOUAN/AGE:AGENCE_TANGER_NORD",
+                "libelle": "Agence Tanger Nord", "type": "AGENCE",
+                "chemin": ["Reseau Retail", "Reseau Retail - Sud", "Tanger-Tetouan", "Agence Tanger Nord"] },
+    "manager": null, "statut": "ACTIF", "dateEntree": "2023-06-07", "anciennete": 3.3
+  },
+  "performance": { "score": 93.90, "categorie": "EXCEPTIONNELLE", "categorieLibelle": "Exceptionnelle",
+                   "criteres": [ { "code": "OBJECTIFS", "libelle": "Objectifs", "note": 99.00, "poids": 40.00 } ] },
+  "potentiel": { "score": 93.40, "categorie": "ELEVE", "categorieLibelle": "Eleve", "criteres": [ "..." ] },
+  "neufBox": { "numero": 9, "libelle": "Talent clé" },
+  "talent": { "estTalent": true, "estHautPotentiel": true, "estVivierSuccession": true,
+              "decisionComite": "OUI", "decisionComiteLibelle": "Oui",
+              "viviers": [ { "code": "RELEVE", "libelle": "Vivier de relève", "origine": "MOTEUR" },
+                           { "code": "COMMERCIAL", "libelle": "Vivier Commercial", "origine": "THEMATIQUE" } ] },
+  "competences": [ { "competenceId": "C01", "nom": "Credit", "categorie": "Metier", "niveauRequis": 5,
+                     "niveauActuel": 5, "gap": 0, "statut": "MAITRISE", "statutLibelle": "Maitrise" } ],
+  "engagement": 57.00,
+  "vigilance": { "indice": 30.00, "niveau": "MODEREE", "niveauLibelle": "Moderee",
+                 "raisons": [ { "code": "ENGAGEMENT_FAIBLE", "libelle": "Engagement faible", "points": 25.00 },
+                              { "code": "FORMATION_NON_FAITE", "libelle": "Formation prevue non realisee", "points": 5.00 } ] },
+  "successions": [ { "posteId": "PST01", "nomPoste": "Directeur regional", "direction": "Reseau Retail",
+                     "criticite": "Tres elevee", "scoreMatching": 84.92, "readiness": "MOINS_1_AN",
+                     "readinessLibelle": "< 1 an" } ],
+  "historique": [],
+  "autoEvaluation": null,
+  "donneesManquantes": []
+}
+```
+
+Tests: `FicheCollaborateurViewServiceTest` (H2: complete record checked against the engine services, missing potential, incomplete settings, two-quarter history, unknown matricule), `FicheCollaborateurControllerTest` (JSON contract, 404, 401), `FicheCollaborateurDatasetTest` (BP005 against the workbook, skipped without it).
 
 ---
 
@@ -690,7 +754,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**597 test executions in 50 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
+**614 test executions in 53 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
 
 | Folder | What it covers |
 |---|---|

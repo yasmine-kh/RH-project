@@ -281,8 +281,19 @@ public class VigilanceService {
 
         // Les reglages sont charges une fois et servent a la detection comme au
         // classement : les relire pour chaque etape ferait deux requetes.
-        Parametre parametre = calculService.chargerParametre(trimestre);
+        return evaluer(collaborateur, trimestre, calculService.chargerParametre(trimestre));
+    }
 
+    /**
+     * Comme {@link #evaluer(Collaborateur, Trimestre)}, avec des reglages deja
+     * charges. Sans transaction propre : appelee dans une transaction existante,
+     * une donnee manquante (DonneesIncompletesException) n'y marque pas la
+     * transaction appelante pour annulation, l'appelant peut la rattraper.
+     */
+    public ResultatVigilance evaluer(Collaborateur collaborateur, Trimestre trimestre, Parametre parametre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
+        Objects.requireNonNull(trimestre, "trimestre");
+        Objects.requireNonNull(parametre, "parametre");
         return evaluer(collaborateur,
                 detecterSignaux(collaborateur, trimestre, parametre.getSeuilsVigilance()), parametre);
     }

@@ -1,6 +1,7 @@
 package com.talent360bank.talent360bank.repository;
 
 import com.talent360bank.talent360bank.entity.AppartenanceVivier;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.entity.Vivier;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +14,12 @@ import java.util.List;
 public interface AppartenanceVivierRepository extends JpaRepository<AppartenanceVivier, Integer> {
 
     List<AppartenanceVivier> findByTrimestre(Trimestre trimestre);
+
+    /** Viviers enregistres d'un collaborateur sur un trimestre, vivier charge : fiche collaborateur. */
+    @Query("select a from AppartenanceVivier a join fetch a.vivier "
+            + "where a.collaborateur = :collaborateur and a.trimestre = :trimestre order by a.vivier.code")
+    List<AppartenanceVivier> findByCollaborateurEtTrimestre(@Param("collaborateur") Collaborateur collaborateur,
+                                                           @Param("trimestre") Trimestre trimestre);
 
     @Query("select a from AppartenanceVivier a join fetch a.collaborateur "
             + "where a.trimestre = :trimestre and a.vivier = :vivier")
