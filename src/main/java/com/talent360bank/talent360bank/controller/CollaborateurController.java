@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.controller;
 
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.service.ImportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -9,29 +9,30 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.util.List;
 
+/** /api/employes : ancien chemin, garde le temps que les clients passent a /api/collaborateurs. */
 @RestController
-@RequestMapping("/api/employes")
-public class EmployeController {
+@RequestMapping({"/api/collaborateurs", "/api/employes"})
+public class CollaborateurController {
 
     @Autowired
-    private EmployeRepository employeRepository;
+    private CollaborateurRepository collaborateurRepository;
 
     @Autowired
     private ImportService importService;
 
     @GetMapping
-    public List<Employe> listerTous() {
-        return employeRepository.findAll();
+    public List<Collaborateur> listerTous() {
+        return collaborateurRepository.findAll();
     }
 
     @PostMapping
-    public Employe creer(@RequestBody Employe employe) {
-        return employeRepository.save(employe);
+    public Collaborateur creer(@RequestBody Collaborateur collaborateur) {
+        return collaborateurRepository.save(collaborateur);
     }
 
     @DeleteMapping("/{id}")
     public void supprimer(@PathVariable String id) {
-        employeRepository.deleteById(id);
+        collaborateurRepository.deleteById(id);
     }
 
     @PostMapping("/import")

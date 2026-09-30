@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
@@ -36,7 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Indice de vigilance : le risque qu'un employe quitte la banque, note de 0 a
+ * Indice de vigilance : le risque qu'un collaborateur quitte la banque, note de 0 a
  * 100 par addition des points des signaux declenches, puis classe en FAIBLE,
  * MODEREE ou ELEVEE.
  *
@@ -50,7 +50,7 @@ import java.util.Set;
  * du QuestionnaireEngagement compare au seuil. Les cinq signaux de mobilite,
  * developpement, reconnaissance et formation viennent des faits importes
  * ({@link FaitsVigilanceSource}, 12_VIGILANCE F a K). BAISSE_PERFORMANCE se
- * mesure sur l'historique des Score quand l'employe a un score au trimestre
+ * mesure sur l'historique des Score quand le collaborateur a un score au trimestre
  * precedent ; sinon, c'est le drapeau importe qui decide. Sans source de faits
  * declaree, seuls l'engagement et la baisse mesuree peuvent etre leves.
  *
@@ -185,7 +185,7 @@ public class VigilanceService {
      * specification ne fixant pas d'amplitude minimale. Sans score precedent
      * comparable, c'est le drapeau importe qui decide.
      *
-     * @param faits faits importes de l'employe, {@link FaitsVigilance#AUCUN} si inconnus
+     * @param faits faits importes de le collaborateur, {@link FaitsVigilance#AUCUN} si inconnus
      * @throws DonneesIncompletesException si un questionnaire est exploitable
      *                                     mais que le seuil n'est pas configure
      */
@@ -227,28 +227,28 @@ public class VigilanceService {
     }
 
     /**
-     * Signaux d'un employe sur un trimestre, donnees chargees depuis la base.
+     * Signaux d'un collaborateur sur un trimestre, donnees chargees depuis la base.
      */
     @Transactional(readOnly = true)
-    public Set<SignalVigilance> detecterSignaux(Employe employe, Trimestre trimestre) {
-        return detecterSignaux(employe, trimestre,
+    public Set<SignalVigilance> detecterSignaux(Collaborateur collaborateur, Trimestre trimestre) {
+        return detecterSignaux(collaborateur, trimestre,
                 calculService.chargerParametre(trimestre).getSeuilsVigilance());
     }
 
-    private Set<SignalVigilance> detecterSignaux(Employe employe, Trimestre trimestre,
+    private Set<SignalVigilance> detecterSignaux(Collaborateur collaborateur, Trimestre trimestre,
                                                  SeuilsVigilance seuils) {
-        Objects.requireNonNull(employe, "employe");
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
-        Score scoreCourant = scoreRepository.findByEmployeAndTrimestre(employe, trimestre)
+        Score scoreCourant = scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElse(null);
         Score scorePrecedent = trimestrePrecedent(trimestre)
-                .flatMap(precedent -> scoreRepository.findByEmployeAndTrimestre(employe, precedent))
+                .flatMap(precedent -> scoreRepository.findByCollaborateurAndTrimestre(collaborateur, precedent))
                 .orElse(null);
 
         return detecterSignaux(scoreCourant, scorePrecedent,
-                questionnaireRepository.findByEmployeAndTrimestre(employe, trimestre).orElse(null),
-                faitsVigilanceSource.faits(employe.getEmployeeId(), trimestre),
+                questionnaireRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null),
+                faitsVigilanceSource.faits(collaborateur.getIdCollaborateur(), trimestre),
                 seuils);
     }
 
@@ -256,45 +256,45 @@ public class VigilanceService {
      * Indice et niveau a partir d'un jeu de signaux deja etabli, sans acces
      * base. Permet aussi de saisir des signaux a la main, hors import.
      */
-    public ResultatVigilance evaluer(Employe employe, Set<SignalVigilance> signaux,
+    public ResultatVigilance evaluer(Collaborateur collaborateur, Set<SignalVigilance> signaux,
                                      Parametre parametre) {
-        Objects.requireNonNull(employe, "employe");
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(signaux, "signaux");
         Objects.requireNonNull(parametre, "parametre");
 
         BigDecimal indice = calculerIndice(signaux, parametre.getPointsVigilance());
 
         // Copie figee : le resultat ne doit pas bouger si l'appelant reutilise
-        // son EnumSet pour l'employe suivant.
-        return new ResultatVigilance(employe, indice,
+        // son EnumSet pour le collaborateur suivant.
+        return new ResultatVigilance(collaborateur, indice,
                 niveauPour(indice, parametre.getSeuilsVigilance()), Set.copyOf(signaux));
     }
 
     /**
-     * Vigilance d'un employe sur un trimestre.
+     * Vigilance d'un collaborateur sur un trimestre.
      *
      * @throws RessourceIntrouvableException si les reglages du trimestre sont absents
      */
     @Transactional(readOnly = true)
-    public ResultatVigilance evaluer(Employe employe, Trimestre trimestre) {
-        Objects.requireNonNull(employe, "employe");
+    public ResultatVigilance evaluer(Collaborateur collaborateur, Trimestre trimestre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
         // Les reglages sont charges une fois et servent a la detection comme au
         // classement : les relire pour chaque etape ferait deux requetes.
         Parametre parametre = calculService.chargerParametre(trimestre);
 
-        return evaluer(employe,
-                detecterSignaux(employe, trimestre, parametre.getSeuilsVigilance()), parametre);
+        return evaluer(collaborateur,
+                detecterSignaux(collaborateur, trimestre, parametre.getSeuilsVigilance()), parametre);
     }
 
     /**
-     * Vigilance de tous les employes scores du trimestre, du plus a risque au
+     * Vigilance de tous les collaborateurs scores du trimestre, du plus a risque au
      * moins a risque.
      *
-     * <p>Lecture seule : rien n'est ecrit. Le perimetre est celui des employes
+     * <p>Lecture seule : rien n'est ecrit. Le perimetre est celui des collaborateurs
      * ayant un Score sur le trimestre, comme pour le placement 9-box et la
-     * detection des talents ; les employes hors perimetre de calcul sont
+     * detection des talents ; les collaborateurs hors perimetre de calcul sont
      * comptes et logues plutot qu'ecartes en silence.
      */
     @Transactional(readOnly = true)
@@ -312,39 +312,39 @@ public class VigilanceService {
         List<ResultatVigilance> resultats = new ArrayList<>();
         int horsPerimetre = 0;
 
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
-            Employe employe = score.getEmploye();
-            if (!employe.estCalculable()) {
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            Collaborateur collaborateur = score.getCollaborateur();
+            if (!collaborateur.estCalculable()) {
                 horsPerimetre++;
                 continue;
             }
-            String employeeId = employe.getEmployeeId();
-            resultats.add(evaluer(employe,
-                    detecterSignaux(score, scoresPrecedents.get(employeeId),
-                            engagements.get(employeeId),
-                            faits.getOrDefault(employeeId, FaitsVigilance.AUCUN),
+            String idCollaborateur = collaborateur.getIdCollaborateur();
+            resultats.add(evaluer(collaborateur,
+                    detecterSignaux(score, scoresPrecedents.get(idCollaborateur),
+                            engagements.get(idCollaborateur),
+                            faits.getOrDefault(idCollaborateur, FaitsVigilance.AUCUN),
                             parametre.getSeuilsVigilance()),
                     parametre));
         }
 
-        // A egalite d'indice, l'employeeId departage : sans cela deux appels
+        // A egalite d'indice, l'idCollaborateur departage : sans cela deux appels
         // successifs pourraient rendre la meme liste dans un autre ordre.
         resultats.sort(Comparator
                 .comparing(ResultatVigilance::indice, Comparator.reverseOrder())
-                .thenComparing(resultat -> resultat.employe().getEmployeeId()));
+                .thenComparing(resultat -> resultat.collaborateur().getIdCollaborateur()));
 
         if (horsPerimetre > 0) {
-            log.warn("Vigilance {} : {} employe(s) hors perimetre de calcul ecarte(s)",
+            log.warn("Vigilance {} : {} collaborateur(s) hors perimetre de calcul ecarte(s)",
                     decrire(trimestre), horsPerimetre);
         }
-        log.info("Vigilance {} : {} employe(s) evalue(s), dont {} a risque",
+        log.info("Vigilance {} : {} collaborateur(s) evalue(s), dont {} a risque",
                 decrire(trimestre), resultats.size(),
                 resultats.stream().filter(ResultatVigilance::estARisque).count());
 
         return resultats;
     }
 
-    /** Employes dont la vigilance atteint au moins le niveau demande. */
+    /** Collaborateurs dont la vigilance atteint au moins le niveau demande. */
     @Transactional(readOnly = true)
     public List<ResultatVigilance> evaluerTrimestre(Trimestre trimestre, NiveauVigilance minimum) {
         Objects.requireNonNull(minimum, "minimum");
@@ -370,8 +370,8 @@ public class VigilanceService {
             return Map.of();
         }
         Map<String, Score> index = new HashMap<>();
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(precedent.get())) {
-            index.put(score.getEmploye().getEmployeeId(), score);
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(precedent.get())) {
+            index.put(score.getCollaborateur().getIdCollaborateur(), score);
         }
         return index;
     }
@@ -379,8 +379,8 @@ public class VigilanceService {
     private Map<String, QuestionnaireEngagement> indexerEngagements(Trimestre trimestre) {
         Map<String, QuestionnaireEngagement> index = new HashMap<>();
         for (QuestionnaireEngagement engagement
-                : questionnaireRepository.findByTrimestreAvecEmploye(trimestre)) {
-            index.put(engagement.getEmploye().getEmployeeId(), engagement);
+                : questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            index.put(engagement.getCollaborateur().getIdCollaborateur(), engagement);
         }
         return index;
     }

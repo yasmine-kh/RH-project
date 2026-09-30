@@ -74,7 +74,7 @@ Les quatre seuils sont réglables et doivent rester strictement décroissants. L
 **Service et points d'accès.** `CalculService` calcule, `ScoreService` enregistre.
 - `POST /api/trimestres/{année}/{numéro}/scores/recalcul` : recalcule et enregistre les scores et catégories de performance de tout le trimestre.
 - `GET /api/trimestres/{année}/{numéro}/scores` : scores du trimestre, avec leurs deux catégories.
-- `GET /api/employes/{matricule}/scores` : historique d'un collaborateur, du plus récent au plus ancien.
+- `GET /api/collaborateurs/{matricule}/scores` : historique d'un collaborateur, du plus récent au plus ancien.
 
 Toutes les réponses qui listent des scores (talents, hauts potentiels, talents validés…) portent aussi les deux catégories. Une catégorie encore non calculée est rendue vide.
 
@@ -239,10 +239,10 @@ Le seuil est réglable de 2 à 4 : un gap de 1 est toujours « À développer »
 - Niveaux des collaborateurs : `06_EMPLOYEE_SKILLS` (niveau actuel en colonne E, cible en F, statut du gap en H).
 - Barèmes : `00_PARAMETRES`, sections 6, 7 et 10 (ligne 77 pour le seuil « Prioritaire »).
 
-**Service et points d'accès.** `SuccessionService` pour le matching, `CompetenceEmployeService` pour le statut du gap.
+**Service et points d'accès.** `SuccessionService` pour le matching, `CompetenceCollaborateurService` pour le statut du gap.
 - `GET /api/postes/{poste}/candidats?annee=…&numero=…` : classement des candidats (paramètre facultatif `limite`).
 - `GET /api/postes/{poste}/candidats/{matricule}?annee=…&numero=…` : matching d'un candidat, avec le détail des six critères.
-- `GET /api/employes/{matricule}/competences?annee=…&numero=…` : compétences d'un collaborateur (niveau actuel, cible, gap et statut). Le trimestre choisit le seuil ; sans année ni numéro, c'est le plus récent.
+- `GET /api/collaborateurs/{matricule}/competences?annee=…&numero=…` : compétences d'un collaborateur (niveau actuel, cible, gap et statut). Le trimestre choisit le seuil ; sans année ni numéro, c'est le plus récent.
 
 **Données attendues de l'import.**
 - **Postes :** jusqu'à cinq compétences exigées avec leur niveau, et le titulaire.

@@ -12,13 +12,13 @@ public class NineBoxCell {
     private final String categorie;
     private final int niveauPerformance;
     private final int niveauPotentiel;
-    private final List<String> employes;
+    private final List<String> collaborateurs;
 
-    public NineBoxCell(String categorie, int niveauPerformance, int niveauPotentiel, List<String> employes) {
+    public NineBoxCell(String categorie, int niveauPerformance, int niveauPotentiel, List<String> collaborateurs) {
         this.categorie = categorie;
         this.niveauPerformance = niveauPerformance;
         this.niveauPotentiel = niveauPotentiel;
-        this.employes = employes;
+        this.collaborateurs = collaborateurs;
     }
 
     public String getCategorie() {
@@ -33,11 +33,11 @@ public class NineBoxCell {
         return niveauPotentiel;
     }
 
-    public List<String> getEmployes() {
-        return employes;
+    public List<String> getCollaborateurs() {
+        return collaborateurs;
     }
 
-    public int getNombreEmployes() {
-        return employes.size();
+    public int getNombreCollaborateurs() {
+        return collaborateurs.size();
     }
 }

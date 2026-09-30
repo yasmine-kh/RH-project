@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,39 +13,6 @@ import java.util.Map;
 @Service
 public class ExcelReader {
 
-    public List<Employe> lireCollaborateurs(String cheminFichier) throws IOException {
-        List<Employe> employes = new ArrayList<>();
-
-        try (FileInputStream fis = new FileInputStream(cheminFichier);
-             Workbook workbook = WorkbookFactory.create(fis)) {
-
-            Sheet sheet = workbook.getSheet("01_COLLABORATEURS");
-            int derniereLigne = sheet.getLastRowNum();
-
-            for (int i = 4; i <= derniereLigne; i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
-
-                String employeeId = getCellString(row, 0);
-                if (employeeId == null || employeeId.isBlank()) continue;
-
-                Employe e = new Employe();
-                e.setEmployeeId(employeeId);
-                e.setNom(getCellString(row, 1));
-                e.setPrenom(getCellString(row, 2));
-                e.setDateEntree(getCellDate(row, 5));
-                e.setDirection(getCellString(row, 7));
-                e.setDepartement(getCellString(row, 8));
-                e.setRegion(getCellString(row, 9));
-                e.setAgence(getCellString(row, 10));
-                e.setFonction(getCellString(row, 11));
-                e.setGrade(getCellString(row, 12));
-
-                employes.add(e);
-            }
-        }
-        return employes;
-    }
     public List<Competence> lireReferentielCompetences(String cheminFichier) throws IOException {
         List<Competence> competences = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(cheminFichier);
@@ -71,9 +37,11 @@ public class ExcelReader {
         return competences;
     }
 
-    public List<EmployeeSkill> lireEmployeeSkills(String cheminFichier,
-                                                  Map<String, Employe> employesParId, Map<String, Competence> competencesParNom) throws IOException {
-        List<EmployeeSkill> skills = new ArrayList<>();
+    public List<CompetenceCollaborateur> lireCompetencesCollaborateurs(String cheminFichier,
+                                                                       Map<String, Collaborateur> collaborateursParId,
+                                                                       Map<String, Competence> competencesParNom)
+            throws IOException {
+        List<CompetenceCollaborateur> skills = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(cheminFichier);
              Workbook workbook = WorkbookFactory.create(fis)) {
 
@@ -83,17 +51,17 @@ public class ExcelReader {
             for (int i = 4; i <= derniereLigne; i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
-                String employeeId = getCellString(row, 1);
+                String idCollaborateur = getCellString(row, 1);
                 String competenceNom = getCellString(row, 2);
-                if (employeeId == null || competenceNom == null) continue;
+                if (idCollaborateur == null || competenceNom == null) continue;
 
-                Employe employe = employesParId.get(employeeId);
+                Collaborateur collaborateur = collaborateursParId.get(idCollaborateur);
                 Competence competence = competencesParNom.get(competenceNom);
-                if (employe == null || competence == null) continue;
+                if (collaborateur == null || competence == null) continue;
 
-                EmployeeSkill es = new EmployeeSkill();
+                CompetenceCollaborateur es = new CompetenceCollaborateur();
                 es.setCleLookup(getCellString(row, 0));
-                es.setEmploye(employe);
+                es.setCollaborateur(collaborateur);
                 es.setCompetence(competence);
                 es.setNiveauActuel(getCellInteger(row, 4));
                 es.setNiveauCible(getCellInteger(row, 5));
@@ -106,10 +74,13 @@ public class ExcelReader {
     }
 
     /**
-     * @param cheminFichier competences du referentiel indexees par nom : les
+     * @param competencesParNom competences du referentiel indexees par nom : les
      *                          competences requises de 07_POSTES sont des libelles
+     * @param directionsParLibelle directions deja en base, par libelle ; un poste
+     *                          d'une direction inconnue n'en a pas
      */
-    public List<Poste> lirePostes(String cheminFichier, Map<String, Competence> competencesParNom) throws IOException {
+    public List<Poste> lirePostes(String cheminFichier, Map<String, Competence> competencesParNom,
+                                  Map<String, Entite> directionsParLibelle) throws IOException {
         List<Poste> postes = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(cheminFichier);
              Workbook workbook = WorkbookFactory.create(fis)) {
@@ -126,7 +97,8 @@ public class ExcelReader {
                 Poste p = new Poste();
                 p.setPosteId(posteId);
                 p.setNomPoste(getCellString(row, 1));
-                p.setDirection(getCellString(row, 2));
+                String direction = getCellString(row, 2);
+                p.setEntite(direction == null ? null : directionsParLibelle.get(direction));
                 p.setGradeCible(getCellString(row, 3));
                 p.setCriticite(getCellString(row, 4));
                 p.setCompetenceRequise1(competencesParNom.get(getCellString(row, 5)));
@@ -214,15 +186,6 @@ public class ExcelReader {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private LocalDate getCellDate(Row row, int col) {
-        Cell cell = row.getCell(col);
-        if (cell == null) return null;
-        try {
-            return cell.getLocalDateTimeCellValue().toLocalDate();
-        } catch (Exception ex) {
-            return null;
-        }
-    }
     private Integer getCellInteger(Row row, int col) {
         Cell cell = row.getCell(col);
         if (cell == null) return null;

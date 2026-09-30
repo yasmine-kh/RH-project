@@ -2,7 +2,7 @@ package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,14 +22,14 @@ class ChargeurRessourcesTest {
     @Mock
     private TrimestreRepository trimestreRepository;
     @Mock
-    private EmployeRepository employeRepository;
+    private CollaborateurRepository collaborateurRepository;
 
     private ChargeurRessources chargeur;
     private Trimestre t3;
 
     @BeforeEach
     void init() {
-        chargeur = new ChargeurRessources(trimestreRepository, employeRepository);
+        chargeur = new ChargeurRessources(trimestreRepository, collaborateurRepository);
         t3 = new Trimestre();
         t3.setNumero(3);
         t3.setAnnee(2026);

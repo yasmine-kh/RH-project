@@ -14,6 +14,9 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -88,9 +91,22 @@ public class ApiExceptionHandler {
      */
     @ExceptionHandler({MissingServletRequestParameterException.class,
             MethodArgumentTypeMismatchException.class,
-            HttpMessageNotReadableException.class})
+            HttpMessageNotReadableException.class,
+            MissingServletRequestPartException.class,
+            MultipartException.class})
     public ResponseEntity<ErreurApi> requeteMalFormee(Exception exception) {
         return reponse(HttpStatus.BAD_REQUEST, "requete_mal_formee", exception.getMessage());
+    }
+
+    /**
+     * Fichier au-dela de spring.servlet.multipart.max-file-size. Ne passe par
+     * ici que si le depassement est detecte apres la resolution du controleur ;
+     * sinon Spring rend 413 par defaut, sans corps JSON (voir plus haut).
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErreurApi> fichierTropVolumineux(MaxUploadSizeExceededException exception) {
+        return reponse(HttpStatus.PAYLOAD_TOO_LARGE, "fichier_trop_volumineux",
+                "Fichier trop volumineux : " + exception.getMessage());
     }
 
     /** Statut deja porte par l'exception : on le respecte au lieu de le reecrire. */

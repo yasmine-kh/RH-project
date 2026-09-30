@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.CategoriePerformance;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Potentiel;
@@ -44,7 +44,7 @@ class CalculServiceTest {
 
     private CalculService calculService;
 
-    private Employe employe;
+    private Collaborateur collaborateur;
     private Trimestre trimestre;
     private Parametre parametre;
 
@@ -52,11 +52,11 @@ class CalculServiceTest {
     void init() {
         calculService = new CalculService(parametreRepository, performanceRepository, potentielRepository);
 
-        employe = new Employe();
-        employe.setEmployeeId("E001");
-        employe.setNom("Bennani");
-        employe.setPrenom("Sara");
-        employe.setDateEntree(LocalDate.of(2020, 1, 15));
+        collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur("E001");
+        collaborateur.setNom("Bennani");
+        collaborateur.setPrenom("Sara");
+        collaborateur.setDateEntree(LocalDate.of(2020, 1, 15));
 
         trimestre = new Trimestre();
         trimestre.setNumero(1);
@@ -66,7 +66,7 @@ class CalculServiceTest {
     }
 
     private Performance performance() {
-        return new Performance(employe, trimestre,
+        return new Performance(collaborateur, trimestre,
                 new BigDecimal("90"),   // objectifs      x 40%
                 new BigDecimal("80"),   // competences    x 20%
                 new BigDecimal("70"),   // comportement   x 20%
@@ -75,7 +75,7 @@ class CalculServiceTest {
     }
 
     private Potentiel potentiel() {
-        return new Potentiel(employe, trimestre,
+        return new Potentiel(collaborateur, trimestre,
                 new BigDecimal("90"),   // learning       x 20%
                 new BigDecimal("80"),   // leadership     x 20%
                 new BigDecimal("70"),   // adaptabilite   x 15%
@@ -218,10 +218,10 @@ class CalculServiceTest {
 
     @Test
     void desNotesAbsentesDeLaBaseSontSignalees() {
-        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> calculService.calculerScorePerformance(employe, trimestre))
+        assertThatThrownBy(() -> calculService.calculerScorePerformance(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
                 .hasMessageContaining("E001")
                 .hasMessageContaining("T1 2026");
@@ -229,24 +229,24 @@ class CalculServiceTest {
 
     @Test
     void unTrimestreSansParametreEstSignale() {
-        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
                 .thenReturn(Optional.of(performance()));
         when(parametreRepository.findByTrimestre(any()))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> calculService.calculerScorePerformance(employe, trimestre))
+        assertThatThrownBy(() -> calculService.calculerScorePerformance(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
                 .hasMessageContaining("Aucun parametre");
     }
 
     @Test
     void leCalculCompletPasseParLesDeuxDepots() {
-        when(potentielRepository.findByEmployeAndTrimestre(any(), any()))
+        when(potentielRepository.findByCollaborateurAndTrimestre(any(), any()))
                 .thenReturn(Optional.of(potentiel()));
         when(parametreRepository.findByTrimestre(any()))
                 .thenReturn(Optional.of(parametre));
 
-        assertThat(calculService.calculerScorePotentiel(employe, trimestre))
+        assertThat(calculService.calculerScorePotentiel(collaborateur, trimestre))
                 .isEqualByComparingTo("65.50");
     }
 }

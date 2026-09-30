@@ -16,7 +16,9 @@
     <main class="main-content">
         <header class="page-header">
             <h1>Viviers de talents</h1>
-            <p class="text-muted" th:if="${#lists.isEmpty(rows)}">Aucun employe rattache a un vivier pour le trimestre en cours.</p>
+            <p class="text-muted" th:if="${#lists.isEmpty(rows)}">
+                Aucun collaborateur rattache a un vivier pour le trimestre en cours.
+            </p>
         </header>
 
         <div class="table-responsive" th:if="${not #lists.isEmpty(rows)}">

@@ -4,9 +4,9 @@ import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
 import com.talent360bank.talent360bank.entity.AppartenanceVivier;
 import com.talent360bank.talent360bank.entity.CategoriePerformance;
 import com.talent360bank.talent360bank.entity.CategoriePotentiel;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.service.NeufBoxService;
@@ -48,7 +48,7 @@ class TalentEtNeufBoxControllerTest {
     private ChargeurRessources chargeur;
 
     private Trimestre trimestre;
-    private Employe employe;
+    private Collaborateur collaborateur;
 
     @BeforeEach
     void init() {
@@ -56,17 +56,17 @@ class TalentEtNeufBoxControllerTest {
         trimestre.setNumero(1);
         trimestre.setAnnee(2026);
 
-        employe = new Employe();
-        employe.setEmployeeId("E001");
-        employe.setNom("Bennani");
-        employe.setPrenom("Sara");
-        employe.setDateEntree(LocalDate.of(2020, 1, 15));
-        employe.setStatut(StatutEmploye.ACTIF);
+        collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur("E001");
+        collaborateur.setNom("Bennani");
+        collaborateur.setPrenom("Sara");
+        collaborateur.setDateEntree(LocalDate.of(2020, 1, 15));
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
     }
 
     private Score score() {
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(trimestre);
         score.setScorePerformance(new BigDecimal("92.00"));
         score.setScorePotentiel(new BigDecimal("88.00"));
@@ -83,7 +83,7 @@ class TalentEtNeufBoxControllerTest {
 
         mockMvc.perform(get("/api/trimestres/2026/1/talents"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$[0].scorePerformance").value(92.00))
                 .andExpect(jsonPath("$[0].positionBox").value("Talent cle"))
                 .andExpect(jsonPath("$[0].categoriePerformance").value("Exceptionnelle"))
@@ -118,14 +118,14 @@ class TalentEtNeufBoxControllerTest {
     }
 
     @Test
-    void le_statut_de_talent_d_un_employe_est_un_objet() throws Exception {
+    void le_statut_de_talent_d_un_collaborateur_est_un_objet() throws Exception {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
-        when(chargeur.exigerEmploye("E001")).thenReturn(employe);
-        when(talentService.estTalent(employe, trimestre)).thenReturn(true);
+        when(chargeur.exigerCollaborateur("E001")).thenReturn(collaborateur);
+        when(talentService.estTalent(collaborateur, trimestre)).thenReturn(true);
 
         mockMvc.perform(get("/api/trimestres/2026/1/talents/E001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.employeeId").value("E001"))
+                .andExpect(jsonPath("$.idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$.estTalent").value(true));
     }
 
@@ -136,19 +136,19 @@ class TalentEtNeufBoxControllerTest {
 
         mockMvc.perform(get("/api/trimestres/2026/1/hauts-potentiels"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$[0].scorePotentiel").value(88.00));
     }
 
     @Test
-    void le_statut_de_haut_potentiel_d_un_employe_est_un_objet() throws Exception {
+    void le_statut_de_haut_potentiel_d_un_collaborateur_est_un_objet() throws Exception {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
-        when(chargeur.exigerEmploye("E001")).thenReturn(employe);
-        when(talentService.estHautPotentiel(employe, trimestre)).thenReturn(true);
+        when(chargeur.exigerCollaborateur("E001")).thenReturn(collaborateur);
+        when(talentService.estHautPotentiel(collaborateur, trimestre)).thenReturn(true);
 
         mockMvc.perform(get("/api/trimestres/2026/1/hauts-potentiels/E001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.employeeId").value("E001"))
+                .andExpect(jsonPath("$.idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$.estHautPotentiel").value(true));
     }
 
@@ -160,7 +160,7 @@ class TalentEtNeufBoxControllerTest {
 
         mockMvc.perform(get("/api/trimestres/2026/1/vivier-releve"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$[0].nomComplet").isNotEmpty())
                 .andExpect(jsonPath("$[0].talent").value(true))
                 .andExpect(jsonPath("$[0].hautPotentiel").value(true));
@@ -183,7 +183,7 @@ class TalentEtNeufBoxControllerTest {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
         when(neufBoxService.placerTrimestre(trimestre)).thenReturn(new ResultatRecalcul(
                 List.of(score()),
-                List.of(new ResultatRecalcul.EmployeIgnore("E002", "Score incomplet"))));
+                List.of(new ResultatRecalcul.CollaborateurIgnore("E002", "Score incomplet"))));
 
         mockMvc.perform(post("/api/trimestres/2026/1/9box/placement").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
                 .andExpect(status().isOk())

@@ -7,14 +7,15 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
- * Notes brutes des 5 criteres de performance d'un employe sur un trimestre.
+ * Notes brutes des 5 criteres de performance d'un collaborateur sur un trimestre,
+ * donnees par son manager.
  * Le score pondere qui en decoule est calcule par le service et stocke
  * dans {@link Score} : cette entite ne porte que la saisie.
  */
 @Entity
 @Table(name = "performance", uniqueConstraints = @UniqueConstraint(
-        name = "uk_performance_employe_trimestre",
-        columnNames = {"id_employe", "id_trimestre"}))
+        name = "uk_performance_collaborateur_trimestre",
+        columnNames = {"id_collaborateur", "id_trimestre"}))
 public class Performance {
 
     @Id
@@ -23,13 +24,22 @@ public class Performance {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_employe", nullable = false)
-    private Employe employe;
+    @JoinColumn(name = "id_collaborateur", nullable = false)
+    private Collaborateur collaborateur;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_trimestre", nullable = false)
     private Trimestre trimestre;
+
+    /**
+     * Manager qui a evalue, null si inconnu. 02_PERFORMANCE ne le nomme pas :
+     * l'import reprend le manager du collaborateur (01_COLLABORATEURS N) au
+     * moment de l'import.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_manager_evaluateur")
+    private Manager evaluateur;
 
     @NotNull
     @DecimalMin("0")
@@ -64,10 +74,10 @@ public class Performance {
     public Performance() {
     }
 
-    public Performance(Employe employe, Trimestre trimestre, BigDecimal noteObjectifs,
+    public Performance(Collaborateur collaborateur, Trimestre trimestre, BigDecimal noteObjectifs,
                        BigDecimal noteCompetences, BigDecimal noteComportement,
                        BigDecimal noteContribution, BigDecimal noteDeveloppement) {
-        this.employe = employe;
+        this.collaborateur = collaborateur;
         this.trimestre = trimestre;
         this.noteObjectifs = noteObjectifs;
         this.noteCompetences = noteCompetences;
@@ -84,12 +94,12 @@ public class Performance {
         this.idPerformance = idPerformance;
     }
 
-    public Employe getEmploye() {
-        return employe;
+    public Collaborateur getCollaborateur() {
+        return collaborateur;
     }
 
-    public void setEmploye(Employe employe) {
-        this.employe = employe;
+    public void setCollaborateur(Collaborateur collaborateur) {
+        this.collaborateur = collaborateur;
     }
 
     public Trimestre getTrimestre() {
@@ -98,6 +108,14 @@ public class Performance {
 
     public void setTrimestre(Trimestre trimestre) {
         this.trimestre = trimestre;
+    }
+
+    public Manager getEvaluateur() {
+        return evaluateur;
+    }
+
+    public void setEvaluateur(Manager evaluateur) {
+        this.evaluateur = evaluateur;
     }
 
     public BigDecimal getNoteObjectifs() {

@@ -2,7 +2,7 @@ package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.controller.dto.RecalculResponse;
 import com.talent360bank.talent360bank.controller.dto.ScoreResume;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.ScoreService;
@@ -36,7 +36,7 @@ public class ScoreController {
      *
      * <p>POST et non PUT : l'appel n'est pas idempotent au sens strict, il
      * repose la date de calcul a chaque passage. Il reste rejouable sans
-     * risque, un employe n'ayant qu'un score par trimestre.
+     * risque, un collaborateur n'ayant qu'un score par trimestre.
      */
     @PostMapping("/trimestres/{annee}/{numero}/scores/recalcul")
     public RecalculResponse recalculer(@PathVariable int annee, @PathVariable int numero) {
@@ -49,17 +49,18 @@ public class ScoreController {
     @Transactional(readOnly = true)
     public List<ScoreResume> duTrimestre(@PathVariable int annee, @PathVariable int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
-        return scoreRepository.findByTrimestreAvecEmploye(trimestre).stream()
+        return scoreRepository.findByTrimestreAvecCollaborateur(trimestre).stream()
                 .map(ScoreResume::de)
                 .toList();
     }
 
-    /** Historique d'un employe, du trimestre le plus recent au plus ancien. */
-    @GetMapping("/employes/{employeeId}/scores")
+    /** Historique d'un collaborateur, du trimestre le plus recent au plus ancien. */
+    // /employes/... : ancien chemin, garde temporairement.
+    @GetMapping({"/collaborateurs/{idCollaborateur}/scores", "/employes/{idCollaborateur}/scores"})
     @Transactional(readOnly = true)
-    public List<ScoreResume> historique(@PathVariable String employeeId) {
-        Employe employe = chargeur.exigerEmploye(employeeId);
-        return scoreService.historique(employe).stream()
+    public List<ScoreResume> historique(@PathVariable String idCollaborateur) {
+        Collaborateur collaborateur = chargeur.exigerCollaborateur(idCollaborateur);
+        return scoreService.historique(collaborateur).stream()
                 .map(ScoreResume::de)
                 .toList();
     }

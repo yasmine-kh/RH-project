@@ -32,7 +32,7 @@ public class VigilanceController {
     }
 
     /**
-     * Vigilance de tous les employes scores du trimestre.
+     * Vigilance de tous les collaborateurs scores du trimestre.
      *
      * @param minimum niveau plancher facultatif (FAIBLE, MODEREE, ELEVEE)
      */
@@ -49,12 +49,12 @@ public class VigilanceController {
         return resultats.stream().map(VigilanceResponse::de).toList();
     }
 
-    /** Vigilance d'un employe, avec le detail des signaux leves. */
-    @GetMapping("/trimestres/{annee}/{numero}/vigilance/{employeeId}")
-    public VigilanceResponse pourEmploye(@PathVariable int annee, @PathVariable int numero,
-                                         @PathVariable String employeeId) {
+    /** Vigilance d'un collaborateur, avec le detail des signaux leves. */
+    @GetMapping("/trimestres/{annee}/{numero}/vigilance/{idCollaborateur}")
+    public VigilanceResponse pourCollaborateur(@PathVariable int annee, @PathVariable int numero,
+                                               @PathVariable String idCollaborateur) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return VigilanceResponse.de(
-                vigilanceService.evaluer(chargeur.exigerEmploye(employeeId), trimestre));
+                vigilanceService.evaluer(chargeur.exigerCollaborateur(idCollaborateur), trimestre));
     }
 }

@@ -8,10 +8,10 @@ import java.util.List;
 
 /**
  * Tous les viviers thematiques du trimestre, chacun present meme vide, et les
- * employes dont la direction n'est rattachee a aucun vivier.
+ * collaborateurs dont la direction n'est rattachee a aucun vivier.
  */
 public record ViviersThematiquesResponse(List<VivierThematiqueResponse> viviers,
-                                         List<EmployeResume> nonClasses) {
+                                         List<CollaborateurResume> nonClasses) {
 
     public static ViviersThematiquesResponse de(ResultatViviersThematiques resultat) {
         List<VivierThematiqueResponse> viviers = new ArrayList<>();
@@ -19,6 +19,6 @@ public record ViviersThematiquesResponse(List<VivierThematiqueResponse> viviers,
             viviers.add(VivierThematiqueResponse.de(vivier, resultat.membresDe(vivier)));
         }
         return new ViviersThematiquesResponse(List.copyOf(viviers),
-                resultat.nonClasses().stream().map(EmployeResume::de).toList());
+                resultat.nonClasses().stream().map(CollaborateurResume::de).toList());
     }
 }

@@ -18,14 +18,14 @@ import java.util.Map;
 public interface FaitsVigilanceSource {
 
     /**
-     * Faits du trimestre indexes par Employee_ID, jamais null. Un employe
+     * Faits du trimestre indexes par Employee_ID, jamais null. Un collaborateur
      * absent de la map n'a aucun fait connu.
      */
     Map<String, FaitsVigilance> faitsDuTrimestre(Trimestre trimestre);
 
-    /** Faits d'un employe sur le trimestre, {@link FaitsVigilance#AUCUN} si inconnus. */
-    default FaitsVigilance faits(String employeeId, Trimestre trimestre) {
+    /** Faits d'un collaborateur sur le trimestre, {@link FaitsVigilance#AUCUN} si inconnus. */
+    default FaitsVigilance faits(String idCollaborateur, Trimestre trimestre) {
         Map<String, FaitsVigilance> faits = faitsDuTrimestre(trimestre);
-        return faits == null ? FaitsVigilance.AUCUN : faits.getOrDefault(employeeId, FaitsVigilance.AUCUN);
+        return faits == null ? FaitsVigilance.AUCUN : faits.getOrDefault(idCollaborateur, FaitsVigilance.AUCUN);
     }
 }

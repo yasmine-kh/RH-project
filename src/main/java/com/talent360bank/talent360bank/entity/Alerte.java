@@ -30,10 +30,10 @@ public class Alerte {
     @Column(nullable = false)
     private StatutAlerte statut;
 
-    @NotNull(message = "L'employé est obligatoire")
+    @NotNull(message = "Le collaborateur est obligatoire")
     @ManyToOne
-    @JoinColumn(name = "id_employe", nullable = false)
-    private Employe employe;
+    @JoinColumn(name = "id_collaborateur", nullable = false)
+    private Collaborateur collaborateur;
 
     public Alerte() {
     }
@@ -78,11 +78,11 @@ public class Alerte {
         this.statut = statut;
     }
 
-    public Employe getEmploye() {
-        return employe;
+    public Collaborateur getCollaborateur() {
+        return collaborateur;
     }
 
-    public void setEmploye(Employe employe) {
-        this.employe = employe;
+    public void setCollaborateur(Collaborateur collaborateur) {
+        this.collaborateur = collaborateur;
     }
 }

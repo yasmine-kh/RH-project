@@ -1,8 +1,10 @@
 package com.talent360bank.talent360bank.controller;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Entite;
+import com.talent360bank.talent360bank.entity.TypeEntite;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.ValidationComiteService;
@@ -53,7 +55,7 @@ class ComiteTalentControllerTest {
         mockMvc.perform(get("/api/comite-talent?annee=2026&numero=3"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].employeeId").value("BP005"))
+                .andExpect(jsonPath("$[0].idCollaborateur").value("BP005"))
                 .andExpect(jsonPath("$[0].direction").value("Reseau Retail"))
                 .andExpect(jsonPath("$[0].statut").value("OUI"))
                 .andExpect(jsonPath("$[0].talentValide").value(true))
@@ -69,7 +71,7 @@ class ComiteTalentControllerTest {
         mockMvc.perform(get("/api/comite-talent/talents-valides?annee=2026&numero=3"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].employeeId").value("BP005"))
+                .andExpect(jsonPath("$[0].idCollaborateur").value("BP005"))
                 .andExpect(jsonPath("$[0].scorePerformance").value(95.00));
     }
 
@@ -81,15 +83,16 @@ class ComiteTalentControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    private Score score(String employeeId, String direction) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setDirection(direction);
-        employe.setStatut(StatutEmploye.ACTIF);
+    private Score score(String idCollaborateur, String direction) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setEntite(direction == null ? null : new Entite(direction, TypeEntite.DIRECTION, null));
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
+        score.figerOrganisation();
         score.setTrimestre(trimestre);
         score.setScorePerformance(new BigDecimal("95.00"));
         score.setScorePotentiel(new BigDecimal("92.00"));

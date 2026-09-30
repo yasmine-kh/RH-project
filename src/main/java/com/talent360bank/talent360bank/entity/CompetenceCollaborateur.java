@@ -4,20 +4,20 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 
 @Entity
-@Table(name = "employee_skill")
-public class EmployeeSkill {
+@Table(name = "competence_collaborateur")
+public class CompetenceCollaborateur {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer idSkill;
+    private Integer idCompetenceCollaborateur;
 
     @Column(name = "cle_lookup")
     private String cleLookup;
 
-    @NotNull(message = "L'employé est obligatoire")
+    @NotNull(message = "Le collaborateur est obligatoire")
     @ManyToOne
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employe employe;
+    @JoinColumn(name = "id_collaborateur", nullable = false)
+    private Collaborateur collaborateur;
 
     @NotNull(message = "La compétence est obligatoire")
     @ManyToOne
@@ -37,14 +37,14 @@ public class EmployeeSkill {
     @Column(name = "statut_gap")
     private String statutGap;
 
-    public EmployeeSkill() {}
+    public CompetenceCollaborateur() {}
 
-    public Integer getIdSkill() { return idSkill; }
-    public void setIdSkill(Integer idSkill) { this.idSkill = idSkill; }
+    public Integer getIdCompetenceCollaborateur() { return idCompetenceCollaborateur; }
+    public void setIdCompetenceCollaborateur(Integer id) { this.idCompetenceCollaborateur = id; }
     public String getCleLookup() { return cleLookup; }
     public void setCleLookup(String cleLookup) { this.cleLookup = cleLookup; }
-    public Employe getEmploye() { return employe; }
-    public void setEmploye(Employe employe) { this.employe = employe; }
+    public Collaborateur getCollaborateur() { return collaborateur; }
+    public void setCollaborateur(Collaborateur collaborateur) { this.collaborateur = collaborateur; }
     public Competence getCompetence() { return competence; }
     public void setCompetence(Competence competence) { this.competence = competence; }
     public Integer getNiveauActuel() { return niveauActuel; }

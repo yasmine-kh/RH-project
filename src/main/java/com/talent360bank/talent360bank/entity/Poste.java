@@ -18,7 +18,13 @@ public class Poste {
     @Column(name = "nom_poste")
     private String nomPoste;
 
-    private String direction;
+    /**
+     * Direction du poste (07_POSTES colonne C), une entite de type DIRECTION.
+     * Le classeur ne situe pas les postes plus finement.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id_entite")
+    private Entite entite;
 
     @Column(name = "grade_cible")
     private String gradeCible;
@@ -85,8 +91,12 @@ public class Poste {
     public void setPosteId(String posteId) { this.posteId = posteId; }
     public String getNomPoste() { return nomPoste; }
     public void setNomPoste(String nomPoste) { this.nomPoste = nomPoste; }
-    public String getDirection() { return direction; }
-    public void setDirection(String direction) { this.direction = direction; }
+    public Entite getEntite() { return entite; }
+    public void setEntite(Entite entite) { this.entite = entite; }
+
+    /** Libelle de la direction du poste, null si inconnue. */
+    @Transient
+    public String getDirection() { return entite == null ? null : entite.libelleDe(TypeEntite.DIRECTION); }
     public String getGradeCible() { return gradeCible; }
     public void setGradeCible(String gradeCible) { this.gradeCible = gradeCible; }
     public String getCriticite() { return criticite; }

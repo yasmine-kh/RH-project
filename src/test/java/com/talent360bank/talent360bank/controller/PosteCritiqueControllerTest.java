@@ -1,8 +1,10 @@
 package com.talent360bank.talent360bank.controller;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Entite;
+import com.talent360bank.talent360bank.entity.TypeEntite;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Poste;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.PosteCritiqueService;
@@ -48,12 +50,12 @@ class PosteCritiqueControllerTest {
         trimestre.setAnnee(2026);
         when(chargeur.exigerTrimestre(2026, 3)).thenReturn(trimestre);
 
-        Employe successeur = new Employe();
-        successeur.setEmployeeId("BP035");
+        Collaborateur successeur = new Collaborateur();
+        successeur.setIdCollaborateur("BP035");
         successeur.setNom("El Ouafi");
         successeur.setPrenom("Aicha");
         successeur.setDateEntree(LocalDate.now().minusYears(12));
-        successeur.setStatut(StatutEmploye.ACTIF);
+        successeur.setStatut(StatutCollaborateur.ACTIF);
         ResultatMatching matching = new ResultatMatching(successeur, new BigDecimal("95.20"),
                 NiveauReadiness.READY_NOW, new ResultatMatching.DetailMatching(
                 new BigDecimal("100"), new BigDecimal("96.30"), new BigDecimal("89.70"),
@@ -70,7 +72,7 @@ class PosteCritiqueControllerTest {
         Poste poste = new Poste();
         poste.setPosteId(posteId);
         poste.setNomPoste(nom);
-        poste.setDirection("IT & Digital");
+        poste.setEntite(new Entite("IT & Digital", TypeEntite.DIRECTION, null));
         poste.setCriticite("Tres elevee");
         poste.setPosteCritique("Oui");
         poste.setTitulaireId(titulaireId);
@@ -89,7 +91,7 @@ class PosteCritiqueControllerTest {
                 .andExpect(jsonPath("$[0].meilleurMatching").value(95.20))
                 .andExpect(jsonPath("$[0].couverture").value("READY_NOW"))
                 .andExpect(jsonPath("$[0].alerte").value(false))
-                .andExpect(jsonPath("$[0].successeurs[0].candidat.employeeId").value("BP035"))
+                .andExpect(jsonPath("$[0].successeurs[0].candidat.idCollaborateur").value("BP035"))
                 .andExpect(jsonPath("$[1].alerte").value(true))
                 .andExpect(jsonPath("$[1].meilleurMatching").doesNotExist())
                 .andExpect(jsonPath("$[1].ignores[0].motif").value("Titulaire du poste"));

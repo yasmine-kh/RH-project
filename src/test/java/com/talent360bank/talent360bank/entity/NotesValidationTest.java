@@ -20,13 +20,13 @@ class NotesValidationTest {
         validator = factory.getValidator();
     }
 
-    private Employe employe() {
-        Employe employe = new Employe();
-        employe.setEmployeeId("E001");
-        employe.setNom("Bennani");
-        employe.setPrenom("Sara");
-        employe.setDateEntree(java.time.LocalDate.of(2020, 1, 15));
-        return employe;
+    private Collaborateur collaborateur() {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur("E001");
+        collaborateur.setNom("Bennani");
+        collaborateur.setPrenom("Sara");
+        collaborateur.setDateEntree(java.time.LocalDate.of(2020, 1, 15));
+        return collaborateur;
     }
 
     private Trimestre trimestre() {
@@ -37,13 +37,13 @@ class NotesValidationTest {
     }
 
     private Performance performanceValide() {
-        return new Performance(employe(), trimestre(), new BigDecimal("80"),
+        return new Performance(collaborateur(), trimestre(), new BigDecimal("80"),
                 new BigDecimal("75"), new BigDecimal("90"),
                 new BigDecimal("70"), new BigDecimal("60"));
     }
 
     private Potentiel potentielValide() {
-        return new Potentiel(employe(), trimestre(), new BigDecimal("80"),
+        return new Potentiel(collaborateur(), trimestre(), new BigDecimal("80"),
                 new BigDecimal("75"), new BigDecimal("90"), new BigDecimal("70"),
                 new BigDecimal("60"), new BigDecimal("85"), new BigDecimal("65"));
     }

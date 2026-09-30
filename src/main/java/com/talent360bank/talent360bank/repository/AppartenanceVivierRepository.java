@@ -14,7 +14,7 @@ public interface AppartenanceVivierRepository extends JpaRepository<Appartenance
 
     List<AppartenanceVivier> findByTrimestre(Trimestre trimestre);
 
-    @Query("select a from AppartenanceVivier a join fetch a.employe "
+    @Query("select a from AppartenanceVivier a join fetch a.collaborateur "
             + "where a.trimestre = :trimestre and a.vivier = :vivier")
     List<AppartenanceVivier> findByTrimestreEtVivier(@Param("trimestre") Trimestre trimestre,
                                                     @Param("vivier") Vivier vivier);

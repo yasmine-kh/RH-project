@@ -1,9 +1,9 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
@@ -87,20 +87,20 @@ class ValidationComiteServiceTest {
         List<DecisionComite> resultat = service.getDecisionsComite(trimestre);
 
         assertThat(resultat)
-                .extracting(d -> d.score().getEmploye().getEmployeeId(), DecisionComite::statut,
+                .extracting(d -> d.score().getCollaborateur().getIdCollaborateur(), DecisionComite::statut,
                         DecisionComite::talentValide)
                 .containsExactly(
                         tuple("BP005", StatutValidationComite.OUI, true),
                         tuple("BP019", StatutValidationComite.EN_ATTENTE, false),
                         tuple("BP040", StatutValidationComite.NON, false));
         assertThat(service.getTalentsValides(trimestre))
-                .extracting(s -> s.getEmploye().getEmployeeId()).containsExactly("BP005");
+                .extracting(s -> s.getCollaborateur().getIdCollaborateur()).containsExactly("BP005");
     }
 
     @Test
     void une_source_qui_rend_null_vaut_en_attente() {
         ValidationComiteService sourceIncomplete = new ValidationComiteService(talentService,
-                (employeeId, t) -> null);
+                (idCollaborateur, t) -> null);
 
         List<DecisionComite> resultat = sourceIncomplete.deciderPour(List.of(score("BP005", "95", "92")), trimestre);
 
@@ -123,17 +123,17 @@ class ValidationComiteServiceTest {
 
     private void donnerLesScores(Score... scores) {
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(Parametre.parDefaut(trimestre)));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of(scores));
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of(scores));
     }
 
-    private Score score(String employeeId, String performance, String potentiel) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setStatut(StatutEmploye.ACTIF);
+    private Score score(String idCollaborateur, String performance, String potentiel) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(trimestre);
         score.setScorePerformance(new BigDecimal(performance));
         score.setScorePotentiel(new BigDecimal(potentiel));

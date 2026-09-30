@@ -1,7 +1,9 @@
 package com.talent360bank.talent360bank.controller;
 
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.Entite;
+import com.talent360bank.talent360bank.entity.TypeEntite;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.SuccessionService;
@@ -35,7 +37,7 @@ class SuccessionControllerTest {
     private ChargeurRessources chargeur;
 
     private Trimestre trimestre;
-    private Employe candidat;
+    private Collaborateur candidat;
 
     @BeforeEach
     void init() {
@@ -43,13 +45,13 @@ class SuccessionControllerTest {
         trimestre.setNumero(1);
         trimestre.setAnnee(2026);
 
-        candidat = new Employe();
-        candidat.setEmployeeId("E001");
+        candidat = new Collaborateur();
+        candidat.setIdCollaborateur("E001");
         candidat.setNom("Bennani");
         candidat.setPrenom("Sara");
         candidat.setDateEntree(LocalDate.now().minusYears(10));
-        candidat.setStatut(StatutEmploye.ACTIF);
-        candidat.setDirection("Reseau");
+        candidat.setStatut(StatutCollaborateur.ACTIF);
+        candidat.setEntite(new Entite("Reseau", TypeEntite.DIRECTION, null));
     }
 
     private ResultatMatching matching() {
@@ -66,7 +68,7 @@ class SuccessionControllerTest {
 
         mockMvc.perform(get("/api/postes/P001/candidats?annee=2026&numero=1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].candidat.employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].candidat.idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$[0].candidat.direction").value("Reseau"))
                 .andExpect(jsonPath("$[0].candidat.anciennete").value(10))
                 .andExpect(jsonPath("$[0].scoreMatching").value(87.00))
@@ -118,7 +120,7 @@ class SuccessionControllerTest {
     @Test
     void un_candidat_seul_est_evalue() throws Exception {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
-        when(chargeur.exigerEmploye("E001")).thenReturn(candidat);
+        when(chargeur.exigerCollaborateur("E001")).thenReturn(candidat);
         when(successionService.evaluer(candidat, "P001", trimestre)).thenReturn(matching());
 
         mockMvc.perform(get("/api/postes/P001/candidats/E001?annee=2026&numero=1"))

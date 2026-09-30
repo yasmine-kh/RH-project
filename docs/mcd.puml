@@ -1,0 +1,313 @@
+@startuml mcd
+' MCD Talent 360 Bank, genere a partir des entites JPA (package entity).
+' Tables et colonnes telles que Hibernate les cree (noms en snake_case).
+' Cardinalites en notation "pattes de corbeau" :
+'   ||  exactement un    |o  zero ou un    }o  zero ou plusieurs
+' PK = cle primaire, FK = cle etrangere, UK = contrainte d'unicite.
+
+hide circle
+hide methods
+skinparam linetype ortho
+skinparam shadowing false
+skinparam class {
+  BackgroundColor White
+  BorderColor #444444
+  ArrowColor #444444
+}
+
+' ================================================================ organisation
+
+entity "collaborateur" as collaborateur {
+  * id_collaborateur : VARCHAR(20) <<PK>>  (Employee_ID)
+  --
+  * nom : VARCHAR(100)
+  * prenom : VARCHAR(100)
+  sexe : ENUM(HOMME, FEMME)
+  date_naissance : DATE
+  * date_entree : DATE
+  fonction : VARCHAR(100)
+  grade : VARCHAR(50)
+  * statut : ENUM(ACTIF, INACTIF, ARCHIVE)
+  id_entite : INT <<FK>>
+  id_manager : INT <<FK>>
+}
+
+entity "manager" as manager {
+  * id_manager : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK, UK>>
+  id_entite : INT <<FK>>
+}
+
+entity "entite" as entite {
+  * id_entite : INT <<PK>>
+  --
+  * code : VARCHAR(500) <<UK>>
+  * libelle : VARCHAR(100)
+  * type : ENUM(DIRECTION, DEPARTEMENT, REGION, AGENCE)
+  id_entite_parent : INT <<FK>>
+}
+
+' ================================================================ referentiels
+
+entity "trimestre" as trimestre {
+  * id_trimestre : INT <<PK>>
+  --
+  * numero : INT
+  * annee : INT
+  <<UK (numero, annee)>>
+}
+
+entity "parametre" as parametre {
+  * id_parametre : INT <<PK>>
+  --
+  * id_trimestre : INT <<FK, UK>>
+  libelle : VARCHAR
+  poids, baremes et seuils : 14 blocs embarques
+}
+
+entity "competence" as competence {
+  * competence_id : VARCHAR <<PK>>
+  --
+  * nom : VARCHAR
+  categorie : VARCHAR
+}
+
+entity "poste" as poste {
+  * poste_id : VARCHAR <<PK>>
+  --
+  * nom_poste : VARCHAR
+  grade_cible : VARCHAR
+  criticite : VARCHAR
+  poste_critique : VARCHAR (Oui / Non)
+  titulaire_id : VARCHAR
+  titulaire_nom : VARCHAR
+  id_entite : INT <<FK>>
+  competence_requise_1..5 : VARCHAR <<FK>>
+  niveau1..5 : INT
+}
+
+entity "matrice_9box" as matrice_9box {
+  * id_position : INT <<PK>>
+  --
+  * niveau_performance : INT (1-3)
+  * niveau_potentiel : INT (1-3)
+  categorie : VARCHAR
+}
+
+entity "vivier" as vivier {
+  * id_vivier : INT <<PK>>
+  --
+  * code : VARCHAR <<UK>>
+  * nom_categorie : VARCHAR
+  description : VARCHAR
+}
+
+entity "rattachement_vivier" as rattachement_vivier {
+  * id_rattachement : INT <<PK>>
+  --
+  * direction : VARCHAR(100) <<UK>>
+  * vivier : ENUM (vivier thematique)
+}
+
+' ================================================================ saisies et calculs
+
+entity "competence_collaborateur" as competence_collaborateur {
+  * id_competence_collaborateur : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * competence_id : VARCHAR <<FK>>
+  cle_lookup : VARCHAR
+  * niveau_actuel : INT
+  * niveau_cible : INT
+  gap : INT
+  statut_gap : VARCHAR
+}
+
+entity "performance" as performance {
+  * id_performance : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * id_trimestre : INT <<FK>>
+  id_manager_evaluateur : INT <<FK>>
+  * note_objectifs, note_competences,
+    note_comportement, note_contribution,
+    note_developpement : DECIMAL(5,2)
+  <<UK (id_collaborateur, id_trimestre)>>
+}
+
+entity "potentiel" as potentiel {
+  * id_potentiel : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * id_trimestre : INT <<FK>>
+  * note_learning, note_leadership,
+    note_adaptabilite, note_complexite,
+    note_mobilite, note_strategie,
+    note_autonomie : DECIMAL(5,2)
+  <<UK (id_collaborateur, id_trimestre)>>
+}
+
+entity "score" as score {
+  * id_score : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * id_trimestre : INT <<FK>>
+  score_performance : DECIMAL
+  score_potentiel : DECIMAL
+  categorie_performance : ENUM
+  categorie_potentiel : ENUM
+  position_box : VARCHAR
+  date_calcul : DATE
+  id_entite : INT <<FK>>  (fige au calcul)
+  id_manager : INT <<FK>>  (fige au calcul)
+  <<UK (id_collaborateur, id_trimestre)>>
+}
+
+entity "appartenance_vivier" as appartenance_vivier {
+  * id_appartenance : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * id_vivier : INT <<FK>>
+  * id_trimestre : INT <<FK>>
+  origine : VARCHAR (MOTEUR, IMPORT, SAISIE_RH)
+  <<UK (id_collaborateur, id_vivier, id_trimestre)>>
+}
+
+entity "questionnaire_engagement" as questionnaire_engagement {
+  * id_questionnaire : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * id_trimestre : INT <<FK>>
+  score_engagement : DECIMAL
+  date_reponse : DATE
+  statut : VARCHAR
+}
+
+entity "declaration_vigilance" as declaration_vigilance {
+  * id_declaration : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * id_trimestre : INT <<FK>>
+  sans_mobilite_4_ans, mobilite_non_traitee,
+  sans_developpement_recent, baisse_performance,
+  faible_reconnaissance, formation_non_faite : BOOLEAN
+  <<UK (id_collaborateur, id_trimestre)>>
+}
+
+entity "validation_comite" as validation_comite {
+  * id_validation : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * id_trimestre : INT <<FK>>
+  * statut : ENUM(OUI, NON, EN_ATTENTE)
+  <<UK (id_collaborateur, id_trimestre)>>
+}
+
+entity "successeur_identifie" as successeur_identifie {
+  * id_successeur : INT <<PK>>
+  --
+  * id_poste : VARCHAR <<FK>>
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  <<UK (id_poste, id_collaborateur)>>
+}
+
+entity "alerte" as alerte {
+  * id_alerte : INT <<PK>>
+  --
+  * id_collaborateur : VARCHAR(20) <<FK>>
+  * type_alerte : VARCHAR
+  severite : VARCHAR
+  * date_creation : DATE
+  statut : ENUM
+}
+
+' ================================================================ utilisateurs et journal
+
+entity "utilisateur_rh" as utilisateur_rh {
+  * id_utilisateur : INT <<PK>>
+  --
+  * nom : VARCHAR
+  * login : VARCHAR <<UK>>
+  * mot_de_passe_hash : VARCHAR
+  role : VARCHAR
+}
+
+entity "import_excel" as import_excel {
+  * id_import : INT <<PK>>
+  --
+  source : VARCHAR
+  * nom_fichier : VARCHAR
+  * date_import : DATE
+  statut : VARCHAR
+  nb_lignes : INT
+  nb_erreurs : INT
+  message : VARCHAR(1000)
+  id_trimestre : INT <<FK>>
+  id_utilisateur : INT <<FK>>
+}
+
+entity "rapport" as rapport {
+  * id_rapport : INT <<PK>>
+  --
+  * type : VARCHAR
+  format : VARCHAR
+  * date_generation : DATE
+  * id_utilisateur : INT <<FK>>
+}
+
+' ================================================================ associations
+
+' Organisation
+entite |o--o{ entite : "parent de"
+collaborateur }o--o| entite : "rattache a"
+manager |o--|| collaborateur : "role tenu par"
+collaborateur }o--o| manager : "a pour manager"
+manager }o--o| entite : "dirige"
+poste }o--o| entite : "dans la direction"
+
+' Referentiels
+trimestre ||--o| parametre : "regle par"
+poste }o--o{ competence : "requiert (x5)"
+vivier ||--o{ appartenance_vivier : "contient"
+
+' Saisies et calculs par collaborateur
+collaborateur ||--o{ competence_collaborateur : "possede"
+competence ||--o{ competence_collaborateur : "mesuree par"
+collaborateur ||--o{ performance : "evalue"
+performance }o--o| manager : "evaluee par"
+trimestre ||--o{ performance : ""
+collaborateur ||--o{ potentiel : "evalue"
+trimestre ||--o{ potentiel : ""
+collaborateur ||--o{ score : "obtient"
+trimestre ||--o{ score : ""
+score }o--o| entite : "direction du moment"
+score }o--o| manager : "manager du moment"
+collaborateur ||--o{ appartenance_vivier : "membre"
+trimestre ||--o{ appartenance_vivier : ""
+collaborateur ||--o{ questionnaire_engagement : "repond"
+trimestre ||--o{ questionnaire_engagement : ""
+collaborateur ||--o{ declaration_vigilance : "declare"
+trimestre ||--o{ declaration_vigilance : ""
+collaborateur ||--o{ validation_comite : "decision"
+trimestre ||--o{ validation_comite : ""
+poste ||--o{ successeur_identifie : "succession"
+collaborateur ||--o{ successeur_identifie : "candidat"
+collaborateur ||--o{ alerte : "concerne"
+
+' Utilisateurs et journal
+trimestre |o--o{ import_excel : "importe pour"
+utilisateur_rh |o--o{ import_excel : "lance"
+utilisateur_rh ||--o{ rapport : "genere"
+
+note bottom of rattachement_vivier
+  Sans cle etrangere : "direction" porte le libelle
+  d'une entite de type DIRECTION (10_TALENTS C).
+end note
+
+note bottom of matrice_9box
+  Table de reference autonome :
+  9 cases (niveau performance x niveau potentiel).
+end note
+
+@enduml

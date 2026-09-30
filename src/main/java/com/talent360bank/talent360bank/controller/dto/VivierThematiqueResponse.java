@@ -15,14 +15,14 @@ public record VivierThematiqueResponse(String code, String libelle,
                                        List<Membre> membres) {
 
     /** Membre aplati pour l'API, avec ses statuts pour filtrer. */
-    public record Membre(String employeeId, String nomComplet, String direction,
+    public record Membre(String idCollaborateur, String nomComplet, String direction,
                          BigDecimal scorePerformance, BigDecimal scorePotentiel, String positionBox,
                          boolean talent, boolean hautPotentiel) {
 
         static Membre de(MembreVivierThematique membre) {
             ScoreResume score = ScoreResume.de(membre.score());
-            return new Membre(score.employeeId(), score.nomComplet(),
-                    membre.score().getEmploye().getDirection(),
+            return new Membre(score.idCollaborateur(), score.nomComplet(),
+                    membre.score().getDirection(),
                     score.scorePerformance(), score.scorePotentiel(), score.positionBox(),
                     membre.talent(), membre.hautPotentiel());
         }

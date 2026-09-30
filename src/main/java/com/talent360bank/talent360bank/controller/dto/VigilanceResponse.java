@@ -8,10 +8,10 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Vigilance d'un employe. Les signaux accompagnent l'indice : c'est eux qui
+ * Vigilance d'un collaborateur. Les signaux accompagnent l'indice : c'est eux qui
  * disent au RH sur quoi agir, l'indice seul ne l'indique pas.
  */
-public record VigilanceResponse(EmployeResume employe, BigDecimal indice, String niveau,
+public record VigilanceResponse(CollaborateurResume collaborateur, BigDecimal indice, String niveau,
                                 String niveauLibelle, boolean aRisque,
                                 List<SignalResponse> signaux) {
 
@@ -29,7 +29,7 @@ public record VigilanceResponse(EmployeResume employe, BigDecimal indice, String
                 .toList();
 
         return new VigilanceResponse(
-                EmployeResume.de(resultat.employe()),
+                CollaborateurResume.de(resultat.collaborateur()),
                 resultat.indice(),
                 resultat.niveau().name(),
                 resultat.niveau().getLibelle(),

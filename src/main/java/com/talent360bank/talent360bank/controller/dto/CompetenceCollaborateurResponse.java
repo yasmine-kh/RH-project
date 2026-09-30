@@ -1,19 +1,19 @@
 package com.talent360bank.talent360bank.controller.dto;
 
-import com.talent360bank.talent360bank.service.resultat.CompetenceEmploye;
+import com.talent360bank.talent360bank.service.resultat.GapCompetence;
 
 /**
- * Une competence d'un employe, aplatie pour l'API. Le statut est celui du
+ * Une competence d'un collaborateur, aplatie pour l'API. Le statut est celui du
  * moteur, calcule avec le seuil du trimestre demande.
  *
  * @param statutGap code (MAITRISE, A_DEVELOPPER, PRIORITAIRE), null si le gap est inconnu
  */
-public record CompetenceEmployeResponse(String competenceId, String competence, String categorie,
-                                        Integer niveauActuel, Integer niveauCible, Integer gap,
-                                        String statutGap, String statutGapLibelle) {
+public record CompetenceCollaborateurResponse(String competenceId, String competence, String categorie,
+                                              Integer niveauActuel, Integer niveauCible, Integer gap,
+                                              String statutGap, String statutGapLibelle) {
 
-    public static CompetenceEmployeResponse de(CompetenceEmploye resultat) {
-        return new CompetenceEmployeResponse(
+    public static CompetenceCollaborateurResponse de(GapCompetence resultat) {
+        return new CompetenceCollaborateurResponse(
                 resultat.competence().getCompetence().getCompetenceId(),
                 resultat.competence().getCompetence().getNom(),
                 resultat.competence().getCompetence().getCategorie(),
