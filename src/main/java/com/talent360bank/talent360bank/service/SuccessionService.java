@@ -188,12 +188,10 @@ public class SuccessionService {
             throw new DonneesIncompletesException("Le bareme d'experience n'est pas configure");
         }
 
-        if (candidat.getDateEntree() == null) {
+        BigDecimal anciennete = ancienneteEnAnnees(candidat, dateReference);
+        if (anciennete == null) {
             return null;
         }
-        BigDecimal anciennete = BigDecimal.valueOf(
-                        ChronoUnit.DAYS.between(candidat.getDateEntree(), dateReference))
-                .divide(JOURS_PAR_AN, 1, ARRONDI);
         if (anciennete.signum() <= 0) {
             return BigDecimal.ZERO.setScale(CalculService.PRECISION_SCORE, ARRONDI);
         }
@@ -201,6 +199,24 @@ public class SuccessionService {
                 .multiply(bareme.getPointsParAnnee())
                 .min(bareme.getPlafond())
                 .setScale(CalculService.PRECISION_SCORE, ARRONDI);
+    }
+
+    /**
+     * Anciennete en annees decimales arrondies au dixieme, comme la colonne G de
+     * 01_COLLABORATEURS : ROUND((date de reference - date d'entree) / 365.25, 1).
+     * Base du critere experience ; la fiche collaborateur l'affiche telle quelle.
+     *
+     * @param dateReference date de reference du trimestre, jamais la date du jour
+     * @return null si la date d'entree est inconnue ; negative si l'entree suit la date de reference
+     */
+    public BigDecimal ancienneteEnAnnees(Collaborateur collaborateur, LocalDate dateReference) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
+        Objects.requireNonNull(dateReference, "dateReference");
+        if (collaborateur.getDateEntree() == null) {
+            return null;
+        }
+        return BigDecimal.valueOf(ChronoUnit.DAYS.between(collaborateur.getDateEntree(), dateReference))
+                .divide(JOURS_PAR_AN, 1, ARRONDI);
     }
 
     /**
