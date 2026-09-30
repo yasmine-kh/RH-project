@@ -88,7 +88,7 @@ All screens are read-only. Everything else is available through the REST API (`/
    - HR uploads the client's workbook with `POST /api/imports` (multipart, field `fichier`, plus `annee` and `numero`). One upload loads employees, org chart, managers, skills, positions, critical positions, performance and potential marks, successors, committee decisions and vigilance facts ([`import-donnees.md`](import-donnees.md)).
    - `11_DEVELOPMENT_PLAN` is not imported yet.
    - The quarter's **reference date** (the date seniority is measured at) defaults to the last day of the quarter. Change it with `PUT /api/trimestres/{annee}/{numero}` `{"dateReference": "2026-09-15"}` if the campaign uses another date.
-2. **Create the quarter's settings** with `POST /api/trimestres/{year}/{quarter}/parametre`, which copies the workbook defaults. Adjust them with `PUT` if needed.
+2. **Create the quarter's settings** with `POST /api/trimestres/{year}/{quarter}/parametre`, which copies the workbook defaults. Adjust them with `PUT` if needed: saving them **recalculates the quarter automatically** (steps 3–5), see [Changing the settings](#changing-the-settings).
 3. **Recalculate the scores:** `POST .../scores/recalcul`.
 4. **Place employees in the 9-Box:** `POST .../9box/placement`.
 5. **Save the relief pool** so the pool screen shows it: `POST .../vivier-releve`.
@@ -221,7 +221,7 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 
 | Area | Endpoints |
 |---|---|
-| Settings | `GET` / `POST` / `PUT /api/trimestres/{annee}/{numero}/parametre` |
+| Settings | `GET` / `POST` / `PUT /api/trimestres/{annee}/{numero}/parametre` (`PUT` also recalculates the quarter and returns a `recalcul` recap; see [Changing the settings](#changing-the-settings)) |
 | Scores | `POST .../scores/recalcul`, `GET .../scores`, `GET /api/collaborateurs/{id}/scores` (history) |
 | 9-Box | `POST .../9box/placement` |
 | Talents | `GET .../talents[/{id}]`, `GET .../hauts-potentiels[/{id}]` |
@@ -248,6 +248,7 @@ Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message,
 | `DonneesIncompletesException` | 422 | `donnees_incompletes` |
 | Bean validation failure | 400 | `corps_invalide` |
 | `ParametreInvalideException` (cross-block rule) | 400 | `reglages_invalides` |
+| `RecalculEnCoursException` (a recalculation of the same quarter is already running) | 409 | `recalcul_en_cours` |
 | `IllegalArgumentException` | 400 | `argument_invalide` |
 | Not logged in (`SecurityConfig`) | 401 | `non_authentifie` |
 | Logged in without the RH role (`AccessDeniedException`) | 403 | `acces_refuse` |
@@ -561,7 +562,7 @@ Some results are **stored**, others are **calculated at read time**:
 2. `POST .../9box/placement` writes the box and the potential category. It needs step 1.
 3. `POST .../vivier-releve` writes the relief pool into `AppartenanceVivier`. It needs step 1.
 
-Everything else (talents, succession, critical positions, committee, thematic pools, vigilance, skill gaps, dashboard) is calculated on each request with the quarter's current settings. **After changing the settings, rerun steps 1–3**: stored results do not follow the new thresholds by themselves.
+Everything else (talents, succession, critical positions, committee, thematic pools, vigilance, skill gaps, dashboard) is calculated on each request with the quarter's current settings. `POST .../calcul` runs steps 1–3 in order (`CalculTrimestreService`), and so does every settings change (below): stored results always follow the current settings.
 
 ### Worked example
 
@@ -587,6 +588,35 @@ Every weight and threshold lives in the quarter's `Parametre`. No number from th
 - Each quarter keeps the settings it was calculated with, so past results stay explainable.
 - Bean Validation protects consistency: weights sum to 100, thresholds strictly decreasing, the high vigilance threshold reachable with the available points.
 - New blocks are added without breaking existing data. Columns carry a database default, `ParametreInitializer` completes older rows at startup, and optional blocks may be omitted from a `PUT` (they keep their value).
+
+### Changing the settings
+
+`PUT /api/trimestres/{annee}/{numero}/parametre` saves the quarter's settings, then **recalculates the quarter** with them (`CalculTrimestreService.calculer`: scores, then 9-Box placement, then relief pool). The 9-Box page (stored case), the fiche and the manager view (case derived from the levels) therefore never disagree after a change.
+
+- **In order, never one without the other.** Invalid settings → 400, nothing saved, nothing recalculated. The save commits in its own transaction before the recalculation reads the settings.
+- **A failed recalculation does not undo the save.** The response is still 200 with the saved settings; `recalcul.recalcule` is `false` and `recalcul.erreur` says why in plain words, e.g. "Réglages enregistrés, mais le recalcul du trimestre a échoué : … Corriger puis relancer POST /api/trimestres/2026/3/calcul". An unexpected error shows "erreur inattendue (voir le journal)"; the detail stays in the log. Never a 500.
+- **One recalculation per quarter at a time** (`VerrouCalculTrimestre`, an in-memory lock per quarter: the app runs on a single machine). A second `PUT` while one is running (double click on "Enregistrer") gets **409** `recalcul_en_cours` ("Recalcul déjà en cours pour T3 2026 : réessayer une fois qu'il est terminé") and saves nothing: the lock is taken **before** the save, so it can never write new settings while the first recalculation runs on the old ones. Every write of calculated results uses the same lock and gets the same 409 when busy: `POST .../calcul`, the calculation after an import, and the single steps `POST .../scores/recalcul`, `POST .../9box/placement` and `POST .../vivier-releve`.
+- **Changing only the reference date** (`PUT /api/trimestres/{annee}/{numero}`) recalculates nothing: nothing stored depends on it (seniority is computed at read time in the matching and the fiche).
+
+Response (the settings stay at the top level, as before; `recalcul` is added):
+
+```json
+{
+  "idParametre": 3, "annee": 2026, "numero": 3, "libelle": "Reglages du comite",
+  "poidsPerformance": { "...": "..." },
+  "seuilsNeufBox": { "seuilEleve": 75.00, "seuilMoyen": 70.00 },
+  "...": "all the other blocks",
+  "recalcul": {
+    "recalcule": true,
+    "nbCollaborateursScores": 100,
+    "nbPlaces9Box": 100,
+    "dureeMs": 412,
+    "erreur": null
+  }
+}
+```
+
+`nbCollaborateursScores` and `nbPlaces9Box` are `null` when the recalculation failed. The screen should show `recalcul.erreur` when `recalcule` is `false`, and offer to retry (`POST .../calcul`) on a 409.
 
 ### The `...Source` interfaces, with fallbacks
 
@@ -819,7 +849,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**632 test executions in 56 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
+**647 test executions in 58 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
 
 | Folder | What it covers |
 |---|---|
@@ -895,7 +925,6 @@ git push -u origin feature/my-change
 
 ### Known limitations
 
-- Stored results (scores, boxes, categories, relief pool) don't update themselves when settings change; rerun the recalculation steps.
 - Skills are not tied to a quarter; the quarter only selects the gap threshold.
 - The engine compares rounded scores with thresholds, while the workbook compares unrounded ones. No employee in the dataset is affected.
 - `ddl-auto=update` never drops or alters columns. Removed settings leave unused columns behind (the `src_*` columns are made nullable at startup for this reason).

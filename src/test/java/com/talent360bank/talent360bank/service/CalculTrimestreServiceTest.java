@@ -32,7 +32,8 @@ class CalculTrimestreServiceTest {
         scoreService = mock(ScoreService.class);
         neufBoxService = mock(NeufBoxService.class);
         vivierReleveService = mock(VivierReleveService.class);
-        service = new CalculTrimestreService(scoreService, neufBoxService, vivierReleveService);
+        service = new CalculTrimestreService(scoreService, neufBoxService, vivierReleveService,
+                new VerrouCalculTrimestre());
         trimestre = new Trimestre();
         trimestre.setAnnee(2026);
         trimestre.setNumero(3);

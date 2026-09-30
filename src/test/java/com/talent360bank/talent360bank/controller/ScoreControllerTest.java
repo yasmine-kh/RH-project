@@ -12,6 +12,7 @@ import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.ScoreService;
 import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
+import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,8 +30,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, VerrouCalculTrimestre.class})
 @WithMockUser(roles = "RH")
 @WebMvcTest(ScoreController.class)
 class ScoreControllerTest {
@@ -44,6 +47,8 @@ class ScoreControllerTest {
     private ScoreRepository scoreRepository;
     @MockBean
     private ChargeurRessources chargeur;
+    @Autowired
+    private VerrouCalculTrimestre verrou;
 
     private Trimestre trimestre;
     private Collaborateur collaborateur;
@@ -132,5 +137,19 @@ class ScoreControllerTest {
 
         mockMvc.perform(get("/api/collaborateurs/E999/scores"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void le_recalcul_des_scores_rend_409_pendant_un_calcul_du_trimestre() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+
+        try (VerrouTenu calculEnCours = VerrouTenu.tenir(verrou, trimestre)) {
+            mockMvc.perform(post("/api/trimestres/2026/1/scores/recalcul").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.erreur").value("recalcul_en_cours"))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(
+                            "Recalcul déjà en cours pour T1 2026")));
+        }
+        verify(scoreService, never()).recalculerTrimestre(any());
     }
 }

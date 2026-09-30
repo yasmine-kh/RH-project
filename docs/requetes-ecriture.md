@@ -34,6 +34,8 @@ async function enregistrerReglages(annee, numero, reglages) {
 }
 ```
 
+La réponse de ce `PUT` contient les réglages enregistrés et, sous `recalcul`, le bilan du recalcul du trimestre lancé automatiquement (`recalcule`, `nbCollaborateursScores`, `nbPlaces9Box`, `dureeMs`, `erreur`). Si `recalcul.recalcule` vaut `false`, les réglages sont bien enregistrés mais le recalcul a échoué : afficher `recalcul.erreur`. Un `409` (`recalcul_en_cours`) signale qu'un recalcul du même trimestre tourne déjà (double clic) : rien n'est enregistré, réessayer quand il est fini. Voir la section « Changing the settings » de [`guide-developpeur.md`](guide-developpeur.md).
+
 Une écriture sans corps (recalcul, placement 9-Box, enregistrement du vivier de relève) porte aussi l'en-tête :
 
 ```js

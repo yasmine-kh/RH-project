@@ -10,6 +10,14 @@ import com.talent360bank.talent360bank.controller.dto.ParametreForm;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
+import com.talent360bank.talent360bank.entity.Score;
+import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
+import com.talent360bank.talent360bank.service.CalculTrimestreService;
+import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
+import com.talent360bank.talent360bank.service.resultat.ResultatCalculTrimestre;
+import com.talent360bank.talent360bank.service.resultat.ResultatConstitutionVivier;
+import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
+import org.mockito.InOrder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -21,9 +29,14 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,7 +46,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, VerrouCalculTrimestre.class})
 @WithMockUser(roles = "RH")
 @WebMvcTest(ParametreController.class)
 class ParametreControllerTest {
@@ -47,6 +60,10 @@ class ParametreControllerTest {
     private ParametreRepository parametreRepository;
     @MockBean
     private ChargeurRessources chargeur;
+    @MockBean
+    private CalculTrimestreService calculTrimestreService;
+    @Autowired
+    private VerrouCalculTrimestre verrou;
 
     private Trimestre trimestre;
     private Parametre parametre;
@@ -57,6 +74,11 @@ class ParametreControllerTest {
         trimestre.setNumero(1);
         trimestre.setAnnee(2026);
         parametre = Parametre.parDefaut(trimestre);
+        // Recalcul reussi par defaut : 3 collaborateurs scores, 2 places (1 score incomplet).
+        when(calculTrimestreService.calculer(any())).thenReturn(new ResultatCalculTrimestre(
+                new ResultatRecalcul(List.of(new Score(), new Score(), new Score()), List.of()),
+                new ResultatRecalcul(List.of(new Score(), new Score()), List.of()),
+                new ResultatConstitutionVivier(0, List.of(), List.of())));
     }
 
     private ParametreForm formDepuis(Parametre source) {
@@ -266,6 +288,118 @@ class ParametreControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(parametreRepository, never()).save(any());
+    }
+
+    // ------------------------------------------------------------ recalcul apres enregistrement
+
+    @Test
+    void la_mise_a_jour_recalcule_le_trimestre_et_rend_le_bilan() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(Parametre.parDefaut(trimestre)))))
+                .andExpect(status().isOk())
+                // Les reglages restent au premier niveau, comme avant ; le bilan s'ajoute.
+                .andExpect(jsonPath("$.libelle").value("Reglages revus"))
+                .andExpect(jsonPath("$.recalcul.recalcule").value(true))
+                .andExpect(jsonPath("$.recalcul.nbCollaborateursScores").value(3))
+                .andExpect(jsonPath("$.recalcul.nbPlaces9Box").value(2))
+                .andExpect(jsonPath("$.recalcul.dureeMs").isNumber())
+                .andExpect(jsonPath("$.recalcul.erreur").isEmpty());
+
+        // Enregistrer, puis recalculer : dans cet ordre.
+        InOrder ordre = inOrder(parametreRepository, calculTrimestreService);
+        ordre.verify(parametreRepository).save(any(Parametre.class));
+        ordre.verify(calculTrimestreService).calculer(trimestre);
+    }
+
+    @Test
+    void un_recalcul_en_echec_laisse_les_reglages_enregistres_et_le_dit() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+        when(calculTrimestreService.calculer(any()))
+                .thenThrow(new DonneesIncompletesException("Les seuils de la matrice 9-box ne sont pas configures"));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(Parametre.parDefaut(trimestre)))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.libelle").value("Reglages revus"))
+                .andExpect(jsonPath("$.recalcul.recalcule").value(false))
+                .andExpect(jsonPath("$.recalcul.nbCollaborateursScores").isEmpty())
+                .andExpect(jsonPath("$.recalcul.erreur").value(
+                        "Réglages enregistrés, mais le recalcul du trimestre a échoué : "
+                                + "Les seuils de la matrice 9-box ne sont pas configures. "
+                                + "Corriger puis relancer POST /api/trimestres/2026/1/calcul"));
+
+        verify(parametreRepository).save(any(Parametre.class));
+    }
+
+    @Test
+    void une_erreur_inattendue_du_recalcul_ne_rend_pas_500() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+        when(calculTrimestreService.calculer(any())).thenThrow(new IllegalStateException("detail interne"));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(Parametre.parDefaut(trimestre)))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recalcul.recalcule").value(false))
+                // Le detail technique reste dans le journal.
+                .andExpect(jsonPath("$.recalcul.erreur").value(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("erreur inattendue (voir le journal)"),
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("detail interne")))));
+    }
+
+    @Test
+    void des_reglages_invalides_ne_sont_ni_enregistres_ni_recalcules() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        Parametre casse = Parametre.parDefaut(trimestre);
+        casse.getSeuilsVigilance().setSeuilEleve(new BigDecimal("500"));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(casse))))
+                .andExpect(status().isBadRequest());
+
+        verify(parametreRepository, never()).save(any());
+        verify(calculTrimestreService, never()).calculer(any());
+    }
+
+    @Test
+    void pendant_un_recalcul_du_meme_trimestre_la_mise_a_jour_rend_409_sans_rien_enregistrer() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        CountDownLatch tenu = new CountDownLatch(1);
+        CountDownLatch liberer = new CountDownLatch(1);
+        Thread autreRecalcul = new Thread(() -> verrou.executer(trimestre, () -> {
+            tenu.countDown();
+            try {
+                liberer.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return null;
+        }));
+        autreRecalcul.start();
+        try {
+            assertThat(tenu.await(10, TimeUnit.SECONDS)).isTrue();
+
+            mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(formDepuis(Parametre.parDefaut(trimestre)))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.erreur").value("recalcul_en_cours"))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(
+                            "Recalcul déjà en cours pour T1 2026")));
+        } finally {
+            liberer.countDown();
+            autreRecalcul.join(10_000);
+        }
+        verify(parametreRepository, never()).save(any());
+        verify(calculTrimestreService, never()).calculer(any());
     }
 
     @Test

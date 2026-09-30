@@ -1,14 +1,21 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.controller.dto.ModificationParametreResponse;
 import com.talent360bank.talent360bank.controller.dto.ParametreForm;
 import com.talent360bank.talent360bank.controller.dto.ParametreResponse;
+import com.talent360bank.talent360bank.controller.dto.RecalculReglagesResponse;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Trimestre;
+import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
+import com.talent360bank.talent360bank.service.CalculTrimestreService;
+import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,21 +37,33 @@ import java.util.Set;
  * <p>C'est le seul controleur en ecriture sur la configuration : changer une
  * ponderation doit rester une operation de parametrage, jamais une livraison
  * de code.
+ *
+ * <p>Changer les reglages relance le calcul du trimestre (voir {@link #modifier}) :
+ * scores, cases 9-box et vivier de releve enregistres ne restent jamais sur
+ * d'anciens reglages, et la page 9-box, la fiche et la vue manager concordent.
  */
 @RestController
 @RequestMapping("/api/trimestres/{annee}/{numero}/parametre")
 public class ParametreController {
 
+    private static final Logger log = LoggerFactory.getLogger(ParametreController.class);
+
     private final ParametreRepository parametreRepository;
     private final ChargeurRessources chargeur;
     private final Validator validator;
+    private final CalculTrimestreService calculTrimestreService;
+    private final VerrouCalculTrimestre verrou;
 
     public ParametreController(ParametreRepository parametreRepository,
                                ChargeurRessources chargeur,
-                               Validator validator) {
+                               Validator validator,
+                               CalculTrimestreService calculTrimestreService,
+                               VerrouCalculTrimestre verrou) {
         this.parametreRepository = parametreRepository;
         this.chargeur = chargeur;
         this.validator = validator;
+        this.calculTrimestreService = calculTrimestreService;
+        this.verrou = verrou;
     }
 
     /** Reglages du trimestre. */
@@ -80,24 +99,74 @@ public class ParametreController {
      * croisent plusieurs blocs vivent sur Parametre : elles ne peuvent etre
      * verifiees qu'apres recopie, d'ou la validation explicite avant
      * enregistrement plutot qu'au flush.
+     *
+     * <p><strong>Recalcul.</strong> Une fois les reglages enregistres (la
+     * sauvegarde a sa propre transaction, validee avant la suite), le calcul
+     * complet du trimestre est relance : scores, placement 9-box, vivier de
+     * releve. Dans cet ordre, jamais l'un sans l'autre :
+     * <ul>
+     *   <li>reglages invalides : 400, rien n'est enregistre ni recalcule ;</li>
+     *   <li>recalcul en echec : les reglages restent enregistres et la reponse
+     *   (200) le dit dans {@code recalcul.erreur}, jamais un 500 ;</li>
+     *   <li>recalcul du trimestre deja en cours (double clic) : 409, rien n'est
+     *   enregistre. Le verrou est pris avant l'enregistrement : sinon le second
+     *   appel enregistrerait ses reglages pendant que le premier calcul tourne
+     *   encore sur les anciens.</li>
+     * </ul>
+     *
+     * <p>Pas de @Transactional ici : la sauvegarde doit etre validee avant que
+     * le recalcul, qui a ses propres transactions, relise les reglages.
      */
     @PutMapping
-    @Transactional
-    public ParametreResponse modifier(@PathVariable int annee, @PathVariable int numero,
-                                      @Valid @RequestBody ParametreForm form) {
-        Parametre parametre = exiger(annee, numero);
-        form.appliquerA(parametre);
+    public ModificationParametreResponse modifier(@PathVariable int annee, @PathVariable int numero,
+                                                  @Valid @RequestBody ParametreForm form) {
+        Trimestre trimestre = exiger(annee, numero).getTrimestre();
+        return verrou.executer(trimestre, () -> {
+            Parametre parametre = exiger(annee, numero);
+            form.appliquerA(parametre);
 
-        Set<ConstraintViolation<Parametre>> violations = validator.validate(parametre);
-        if (!violations.isEmpty()) {
-            List<String> messages = violations.stream()
-                    .map(violation -> violation.getPropertyPath() + " : " + violation.getMessage())
-                    .sorted()
-                    .toList();
-            throw new ParametreInvalideException(messages);
+            Set<ConstraintViolation<Parametre>> violations = validator.validate(parametre);
+            if (!violations.isEmpty()) {
+                List<String> messages = violations.stream()
+                        .map(violation -> violation.getPropertyPath() + " : " + violation.getMessage())
+                        .sorted()
+                        .toList();
+                throw new ParametreInvalideException(messages);
+            }
+
+            ParametreResponse enregistre = ParametreResponse.de(parametreRepository.save(parametre));
+            return new ModificationParametreResponse(enregistre, recalculer(trimestre));
+        });
+    }
+
+    /**
+     * Calcul complet du trimestre apres un changement de reglages. Un echec est
+     * rendu dans le bilan, pas leve : les reglages, eux, sont enregistres.
+     */
+    private RecalculReglagesResponse recalculer(Trimestre trimestre) {
+        long debut = System.nanoTime();
+        try {
+            return RecalculReglagesResponse.reussi(calculTrimestreService.calculer(trimestre), duree(debut));
+        } catch (DonneesIncompletesException | RessourceIntrouvableException e) {
+            log.warn("Recalcul T{} {} apres changement de reglages : echec ({})",
+                    trimestre.getNumero(), trimestre.getAnnee(), e.getMessage());
+            return RecalculReglagesResponse.echoue(messageEchec(trimestre, e.getMessage()), duree(debut));
+        } catch (RuntimeException e) {
+            log.error("Recalcul T{} {} apres changement de reglages : echec", trimestre.getNumero(),
+                    trimestre.getAnnee(), e);
+            return RecalculReglagesResponse.echoue(messageEchec(trimestre, "erreur inattendue (voir le journal)"),
+                    duree(debut));
         }
+    }
 
-        return ParametreResponse.de(parametreRepository.save(parametre));
+    private static String messageEchec(Trimestre trimestre, String cause) {
+        return "Réglages enregistrés, mais le recalcul du trimestre a échoué : " + cause
+                + ". Corriger puis relancer POST /api/trimestres/" + trimestre.getAnnee() + "/"
+                + trimestre.getNumero() + "/calcul";
+    }
+
+    private static long duree(long debut) {
+        return (System.nanoTime() - debut) / 1_000_000;
     }
 
     private Parametre exiger(int annee, int numero) {
