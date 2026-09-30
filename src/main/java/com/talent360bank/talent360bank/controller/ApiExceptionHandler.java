@@ -2,6 +2,7 @@ package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.controller.dto.ErreurApi;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
+import com.talent360bank.talent360bank.exception.RecalculEnCoursException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,6 +149,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErreurApi> accesRefuse(AccessDeniedException exception) {
         return reponse(HttpStatus.FORBIDDEN, "acces_refuse", "Votre profil ne permet pas cette action");
+    }
+
+    /** Un recalcul du meme trimestre tourne deja : rien n'a ete fait, reessayer ensuite. */
+    @ExceptionHandler(RecalculEnCoursException.class)
+    public ResponseEntity<ErreurApi> recalculEnCours(RecalculEnCoursException exception) {
+        return reponse(HttpStatus.CONFLICT, "recalcul_en_cours", exception.getMessage());
     }
 
     /** Statut deja porte par l'exception : on le respecte au lieu de le reecrire. */

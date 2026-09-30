@@ -18,6 +18,7 @@ import com.talent360bank.talent360bank.service.VivierReleveService;
 import com.talent360bank.talent360bank.service.resultat.MembreVivierReleve;
 import com.talent360bank.talent360bank.service.resultat.ResultatConstitutionVivier;
 import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
+import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +35,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
 
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, VerrouCalculTrimestre.class})
 @WithMockUser(roles = "RH")
 @WebMvcTest({TalentController.class, NeufBoxController.class})
 class TalentEtNeufBoxControllerTest {
@@ -51,6 +55,8 @@ class TalentEtNeufBoxControllerTest {
     private VivierReleveService vivierReleveService;
     @MockBean
     private ChargeurRessources chargeur;
+    @Autowired
+    private VerrouCalculTrimestre verrou;
 
     private Trimestre trimestre;
     private Collaborateur collaborateur;
@@ -204,5 +210,33 @@ class TalentEtNeufBoxControllerTest {
         // l'API ne s'y applique pas. Le statut reste juste, c'est l'essentiel.
         mockMvc.perform(get("/api/trimestres/2026/1/9box/placement"))
                 .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    void le_placement_9_box_rend_409_pendant_un_calcul_du_trimestre() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+
+        try (VerrouTenu calculEnCours = VerrouTenu.tenir(verrou, trimestre)) {
+            mockMvc.perform(post("/api/trimestres/2026/1/9box/placement").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.erreur").value("recalcul_en_cours"))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(
+                            "Recalcul déjà en cours pour T1 2026")));
+        }
+        verify(neufBoxService, never()).placerTrimestre(any());
+    }
+
+    @Test
+    void l_enregistrement_du_vivier_de_releve_rend_409_pendant_un_calcul_du_trimestre() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+
+        try (VerrouTenu calculEnCours = VerrouTenu.tenir(verrou, trimestre)) {
+            mockMvc.perform(post("/api/trimestres/2026/1/vivier-releve").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.erreur").value("recalcul_en_cours"))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(
+                            "Recalcul déjà en cours pour T1 2026")));
+        }
+        verify(vivierReleveService, never()).constituerViviers(any());
     }
 }

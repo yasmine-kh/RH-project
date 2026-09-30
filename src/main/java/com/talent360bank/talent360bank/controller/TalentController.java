@@ -5,6 +5,7 @@ import com.talent360bank.talent360bank.controller.dto.MembreVivierReleveResume;
 import com.talent360bank.talent360bank.controller.dto.ScoreResume;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.service.TalentService;
+import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
 import com.talent360bank.talent360bank.service.VivierReleveService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,12 +27,14 @@ public class TalentController {
     private final TalentService talentService;
     private final VivierReleveService vivierReleveService;
     private final ChargeurRessources chargeur;
+    private final VerrouCalculTrimestre verrou;
 
     public TalentController(TalentService talentService, VivierReleveService vivierReleveService,
-                            ChargeurRessources chargeur) {
+                            ChargeurRessources chargeur, VerrouCalculTrimestre verrou) {
         this.talentService = talentService;
         this.vivierReleveService = vivierReleveService;
         this.chargeur = chargeur;
+        this.verrou = verrou;
     }
 
     /** Talents du trimestre, du meilleur au moins bon en performance. */
@@ -88,11 +91,14 @@ public class TalentController {
     /**
      * Enregistre le vivier de releve du trimestre dans AppartenanceVivier.
      * Rejouable : les lignes du moteur sont remplacees, jamais doublees, et
-     * celles d'un import ou d'une saisie RH ne sont pas touchees.
+     * celles d'un import ou d'une saisie RH ne sont pas touchees.     *
+     * <p>Sous le verrou du trimestre ({@link VerrouCalculTrimestre}), comme le
+     * calcul complet : 409 si un calcul du trimestre tourne deja.
      */
     @PostMapping("/trimestres/{annee}/{numero}/vivier-releve")
     public ConstitutionVivierResponse enregistrerVivierReleve(@PathVariable int annee, @PathVariable int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
-        return ConstitutionVivierResponse.de(vivierReleveService.constituerViviers(trimestre));
+        return ConstitutionVivierResponse.de(
+                verrou.executer(trimestre, () -> vivierReleveService.constituerViviers(trimestre)));
     }
 }

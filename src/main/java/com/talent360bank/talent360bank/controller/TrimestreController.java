@@ -72,6 +72,12 @@ public class TrimestreController {
     /**
      * Change la date de reference du trimestre (date a laquelle l'anciennete
      * est mesuree). Rend le trimestre mis a jour.
+     *
+     * <p>Aucun recalcul, contrairement a un changement de reglages (PUT
+     * .../parametre) : rien d'enregistre n'en depend. Scores, cases 9-box et
+     * vivier de releve ne lisent pas l'anciennete ; le critere experience du
+     * matching et l'anciennete des fiches sont calcules a chaque lecture, avec
+     * la date du moment.
      */
     @PutMapping("/{annee}/{numero}")
     @Transactional

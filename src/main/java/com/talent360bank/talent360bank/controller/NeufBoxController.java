@@ -3,6 +3,7 @@ package com.talent360bank.talent360bank.controller;
 import com.talent360bank.talent360bank.controller.dto.RecalculResponse;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.service.NeufBoxService;
+import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,20 +23,25 @@ public class NeufBoxController {
 
     private final NeufBoxService neufBoxService;
     private final ChargeurRessources chargeur;
+    private final VerrouCalculTrimestre verrou;
 
-    public NeufBoxController(NeufBoxService neufBoxService, ChargeurRessources chargeur) {
+    public NeufBoxController(NeufBoxService neufBoxService, ChargeurRessources chargeur,
+                             VerrouCalculTrimestre verrou) {
         this.neufBoxService = neufBoxService;
         this.chargeur = chargeur;
+        this.verrou = verrou;
     }
 
     /**
      * Place tous les collaborateurs scores du trimestre et enregistre leur case.
      * A lancer apres le recalcul des scores : le placement lit les scores, il
-     * ne les calcule pas.
+     * ne les calcule pas.     *
+     * <p>Sous le verrou du trimestre ({@link VerrouCalculTrimestre}), comme le
+     * calcul complet : 409 si un calcul du trimestre tourne deja.
      */
     @PostMapping("/trimestres/{annee}/{numero}/9box/placement")
     public RecalculResponse placer(@PathVariable int annee, @PathVariable int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
-        return RecalculResponse.de(neufBoxService.placerTrimestre(trimestre));
+        return RecalculResponse.de(verrou.executer(trimestre, () -> neufBoxService.placerTrimestre(trimestre)));
     }
 }

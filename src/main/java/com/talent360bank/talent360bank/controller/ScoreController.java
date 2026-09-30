@@ -6,6 +6,7 @@ import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.ScoreService;
+import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,12 +24,14 @@ public class ScoreController {
     private final ScoreService scoreService;
     private final ScoreRepository scoreRepository;
     private final ChargeurRessources chargeur;
+    private final VerrouCalculTrimestre verrou;
 
     public ScoreController(ScoreService scoreService, ScoreRepository scoreRepository,
-                           ChargeurRessources chargeur) {
+                           ChargeurRessources chargeur, VerrouCalculTrimestre verrou) {
         this.scoreService = scoreService;
         this.scoreRepository = scoreRepository;
         this.chargeur = chargeur;
+        this.verrou = verrou;
     }
 
     /**
@@ -36,12 +39,14 @@ public class ScoreController {
      *
      * <p>POST et non PUT : l'appel n'est pas idempotent au sens strict, il
      * repose la date de calcul a chaque passage. Il reste rejouable sans
-     * risque, un collaborateur n'ayant qu'un score par trimestre.
+     * risque, un collaborateur n'ayant qu'un score par trimestre.     *
+     * <p>Sous le verrou du trimestre ({@link VerrouCalculTrimestre}), comme le
+     * calcul complet : 409 si un calcul du trimestre tourne deja.
      */
     @PostMapping("/trimestres/{annee}/{numero}/scores/recalcul")
     public RecalculResponse recalculer(@PathVariable int annee, @PathVariable int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
-        return RecalculResponse.de(scoreService.recalculerTrimestre(trimestre));
+        return RecalculResponse.de(verrou.executer(trimestre, () -> scoreService.recalculerTrimestre(trimestre)));
     }
 
     /** Scores enregistres du trimestre. */

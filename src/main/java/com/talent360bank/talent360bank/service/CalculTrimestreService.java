@@ -17,6 +17,11 @@ import java.util.Objects;
  * comme quand elle est appelee seule. Si une etape echoue, les precedentes
  * restent enregistrees et l'appel peut etre rejoue sans risque, chaque etape
  * remplacant ce qu'elle avait ecrit.
+ *
+ * <p>Un seul calcul a la fois par trimestre ({@link VerrouCalculTrimestre}) :
+ * un second appel pendant qu'un calcul tourne leve RecalculEnCoursException
+ * (409), qu'il vienne d'un import, de POST .../calcul ou d'un changement de
+ * reglages.
  */
 @Service
 public class CalculTrimestreService {
@@ -24,19 +29,24 @@ public class CalculTrimestreService {
     private final ScoreService scoreService;
     private final NeufBoxService neufBoxService;
     private final VivierReleveService vivierReleveService;
+    private final VerrouCalculTrimestre verrou;
 
     public CalculTrimestreService(ScoreService scoreService, NeufBoxService neufBoxService,
-                                  VivierReleveService vivierReleveService) {
+                                  VivierReleveService vivierReleveService, VerrouCalculTrimestre verrou) {
         this.scoreService = scoreService;
         this.neufBoxService = neufBoxService;
         this.vivierReleveService = vivierReleveService;
+        this.verrou = verrou;
     }
 
+    /** @throws com.talent360bank.talent360bank.exception.RecalculEnCoursException si un calcul du trimestre tourne deja */
     public ResultatCalculTrimestre calculer(Trimestre trimestre) {
         Objects.requireNonNull(trimestre, "trimestre");
-        ResultatRecalcul scores = scoreService.recalculerTrimestre(trimestre);
-        ResultatRecalcul placements = neufBoxService.placerTrimestre(trimestre);
-        ResultatConstitutionVivier releve = vivierReleveService.constituerViviers(trimestre);
-        return new ResultatCalculTrimestre(scores, placements, releve);
+        return verrou.executer(trimestre, () -> {
+            ResultatRecalcul scores = scoreService.recalculerTrimestre(trimestre);
+            ResultatRecalcul placements = neufBoxService.placerTrimestre(trimestre);
+            ResultatConstitutionVivier releve = vivierReleveService.constituerViviers(trimestre);
+            return new ResultatCalculTrimestre(scores, placements, releve);
+        });
     }
 }
