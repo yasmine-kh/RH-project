@@ -242,18 +242,6 @@ public class ImportClasseurService {
     // ------------------------------------------------------------------ 01
 
     /**
-     * 01_COLLABORATEURS seule, pour l'import historique par chemin de fichier
-     * et le profil demo : memes regles que dans {@link #importer}, sauf la
-     * desactivation des absents, reservee a l'import complet d'une campagne.
-     */
-    @Transactional
-    public RapportImport importerCollaborateurs(Workbook classeur) {
-        RapportImport rapport = new RapportImport();
-        importerCollaborateurs(classeur, rapport, indexer(entiteRepository.findAll(), Entite::getCode), false);
-        return rapport;
-    }
-
-    /**
      * 01_COLLABORATEURS, en deux passes : les collaborateurs et leur entite
      * (colonnes H a K), puis leur manager (colonne N), qui peut apparaitre plus
      * bas dans la feuille.

@@ -146,11 +146,13 @@ class ImportControllerTest {
     void sans_fichier_ou_sans_trimestre_la_requete_est_mal_formee() throws Exception {
         mockMvc.perform(multipart("/api/imports").param("annee", "2026").param("numero", "3").header(EN_TETE, "1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erreur").value("requete_mal_formee"));
+                .andExpect(jsonPath("$.erreur").value("requete_mal_formee"))
+                .andExpect(jsonPath("$.message").value("Partie obligatoire absente : fichier"));
 
         mockMvc.perform(multipart("/api/imports").file(fichier).param("annee", "2026").header(EN_TETE, "1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erreur").value("requete_mal_formee"));
+                .andExpect(jsonPath("$.erreur").value("requete_mal_formee"))
+                .andExpect(jsonPath("$.message").value("Parametre obligatoire absent : numero"));
     }
 
     @Test

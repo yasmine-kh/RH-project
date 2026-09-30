@@ -10,12 +10,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Sans profil demo : chaque service du moteur recoit la source en base
- * (@Fallback), seule candidate. Verifie sur le vrai contexte, par le champ
- * que le service a rempli au demarrage via ObjectProvider.getIfAvailable.
- *
- * <p>Le cas avec profil demo, ou la source du classeur local passe devant,
- * est dans SourcesDemoContexteTest.
+ * Chaque service du moteur recoit la source en base (@Fallback), seule
+ * candidate. Verifie sur le vrai contexte, par le champ que le service a
+ * rempli au demarrage via ObjectProvider.getIfAvailable.
  */
 @SpringBootTest
 class SourcesEnBaseContexteTest {
@@ -42,7 +39,7 @@ class SourcesEnBaseContexteTest {
     }
 
     @Test
-    void chaque_contrat_n_a_qu_une_implementation_hors_profil_demo() {
+    void chaque_contrat_n_a_qu_une_implementation() {
         assertThat(contexte.getBeansOfType(SuccesseurIdentifieSource.class)).hasSize(1);
         assertThat(contexte.getBeansOfType(ValidationComiteSource.class)).hasSize(1);
         assertThat(contexte.getBeansOfType(VivierThematiqueSource.class)).hasSize(1);

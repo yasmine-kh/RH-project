@@ -15,7 +15,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
@@ -166,22 +165,6 @@ public class ImportService {
                 .distinct()
                 .collect(Collectors.joining(", "))
                 + ". Verifier le fichier ou le trimestre choisi.";
-    }
-
-    /**
-     * Import des seuls collaborateurs (01_COLLABORATEURS) depuis un fichier du
-     * poste, avec leurs entites et leurs managers. Conserve pour
-     * POST /api/collaborateurs/import ; l'import complet passe par
-     * {@link #importer(MultipartFile, int, int)}.
-     *
-     * @return nombre de collaborateurs importes, lignes rejetees exclues
-     */
-    public int importerCollaborateurs(String cheminFichier) throws IOException {
-        try (InputStream contenu = new FileInputStream(cheminFichier);
-             Workbook classeur = WorkbookFactory.create(contenu)) {
-            RapportImport rapport = importClasseurService.importerCollaborateurs(classeur);
-            return rapport.nbLignes();
-        }
     }
 
     /** Journal des imports, le plus recent en premier. */
