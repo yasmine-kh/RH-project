@@ -22,14 +22,17 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,7 +68,7 @@ class TrimestreControllerTest {
 
     @Test
     void la_creation_rend_201_puis_200_quand_le_trimestre_existe() throws Exception {
-        when(trimestreService.creerSiAbsent(2026, 3))
+        when(trimestreService.creerSiAbsent(2026, 3, null))
                 .thenReturn(new ResultatCreationTrimestre(trimestre, true, true))
                 .thenReturn(new ResultatCreationTrimestre(trimestre, false, false));
 
@@ -73,6 +76,7 @@ class TrimestreControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"annee\":2026,\"numero\":3}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.libelle").value("T3 2026"))
+                .andExpect(jsonPath("$.dateReference").value("2026-09-30"))
                 .andExpect(jsonPath("$.trimestreCree").value(true))
                 .andExpect(jsonPath("$.parametreCree").value(true));
 
@@ -83,13 +87,61 @@ class TrimestreControllerTest {
     }
 
     @Test
+    void la_creation_transmet_la_date_de_reference_choisie() throws Exception {
+        trimestre.setDateReference(LocalDate.of(2026, 9, 15));
+        when(trimestreService.creerSiAbsent(2026, 3, LocalDate.of(2026, 9, 15)))
+                .thenReturn(new ResultatCreationTrimestre(trimestre, true, true));
+
+        mockMvc.perform(post("/api/trimestres").header(EN_TETE, "1").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"annee\":2026,\"numero\":3,\"dateReference\":\"2026-09-15\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.dateReference").value("2026-09-15"));
+    }
+
+    @Test
+    void le_rh_change_la_date_de_reference_d_un_trimestre() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 3)).thenReturn(trimestre);
+        when(trimestreService.modifierDateReference(trimestre, LocalDate.of(2026, 9, 15))).thenAnswer(appel -> {
+            trimestre.setDateReference(LocalDate.of(2026, 9, 15));
+            return trimestre;
+        });
+
+        mockMvc.perform(put("/api/trimestres/2026/3").header(EN_TETE, "1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"dateReference\":\"2026-09-15\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.libelle").value("T3 2026"))
+                .andExpect(jsonPath("$.dateReference").value("2026-09-15"));
+    }
+
+    @Test
+    void changer_la_date_de_reference_exige_une_date() throws Exception {
+        mockMvc.perform(put("/api/trimestres/2026/3").header(EN_TETE, "1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erreur").value("corps_invalide"));
+        mockMvc.perform(put("/api/trimestres/2026/3").header(EN_TETE, "1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"dateReference\":\"15/09/2026\"}"))
+                .andExpect(status().isBadRequest());
+        verify(trimestreService, never()).modifierDateReference(any(), any());
+    }
+
+    @Test
+    void changer_la_date_d_un_trimestre_inconnu_rend_404() throws Exception {
+        when(chargeur.exigerTrimestre(2031, 1)).thenThrow(new RessourceIntrouvableException("Aucun trimestre T1 2031"));
+
+        mockMvc.perform(put("/api/trimestres/2031/1").header(EN_TETE, "1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"dateReference\":\"2031-03-15\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void un_numero_hors_bornes_rend_400_sans_appel_au_service() throws Exception {
         mockMvc.perform(post("/api/trimestres").header(EN_TETE, "1")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"annee\":2026,\"numero\":5}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erreur").value("corps_invalide"));
 
-        verify(trimestreService, never()).creerSiAbsent(anyInt(), anyInt());
+        verify(trimestreService, never()).creerSiAbsent(anyInt(), anyInt(), any());
     }
 
     @Test
@@ -98,7 +150,7 @@ class TrimestreControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"annee\":2026,\"numero\":3}"))
                 .andExpect(status().isForbidden());
 
-        verify(trimestreService, never()).creerSiAbsent(anyInt(), anyInt());
+        verify(trimestreService, never()).creerSiAbsent(anyInt(), anyInt(), any());
     }
 
     @Test
@@ -110,6 +162,7 @@ class TrimestreControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].annee").value(2026))
                 .andExpect(jsonPath("$[0].numero").value(3))
+                .andExpect(jsonPath("$[0].dateReference").value("2026-09-30"))
                 .andExpect(jsonPath("$[0].reglages").value(true));
     }
 

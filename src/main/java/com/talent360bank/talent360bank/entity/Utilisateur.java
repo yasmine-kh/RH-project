@@ -1,7 +1,6 @@
 package com.talent360bank.talent360bank.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -10,17 +9,12 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
- * Compte de connexion. Remplace UtilisateurRH : les quatre profils ont un
- * compte, pas seulement le RH.
- *
- * <p>Un compte COLLABORATEUR ou MANAGER est rattache a son collaborateur :
- * c'est par lui que l'application saura quels resultats il peut voir. Un
- * collaborateur a au plus un compte.
+ * Compte de connexion. Seul le RH se connecte (voir {@link Role}) : un
+ * compte n'est rattache a aucun collaborateur.
  */
 @Entity
-@Table(name = "utilisateur", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_utilisateur_login", columnNames = "login"),
-        @UniqueConstraint(name = "uk_utilisateur_collaborateur", columnNames = "id_collaborateur")})
+@Table(name = "utilisateur", uniqueConstraints =
+        @UniqueConstraint(name = "uk_utilisateur_login", columnNames = "login"))
 public class Utilisateur {
 
     public static final int LONGUEUR_LOGIN = 50;
@@ -45,11 +39,6 @@ public class Utilisateur {
     @Column(nullable = false, length = 20)
     private Role role;
 
-    /** Obligatoire pour COLLABORATEUR et MANAGER, facultatif sinon. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_collaborateur")
-    private Collaborateur collaborateur;
-
     /** Un compte inactif ne peut plus se connecter ; il n'est jamais supprime. */
     @Column(nullable = false)
     private boolean actif = true;
@@ -60,11 +49,10 @@ public class Utilisateur {
     public Utilisateur() {
     }
 
-    public Utilisateur(String login, String motDePasseHash, Role role, Collaborateur collaborateur) {
+    public Utilisateur(String login, String motDePasseHash, Role role) {
         this.login = login;
         this.motDePasseHash = motDePasseHash;
         this.role = role;
-        this.collaborateur = collaborateur;
     }
 
     @PrePersist
@@ -72,11 +60,6 @@ public class Utilisateur {
         if (dateCreation == null) {
             dateCreation = LocalDateTime.now();
         }
-    }
-
-    @AssertTrue(message = "Un compte COLLABORATEUR ou MANAGER doit etre rattache a un collaborateur")
-    boolean isCollaborateurRenseigne() {
-        return role == null || !role.exigeCollaborateur() || collaborateur != null;
     }
 
     public Integer getIdUtilisateur() {
@@ -105,14 +88,6 @@ public class Utilisateur {
 
     public void setRole(Role role) {
         this.role = role;
-    }
-
-    public Collaborateur getCollaborateur() {
-        return collaborateur;
-    }
-
-    public void setCollaborateur(Collaborateur collaborateur) {
-        this.collaborateur = collaborateur;
     }
 
     public boolean isActif() {

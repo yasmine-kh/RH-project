@@ -3,6 +3,7 @@ package com.talent360bank.talent360bank.controller;
 import com.talent360bank.talent360bank.controller.dto.CalculTrimestreResponse;
 import com.talent360bank.talent360bank.controller.dto.CreationTrimestreForm;
 import com.talent360bank.talent360bank.controller.dto.CreationTrimestreResponse;
+import com.talent360bank.talent360bank.controller.dto.ModificationTrimestreForm;
 import com.talent360bank.talent360bank.controller.dto.TrimestreResponse;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -61,9 +63,23 @@ public class TrimestreController {
      */
     @PostMapping
     public ResponseEntity<CreationTrimestreResponse> creer(@Valid @RequestBody CreationTrimestreForm form) {
-        ResultatCreationTrimestre resultat = trimestreService.creerSiAbsent(form.annee(), form.numero());
+        ResultatCreationTrimestre resultat = trimestreService.creerSiAbsent(form.annee(), form.numero(),
+                form.dateReference());
         return ResponseEntity.status(resultat.trimestreCree() ? HttpStatus.CREATED : HttpStatus.OK)
                 .body(CreationTrimestreResponse.de(resultat));
+    }
+
+    /**
+     * Change la date de reference du trimestre (date a laquelle l'anciennete
+     * est mesuree). Rend le trimestre mis a jour.
+     */
+    @PutMapping("/{annee}/{numero}")
+    @Transactional
+    public TrimestreResponse modifier(@PathVariable int annee, @PathVariable int numero,
+                                      @Valid @RequestBody ModificationTrimestreForm form) {
+        Trimestre trimestre = trimestreService.modifierDateReference(
+                chargeur.exigerTrimestre(annee, numero), form.dateReference());
+        return TrimestreResponse.de(trimestre, parametreRepository.existsByTrimestre(trimestre));
     }
 
     /**

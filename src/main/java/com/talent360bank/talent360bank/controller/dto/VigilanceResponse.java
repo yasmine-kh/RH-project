@@ -3,6 +3,7 @@ package com.talent360bank.talent360bank.controller.dto;
 import com.talent360bank.talent360bank.service.enums.SignalVigilance;
 import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 
+import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
@@ -18,7 +19,7 @@ public record VigilanceResponse(CollaborateurResume collaborateur, BigDecimal in
     public record SignalResponse(String code, String libelle, boolean detectable) {
     }
 
-    public static VigilanceResponse de(ResultatVigilance resultat) {
+    public static VigilanceResponse de(ResultatVigilance resultat, LocalDate dateReference) {
         // Set.copyOf ne garantit aucun ordre d'iteration : on retrie sur
         // l'ordre de declaration pour que la reponse soit stable d'un appel a
         // l'autre, sinon l'UI reordonne les signaux sans raison.
@@ -29,7 +30,7 @@ public record VigilanceResponse(CollaborateurResume collaborateur, BigDecimal in
                 .toList();
 
         return new VigilanceResponse(
-                CollaborateurResume.de(resultat.collaborateur()),
+                CollaborateurResume.de(resultat.collaborateur(), dateReference),
                 resultat.indice(),
                 resultat.niveau().name(),
                 resultat.niveau().getLibelle(),

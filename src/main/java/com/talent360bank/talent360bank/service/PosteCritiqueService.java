@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -162,12 +163,13 @@ public class PosteCritiqueService {
      * @param scores       scores du trimestre, par Employee_ID
      * @param potentiels   notes de potentiel du trimestre, par Employee_ID
      * @param competences  competences des collaborateurs, par Employee_ID
+     * @param dateReference date de reference du trimestre, pour l'experience du matching
      */
     public CouverturePoste evaluerCouverture(Poste poste, List<String> successeursIdentifies,
                                              Map<String, Collaborateur> collaborateurs, Map<String, Score> scores,
                                              Map<String, Potentiel> potentiels,
                                              Map<String, List<CompetenceCollaborateur>> competences,
-                                             Parametre parametre) {
+                                             Parametre parametre, LocalDate dateReference) {
         Objects.requireNonNull(poste, "poste");
         Objects.requireNonNull(successeursIdentifies, "successeursIdentifies");
         Objects.requireNonNull(parametre, "parametre");
@@ -200,7 +202,8 @@ public class PosteCritiqueService {
                 continue;
             }
             successeurs.add(successionService.evaluer(collaborateur, poste, score,
-                    potentiels.get(idCollaborateur), competences.getOrDefault(idCollaborateur, List.of()), parametre));
+                    potentiels.get(idCollaborateur), competences.getOrDefault(idCollaborateur, List.of()), parametre,
+                    dateReference));
         }
 
         // Meme ordre que le classement des candidats : l'idCollaborateur departage.
@@ -305,7 +308,7 @@ public class PosteCritiqueService {
         List<CouverturePoste> couvertures = new ArrayList<>();
         for (Poste poste : postes) {
             CouverturePoste couverture = evaluerCouverture(poste, successeursParPoste.get(poste.getPosteId()),
-                    collaborateurs, scores, potentiels, competences, parametre);
+                    collaborateurs, scores, potentiels, competences, parametre, trimestre.getDateReference());
             if (!couverture.ignores().isEmpty()) {
                 log.warn("Poste critique {} {} : {} successeur(s) identifie(s) hors matching {}",
                         poste.getPosteId(), decrire(trimestre), couverture.ignores().size(), couverture.ignores());

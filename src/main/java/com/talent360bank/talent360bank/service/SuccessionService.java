@@ -171,15 +171,19 @@ public class SuccessionService {
      * min(plafond, annees d'anciennete x points par annee).
      *
      * <p>L'anciennete est en annees decimales arrondies au dixieme, comme
-     * dans 01_COLLABORATEURS : ROUND((aujourd'hui - date d'entree) / 365.25, 1).
-     * Les annees revolues de {@link Collaborateur#getAnciennete()} feraient perdre
-     * jusqu'a une annee de points.
+     * dans 01_COLLABORATEURS : ROUND((date de reference - date d'entree) / 365.25, 1).
+     * Les annees revolues de {@link Collaborateur#getAnciennete(LocalDate)}
+     * feraient perdre jusqu'a une annee de points.
      *
+     * @param dateReference date de reference du trimestre
+     *                      ({@link Trimestre#getDateReference()}), jamais la date
+     *                      du jour : le resultat ne depend pas du jour du calcul
      * @return null si la date d'entree est inconnue
      * @throws DonneesIncompletesException si le bareme n'est pas configure
      */
-    public BigDecimal scoreExperience(Collaborateur candidat, BaremeExperience bareme) {
+    public BigDecimal scoreExperience(Collaborateur candidat, BaremeExperience bareme, LocalDate dateReference) {
         Objects.requireNonNull(candidat, "candidat");
+        Objects.requireNonNull(dateReference, "dateReference");
         if (bareme == null || bareme.getPointsParAnnee() == null || bareme.getPlafond() == null) {
             throw new DonneesIncompletesException("Le bareme d'experience n'est pas configure");
         }
@@ -188,7 +192,7 @@ public class SuccessionService {
             return null;
         }
         BigDecimal anciennete = BigDecimal.valueOf(
-                        ChronoUnit.DAYS.between(candidat.getDateEntree(), LocalDate.now()))
+                        ChronoUnit.DAYS.between(candidat.getDateEntree(), dateReference))
                 .divide(JOURS_PAR_AN, 1, ARRONDI);
         if (anciennete.signum() <= 0) {
             return BigDecimal.ZERO.setScale(CalculService.PRECISION_SCORE, ARRONDI);
@@ -207,9 +211,12 @@ public class SuccessionService {
      * d'entree, poste sans competence chiffree) compte pour zero dans le score,
      * comme une cellule vide dans 09_SUCCESSION ; le detail le rend null pour
      * qu'on distingue un zero d'une donnee absente.
+     *
+     * @param dateReference date de reference du trimestre, pour l'experience
      */
     public ResultatMatching evaluer(Collaborateur candidat, Poste poste, Score score, Potentiel potentiel,
-                                    List<CompetenceCollaborateur> competencesCandidat, Parametre parametre) {
+                                    List<CompetenceCollaborateur> competencesCandidat, Parametre parametre,
+                                    LocalDate dateReference) {
         Objects.requireNonNull(candidat, "candidat");
         Objects.requireNonNull(poste, "poste");
         Objects.requireNonNull(score, "score");
@@ -225,7 +232,7 @@ public class SuccessionService {
                 scoreCompetences(poste, competencesCandidat, parametre.getBaremeCompetences()),
                 score.getScorePerformance(),
                 score.getScorePotentiel(),
-                scoreExperience(candidat, parametre.getBaremeExperience()),
+                scoreExperience(candidat, parametre.getBaremeExperience(), dateReference),
                 potentiel == null ? null : potentiel.getNoteLeadership(),
                 potentiel == null ? null : potentiel.getNoteMobilite());
 
@@ -262,7 +269,7 @@ public class SuccessionService {
         return evaluer(candidat, poste, score,
                 potentielRepository.findByCollaborateurAndTrimestre(candidat, trimestre).orElse(null),
                 competenceCollaborateurRepository.findByCollaborateurAvecCompetence(candidat),
-                calculService.chargerParametre(trimestre));
+                calculService.chargerParametre(trimestre), trimestre.getDateReference());
     }
 
     /**
@@ -307,7 +314,7 @@ public class SuccessionService {
             classement.add(evaluer(candidat, poste, score,
                     potentielParCollaborateur.get(idCollaborateur),
                     competencesParCollaborateur.getOrDefault(idCollaborateur, List.of()),
-                    parametre));
+                    parametre, trimestre.getDateReference()));
         }
 
         // A egalite de score, l'idCollaborateur departage : sans cela deux appels

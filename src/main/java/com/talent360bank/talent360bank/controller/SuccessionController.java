@@ -43,7 +43,9 @@ public class SuccessionController {
                         ? successionService.classerCandidats(posteId, trimestre)
                         : successionService.classerCandidats(posteId, trimestre, limite);
 
-        return classement.stream().map(MatchingResponse::de).toList();
+        return classement.stream()
+                .map(resultat -> MatchingResponse.de(resultat, trimestre.getDateReference()))
+                .toList();
     }
 
     /** Matching d'un seul candidat sur un poste. */
@@ -54,6 +56,6 @@ public class SuccessionController {
                                      @RequestParam int numero) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return MatchingResponse.de(successionService.evaluer(
-                chargeur.exigerCollaborateur(idCollaborateur), posteId, trimestre));
+                chargeur.exigerCollaborateur(idCollaborateur), posteId, trimestre), trimestre.getDateReference());
     }
 }

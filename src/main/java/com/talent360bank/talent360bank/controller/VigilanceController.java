@@ -46,7 +46,9 @@ public class VigilanceController {
                         ? vigilanceService.evaluerTrimestre(trimestre)
                         : vigilanceService.evaluerTrimestre(trimestre, minimum);
 
-        return resultats.stream().map(VigilanceResponse::de).toList();
+        return resultats.stream()
+                .map(resultat -> VigilanceResponse.de(resultat, trimestre.getDateReference()))
+                .toList();
     }
 
     /** Vigilance d'un collaborateur, avec le detail des signaux leves. */
@@ -55,6 +57,7 @@ public class VigilanceController {
                                                @PathVariable String idCollaborateur) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return VigilanceResponse.de(
-                vigilanceService.evaluer(chargeur.exigerCollaborateur(idCollaborateur), trimestre));
+                vigilanceService.evaluer(chargeur.exigerCollaborateur(idCollaborateur), trimestre),
+                trimestre.getDateReference());
     }
 }

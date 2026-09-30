@@ -9,6 +9,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -47,6 +49,16 @@ public class TrimestreService {
      */
     @Transactional
     public ResultatCreationTrimestre creerSiAbsent(int annee, int numero) {
+        return creerSiAbsent(annee, numero, null);
+    }
+
+    /**
+     * Comme {@link #creerSiAbsent(int, int)}, avec la date de reference d'un
+     * trimestre cree ; null = dernier jour du trimestre. Un trimestre existant
+     * garde la sienne : pour la changer, {@link #modifierDateReference}.
+     */
+    @Transactional
+    public ResultatCreationTrimestre creerSiAbsent(int annee, int numero, LocalDate dateReference) {
         verifier(annee, numero);
 
         Optional<Trimestre> existant = trimestreRepository.findByNumeroAndAnnee(numero, annee);
@@ -54,6 +66,7 @@ public class TrimestreService {
             Trimestre nouveau = new Trimestre();
             nouveau.setAnnee(annee);
             nouveau.setNumero(numero);
+            nouveau.setDateReference(dateReference != null ? dateReference : Trimestre.dernierJour(annee, numero));
             return trimestreRepository.save(nouveau);
         });
 
@@ -63,6 +76,19 @@ public class TrimestreService {
             parametreCree = true;
         }
         return new ResultatCreationTrimestre(trimestre, existant.isEmpty(), parametreCree);
+    }
+
+    /**
+     * Change la date a laquelle le trimestre est evalue (anciennete). Rien
+     * n'est a recalculer : le matching et les fiches la lisent a chaque appel,
+     * aucun resultat stocke n'en depend.
+     */
+    @Transactional
+    public Trimestre modifierDateReference(Trimestre trimestre, LocalDate dateReference) {
+        Objects.requireNonNull(trimestre, "trimestre");
+        Objects.requireNonNull(dateReference, "dateReference");
+        trimestre.setDateReference(dateReference);
+        return trimestreRepository.save(trimestre);
     }
 
     /** Copie des reglages du trimestre precedent le plus recent qui en a, sinon les valeurs par defaut. */

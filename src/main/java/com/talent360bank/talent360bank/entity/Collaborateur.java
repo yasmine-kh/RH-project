@@ -85,9 +85,14 @@ public class Collaborateur {
     }
 
     /**
-     * Anciennete en annees revolues, derivee de dateEntree.
+     * Anciennete en annees revolues a une date donnee, derivee de dateEntree.
      * Non persistee : stockee, elle serait fausse des le lendemain de l'import.
-     * Retourne null si la date d'entree est inconnue.
+     *
+     * <p>Toujours mesuree a la date de reference d'un trimestre
+     * ({@link Trimestre#getDateReference()}), jamais a la date du jour : un
+     * trimestre doit donner le meme resultat quel que soit le jour du calcul.
+     *
+     * @return null si la date d'entree ou la date de reference est inconnue
      */
     @Transient
     public Integer getAnciennete(LocalDate dateReference) {
@@ -95,11 +100,6 @@ public class Collaborateur {
             return null;
         }
         return Period.between(dateEntree, dateReference).getYears();
-    }
-
-    @Transient
-    public Integer getAnciennete() {
-        return getAnciennete(LocalDate.now());
     }
 
     /** Seuls les collaborateurs actifs entrent dans les calculs de scores. */

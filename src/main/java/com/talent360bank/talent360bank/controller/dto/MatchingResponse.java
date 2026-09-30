@@ -2,6 +2,7 @@ package com.talent360bank.talent360bank.controller.dto;
 
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 
+import java.time.LocalDate;
 import java.math.BigDecimal;
 
 /**
@@ -17,10 +18,10 @@ public record MatchingResponse(CollaborateurResume candidat, BigDecimal scoreMat
                                  BigDecimal leadership, BigDecimal mobilite) {
     }
 
-    public static MatchingResponse de(ResultatMatching resultat) {
+    public static MatchingResponse de(ResultatMatching resultat, LocalDate dateReference) {
         ResultatMatching.DetailMatching detail = resultat.detail();
         return new MatchingResponse(
-                CollaborateurResume.de(resultat.candidat()),
+                CollaborateurResume.de(resultat.candidat(), dateReference),
                 resultat.scoreMatching(),
                 resultat.readiness().name(),
                 resultat.readiness().getLibelle(),
