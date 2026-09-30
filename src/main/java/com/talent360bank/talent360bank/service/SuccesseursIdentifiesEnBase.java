@@ -11,8 +11,7 @@ import java.util.List;
  * Successeurs identifies lus en base (SuccesseurIdentifie, rempli par l'import
  * de 09_SUCCESSION).
  *
- * <p>{@link Fallback} : une autre implementation declaree (la source de demo
- * du profil demo) passe devant, sans conflit de beans.
+ * <p>{@link Fallback} : une autre implementation declaree passe devant.
  */
 @Component
 @Fallback

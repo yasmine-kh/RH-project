@@ -55,8 +55,7 @@ public class ScoreController {
     }
 
     /** Historique d'un collaborateur, du trimestre le plus recent au plus ancien. */
-    // /employes/... : ancien chemin, garde temporairement.
-    @GetMapping({"/collaborateurs/{idCollaborateur}/scores", "/employes/{idCollaborateur}/scores"})
+    @GetMapping("/collaborateurs/{idCollaborateur}/scores")
     @Transactional(readOnly = true)
     public List<ScoreResume> historique(@PathVariable String idCollaborateur) {
         Collaborateur collaborateur = chargeur.exigerCollaborateur(idCollaborateur);

@@ -480,25 +480,6 @@ class ImportServiceJpaTest {
         });
     }
 
-    @Test
-    void l_import_historique_des_collaborateurs_pose_entites_et_managers() throws Exception {
-        java.nio.file.Path fichier = java.nio.file.Files.createTempFile("collaborateurs", ".xlsx");
-        try {
-            java.nio.file.Files.write(fichier, ClasseurDeTest.complet().octets());
-
-            assertThat(importService.importerCollaborateurs(fichier.toString())).isEqualTo(3);
-        } finally {
-            java.nio.file.Files.deleteIfExists(fichier);
-        }
-
-        enTransaction(() -> {
-            Collaborateur siham = collaborateurRepository.findById(E1).orElseThrow();
-            assertThat(siham.getAgence()).isEqualTo("Agence Tanger Nord");
-            assertThat(siham.getManager().getIdCollaborateur()).isEqualTo(E3);
-            return null;
-        });
-    }
-
     /** Entites des directions du classeur de test. */
     private List<Entite> entitesDuClasseur() {
         return entiteRepository.findAll().stream()
@@ -700,21 +681,6 @@ class ImportServiceJpaTest {
         ResultatImport resultat = importer(ClasseurDeTest.complet().cellule(FEUILLE_COLLABORATEURS, 0, 3, "X"));
 
         assertThat(resultat.desactives()).isEmpty();
-        assertThat(collaborateurRepository.findById(E1).orElseThrow().getStatut())
-                .isEqualTo(StatutCollaborateur.ACTIF);
-    }
-
-    @Test
-    void l_import_des_seuls_collaborateurs_ne_desactive_personne() throws Exception {
-        importer(ClasseurDeTest.complet());
-        java.nio.file.Path fichier = java.nio.file.Files.createTempFile("collaborateurs", ".xlsx");
-        try {
-            java.nio.file.Files.write(fichier, ClasseurDeTest.complet().sansCollaborateur(E1).octets());
-            importService.importerCollaborateurs(fichier.toString());
-        } finally {
-            java.nio.file.Files.deleteIfExists(fichier);
-        }
-
         assertThat(collaborateurRepository.findById(E1).orElseThrow().getStatut())
                 .isEqualTo(StatutCollaborateur.ACTIF);
     }

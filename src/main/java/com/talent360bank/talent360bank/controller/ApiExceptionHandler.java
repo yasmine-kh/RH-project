@@ -53,8 +53,17 @@ public class ApiExceptionHandler {
         return reponse(HttpStatus.UNPROCESSABLE_ENTITY, "donnees_incompletes", exception.getMessage());
     }
 
+    /**
+     * Les services levent IllegalArgumentException avec un message destine au
+     * client (trimestre hors bornes, fichier vide...). NumberFormatException en
+     * herite mais porte un message de la JVM : il n'est pas renvoye.
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErreurApi> argumentInvalide(IllegalArgumentException exception) {
+        if (exception instanceof NumberFormatException) {
+            log.debug("Nombre illisible", exception);
+            return reponse(HttpStatus.BAD_REQUEST, "argument_invalide", "Valeur numerique invalide");
+        }
         return reponse(HttpStatus.BAD_REQUEST, "argument_invalide", exception.getMessage());
     }
 
@@ -88,6 +97,10 @@ public class ApiExceptionHandler {
      * <p>Elles sont traitees explicitement car le filet de securite plus bas
      * les capterait sinon et rendrait 500 la ou le client a simplement mal
      * forme sa requete.
+     *
+     * <p>Le message de Spring n'est pas renvoye : il peut citer des classes
+     * internes (erreur Jackson, par exemple). Il reste dans le journal ; la
+     * reponse ne nomme que le parametre en cause.
      */
     @ExceptionHandler({MissingServletRequestParameterException.class,
             MethodArgumentTypeMismatchException.class,
@@ -95,7 +108,24 @@ public class ApiExceptionHandler {
             MissingServletRequestPartException.class,
             MultipartException.class})
     public ResponseEntity<ErreurApi> requeteMalFormee(Exception exception) {
-        return reponse(HttpStatus.BAD_REQUEST, "requete_mal_formee", exception.getMessage());
+        log.debug("Requete mal formee", exception);
+        return reponse(HttpStatus.BAD_REQUEST, "requete_mal_formee", messageRequeteMalFormee(exception));
+    }
+
+    private static String messageRequeteMalFormee(Exception exception) {
+        if (exception instanceof MissingServletRequestParameterException absent) {
+            return "Parametre obligatoire absent : " + absent.getParameterName();
+        }
+        if (exception instanceof MethodArgumentTypeMismatchException invalide) {
+            return "Valeur invalide pour le parametre " + invalide.getName();
+        }
+        if (exception instanceof MissingServletRequestPartException absente) {
+            return "Partie obligatoire absente : " + absente.getRequestPartName();
+        }
+        if (exception instanceof HttpMessageNotReadableException) {
+            return "Corps de la requete illisible (JSON mal forme ou valeur invalide)";
+        }
+        return "Requete multipart invalide";
     }
 
     /**
@@ -105,8 +135,8 @@ public class ApiExceptionHandler {
      */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErreurApi> fichierTropVolumineux(MaxUploadSizeExceededException exception) {
-        return reponse(HttpStatus.PAYLOAD_TOO_LARGE, "fichier_trop_volumineux",
-                "Fichier trop volumineux : " + exception.getMessage());
+        log.debug("Fichier refuse", exception);
+        return reponse(HttpStatus.PAYLOAD_TOO_LARGE, "fichier_trop_volumineux", "Fichier trop volumineux");
     }
 
     /** Statut deja porte par l'exception : on le respecte au lieu de le reecrire. */

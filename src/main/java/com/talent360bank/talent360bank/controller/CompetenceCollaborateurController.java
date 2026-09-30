@@ -13,7 +13,7 @@ import java.util.List;
 
 /** Competences d'un collaborateur, avec le statut de gap calcule par le moteur (06_EMPLOYEE_SKILLS). */
 @RestController
-@RequestMapping({"/api/collaborateurs", "/api/employes"}) // /api/employes : ancien chemin, temporaire
+@RequestMapping("/api/collaborateurs")
 public class CompetenceCollaborateurController {
 
     private final CompetenceCollaborateurService competenceCollaborateurService;

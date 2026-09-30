@@ -315,7 +315,9 @@ class ParametreControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{ceci n'est pas du json"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erreur").value("requete_mal_formee"));
+                .andExpect(jsonPath("$.erreur").value("requete_mal_formee"))
+                // Le detail de Jackson (classes internes) reste dans le journal.
+                .andExpect(jsonPath("$.message").value("Corps de la requete illisible (JSON mal forme ou valeur invalide)"));
     }
 
     @Test

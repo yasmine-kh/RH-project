@@ -54,8 +54,7 @@ import java.util.Set;
  * precedent ; sinon, c'est le drapeau importe qui decide. Sans source de faits
  * declaree, seuls l'engagement et la baisse mesuree peuvent etre leves.
  *
- * <p>Service de lecture seule : il calcule et classe, il n'ecrit rien. La
- * creation des Alerte a partir des niveaux ELEVEE n'est pas faite ici.
+ * <p>Service de lecture seule : il calcule et classe, il n'ecrit rien.
  */
 @Service
 public class VigilanceService {
