@@ -38,4 +38,15 @@ public interface ScoreRepository extends JpaRepository<Score, Integer> {
     @Query("select s from Score s join fetch s.trimestre where s.collaborateur = :collaborateur "
             + "order by s.trimestre.annee desc, s.trimestre.numero desc")
     List<Score> findHistorique(@Param("collaborateur") Collaborateur collaborateur);
+
+    /**
+     * Scores d'un trimestre pour un lot de collaborateurs (une equipe), avec le
+     * collaborateur et l'entite figee et ses parents : vue manager, vigilance d'un lot.
+     */
+    @Query("select s from Score s join fetch s.collaborateur "
+            + "left join fetch s.entite e left join fetch e.parent e1 "
+            + "left join fetch e1.parent e2 left join fetch e2.parent "
+            + "where s.trimestre = :trimestre and s.collaborateur.idCollaborateur in :ids")
+    List<Score> findByTrimestreEtCollaborateurs(@Param("trimestre") Trimestre trimestre,
+                                                @Param("ids") Collection<String> ids);
 }

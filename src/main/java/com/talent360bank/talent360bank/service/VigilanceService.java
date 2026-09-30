@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -296,6 +297,52 @@ public class VigilanceService {
         Objects.requireNonNull(parametre, "parametre");
         return evaluer(collaborateur,
                 detecterSignaux(collaborateur, trimestre, parametre.getSeuilsVigilance()), parametre);
+    }
+
+    /**
+     * Vigilance d'un lot de collaborateurs (une equipe), par la meme regle que
+     * {@link #evaluer(Collaborateur, Trimestre)} pour chacun, en un nombre fixe de
+     * requetes quelle que soit la taille du lot : trimestre precedent, scores
+     * precedents du lot, faits du lot. Scores et questionnaires du trimestre sont
+     * fournis par l'appelant, qui les a deja lus.
+     *
+     * <p>Sans transaction propre, comme {@link #evaluer(Collaborateur, Trimestre, Parametre)} :
+     * une donnee manquante ne marque pas la transaction appelante pour annulation.
+     *
+     * @param scoresCourants scores du trimestre, par Employee_ID (absent : pas de score)
+     * @param engagements    questionnaires du trimestre, par Employee_ID (absent : pas de reponse)
+     * @return par Employee_ID, un resultat pour chaque collaborateur du lot
+     * @throws DonneesIncompletesException si les points ou seuils de vigilance ne sont pas configures
+     */
+    public Map<String, ResultatVigilance> evaluerLot(Collection<Collaborateur> collaborateurs, Trimestre trimestre,
+                                                     Parametre parametre, Map<String, Score> scoresCourants,
+                                                     Map<String, QuestionnaireEngagement> engagements) {
+        Objects.requireNonNull(collaborateurs, "collaborateurs");
+        Objects.requireNonNull(trimestre, "trimestre");
+        Objects.requireNonNull(parametre, "parametre");
+        if (collaborateurs.isEmpty()) {
+            return Map.of();
+        }
+        List<String> ids = collaborateurs.stream().map(Collaborateur::getIdCollaborateur).toList();
+
+        Map<String, Score> precedents = new HashMap<>();
+        trimestrePrecedent(trimestre).ifPresent(precedent -> {
+            for (Score score : scoreRepository.findByTrimestreEtCollaborateurs(precedent, ids)) {
+                precedents.put(score.getCollaborateur().getIdCollaborateur(), score);
+            }
+        });
+        Map<String, FaitsVigilance> faits = faitsVigilanceSource.faitsDe(ids, trimestre);
+
+        Map<String, ResultatVigilance> resultats = new HashMap<>();
+        for (Collaborateur collaborateur : collaborateurs) {
+            String id = collaborateur.getIdCollaborateur();
+            resultats.put(id, evaluer(collaborateur,
+                    detecterSignaux(scoresCourants.get(id), precedents.get(id), engagements.get(id),
+                            faits == null ? FaitsVigilance.AUCUN : faits.getOrDefault(id, FaitsVigilance.AUCUN),
+                            parametre.getSeuilsVigilance()),
+                    parametre));
+        }
+        return resultats;
     }
 
     /**

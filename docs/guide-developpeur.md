@@ -237,6 +237,7 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Import | `POST /api/imports` (workbook upload), `GET /api/imports` (journal) |
 | Employees | `GET /api/collaborateurs`, `GET /api/collaborateurs/{id}` (both return `CollaborateurResponse`, never the entity), `POST /api/collaborateurs`, `DELETE /api/collaborateurs/{id}` |
 | Employee record (fiche) | `GET /api/trimestres/{annee}/{numero}/collaborateurs/{matricule}/fiche` ([below](#fiche-collaborateur)) |
+| Manager view | `GET /api/trimestres/{annee}/{numero}/managers` (picker), `GET /api/trimestres/{annee}/{numero}/managers/{matricule}/vue` ([below](#vue-manager)) |
 | Reference data | `GET` / `POST /api/competences`, `DELETE /api/competences/{id}` |
 
 Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message, details }`. `ApiExceptionHandler` maps the exceptions:
@@ -271,7 +272,7 @@ One call returns everything HR sees for **one** employee in **one** quarter:
 | `talent` | `estTalent`, `estHautPotentiel`, `estVivierSuccession` (talent OR high potential), `decisionComite` (`OUI` / `NON` / `EN_ATTENTE`, null if nothing entered) + `decisionComiteLibelle`, `viviers`: [{`code`, `libelle`, `origine`}] (`origine` = `MOTEUR`/`IMPORT`/`SAISIE_RH` for saved pools, `THEMATIQUE` for the direction's pool) | flags null without scores |
 | `competences` | [{`competenceId`, `nom`, `categorie`, `niveauRequis`, `niveauActuel`, `gap`, `statut` (`MAITRISE` / `A_DEVELOPPER` / `PRIORITAIRE`) + `statutLibelle`}], by skill id | empty list |
 | `engagement` | questionnaire score /100 | no questionnaire |
-| `vigilance` | `indice` /100, `niveau` (`FAIBLE` / `MODEREE` / `ELEVEE`) + `niveauLibelle`, `raisons`: [{`code`, `libelle`, `points`}] (the points add up to `indice`) | no settings for the quarter |
+| `vigilance` | `indice` /100, `niveau` (`FAIBLE` / `MODEREE` / `ELEVEE`) + `niveauLibelle`, `raisons`: [{`code`, `libelle`, `points`}] (the points add up to `indice`) | no settings for the quarter, or **no vigilance input at all** (no engagement questionnaire, no vigilance declaration, no evaluation): then `donneesManquantes` says "Aucune donnée de vigilance pour ce trimestre" instead of showing a misleading 0 / FAIBLE. One input is enough for the index to be calculated as usual |
 | `successions` | critical positions where the employee is an identified successor: [{`posteId`, `nomPoste`, `direction`, `criticite`, `scoreMatching`, `readiness` + `readinessLibelle`}] | empty list |
 | `historique` | earlier quarters, most recent first: [{`annee`, `numero`, `libelle`, `scorePerformance`, `scorePotentiel`, `neufBox` {`numero`, `libelle`} or null (not placed, or no settings that quarter)}] | empty list |
 | `autoEvaluation` | always `null` for now (self-evaluation model pending) | — |
@@ -314,6 +315,70 @@ Shortened example (BP005, dataset T3 2026):
 ```
 
 Tests: `FicheCollaborateurViewServiceTest` (H2: complete record checked against the engine services, missing potential, incomplete settings, two-quarter history, unknown matricule), `FicheCollaborateurControllerTest` (JSON contract, 404, 401), `FicheCollaborateurDatasetTest` (BP005 against the workbook, skipped without it).
+
+### Vue manager
+
+HR picks a manager, then sees their team's results for one quarter. Two calls (RH only):
+
+- `GET /api/trimestres/{annee}/{numero}/managers`: the picker. Every manager, sorted by name: [{`matricule`, `nom`, `prenom`, `fonction`, `entite` (same shape as the fiche), `tailleEquipe`}].
+- `GET /api/trimestres/{annee}/{numero}/managers/{matricule}/vue`: the team view.
+
+How it works:
+
+- **Backend:** `ui/service/VueManagerViewService` (`listerManagers`, `construire`) builds `ui/model/VueManager`; `controller/VueManagerController` returns it. Same rules as the fiche: no calculation in the view service (only counts and averages), stored scores and categories, 9-box case from the placement rule (`NeufBoxService.niveauxDe`, same helper as the fiche), talent and vigilance from the engine. Missing data leaves a value `null` and adds one sentence per cause to `donneesManquantes`.
+- **Team = direct reports** (collaborateurs whose manager is this one), excluding `ARCHIVE` (left the company); `INACTIF` stay in the headcount. N-2 is pending the client's answer (TODO in `VueManagerViewService`).
+- **404** for an unknown quarter or matricule, or a collaborateur who is not a manager ("Le collaborateur X n'est pas manager"). A manager with no team gets an empty view (effectif 0, no error).
+- **Fixed number of queries** (about 13), whatever the team size: each piece of team data is read once with `IN (team matricules)`; vigilance goes through `VigilanceService.evaluerLot` (same rule as for one person). A test checks that a team of 6 costs as many queries as a team of 1.
+
+| Block | Content |
+|---|---|
+| `trimestre` | as in the fiche |
+| `manager` | `matricule`, `nom`, `prenom`, `fonction`, `entite` {`code`, `libelle`, `type`, `chemin`}, `neufBox` {`numero`, `libelle`} (the manager's own case, null if not placed) |
+| `synthese` | `effectif`, `nbAvecScore`, `moyennePerformance`, `moyennePotentiel`, `moyenneEngagement` (averages over members who have the value, 2 decimals, null if none), `categoriesPerformance` (5 entries) and `categoriesPotentiel` (3) and `niveauxVigilance` (3): [{`code`, `libelle`, `nombre`}], `neufBox`: always 9 entries [{`numero`, `libelle`, `nombre`}], `nbTalents`, `nbHautsPotentiels`, `nbVivierSuccession`, `nbSansVigilance` (members without vigilance, not counted in `niveauxVigilance`) |
+| `membres` | direct reports sorted by name: [{`matricule`, `nom`, `prenom`, `fonction`, `scorePerformance`, `categoriePerformance` + `...Libelle`, `scorePotentiel`, `categoriePotentiel` + `...Libelle`, `neufBox`, `estTalent`, `estHautPotentiel`, `estVivierSuccession`, `engagement`, `indiceVigilance`, `niveauVigilance` + `...Libelle`, `aDesDonnees`}]. `aDesDonnees` is false when the member has no evaluation and no score this quarter (grey the row). Vigilance is `null` for a member with no vigilance input at all (same rule as the fiche, shared helper `EntreesVigilance`); `donneesManquantes` then names them |
+| `alertes` | [{`matricule`, `nom`, `type`, `message`}]: `VIGILANCE_ELEVEE` (level ELEVEE) and `EVALUATION_MANQUANTE` (performance and/or potential evaluation missing), in member order |
+| `autoVsManager` | always `null` for now (self-evaluation vs manager evaluation, pending the AUTO/MANAGER model) |
+| `donneesManquantes` | sentences for what affects the whole view, e.g. "Aucun réglage pour T2 2025 : …" |
+
+Shortened example (BP005, dataset T3 2026, 5 direct reports):
+
+```json
+{
+  "trimestre": { "annee": 2026, "numero": 3, "libelle": "T3 2026", "dateReference": "2026-09-15" },
+  "manager": { "matricule": "BP005", "nom": "Chraibi", "prenom": "Meryem", "fonction": "Directeur regional",
+               "entite": { "libelle": "Agence Tanger Nord", "type": "AGENCE",
+                           "chemin": ["Reseau Retail", "Reseau Retail - Sud", "Tanger-Tetouan", "Agence Tanger Nord"] },
+               "neufBox": { "numero": 9, "libelle": "Talent clé" } },
+  "synthese": {
+    "effectif": 5, "nbAvecScore": 5, "moyennePerformance": 75.86, "moyennePotentiel": 75.47,
+    "categoriesPerformance": [ { "code": "EXCEPTIONNELLE", "libelle": "Exceptionnelle", "nombre": 0 },
+                               { "code": "SOLIDE", "libelle": "Solide", "nombre": 5 }, "..." ],
+    "categoriesPotentiel": [ { "code": "ELEVE", "libelle": "Eleve", "nombre": 0 },
+                             { "code": "MOYEN", "libelle": "Moyen", "nombre": 4 },
+                             { "code": "FAIBLE", "libelle": "Faible", "nombre": 1 } ],
+    "neufBox": [ { "numero": 1, "libelle": "À surveiller", "nombre": 0 },
+                 { "numero": 4, "libelle": "À accompagner", "nombre": 1 },
+                 { "numero": 5, "libelle": "Confirmé", "nombre": 4 }, "..." ],
+    "nbTalents": 0, "nbHautsPotentiels": 0, "nbVivierSuccession": 0, "moyenneEngagement": 73.40,
+    "niveauxVigilance": [ { "code": "FAIBLE", "libelle": "Faible", "nombre": 5 },
+                          { "code": "MODEREE", "libelle": "Moderee", "nombre": 0 },
+                          { "code": "ELEVEE", "libelle": "Elevee", "nombre": 0 } ],
+    "nbSansVigilance": 0
+  },
+  "membres": [ { "matricule": "BP028", "nom": "Bennani", "prenom": "Loubna", "fonction": "Charge d'accueil",
+                 "scorePerformance": 78.70, "categoriePerformance": "SOLIDE", "categoriePerformanceLibelle": "Solide",
+                 "scorePotentiel": 64.90, "categoriePotentiel": "FAIBLE", "categoriePotentielLibelle": "Faible",
+                 "neufBox": { "numero": 4, "libelle": "À accompagner" },
+                 "estTalent": false, "estHautPotentiel": false, "estVivierSuccession": false,
+                 "engagement": 73.00, "indiceVigilance": 15.00, "niveauVigilance": "FAIBLE",
+                 "niveauVigilanceLibelle": "Faible", "aDesDonnees": true }, "..." ],
+  "alertes": [],
+  "autoVsManager": null,
+  "donneesManquantes": []
+}
+```
+
+Tests: `VueManagerViewServiceTest` (H2: values identical to the fiche and the engine, summary, member with no data and its alerts, empty team, non-manager and unknown → 404, no settings, picker, query count independent of team size), `VueManagerControllerTest` (JSON contract, 404, 401), `VueManagerDatasetTest` (BP005's team against the workbook, skipped without it).
 
 ---
 
@@ -754,7 +819,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**614 test executions in 53 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
+**632 test executions in 56 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
 
 | Folder | What it covers |
 |---|---|
