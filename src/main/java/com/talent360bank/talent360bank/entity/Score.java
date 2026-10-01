@@ -48,8 +48,9 @@ public class Score {
      * Entite du collaborateur au moment du calcul. L'import ecrase l'entite
      * du collaborateur a chaque campagne : les ecrans d'un trimestre lisent
      * celle-ci pour qu'un ancien trimestre garde sa direction d'origine.
+     * LAZY : les listes de scores la chargent par jointure, avec ses parents.
      */
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_entite")
     private Entite entite;
 

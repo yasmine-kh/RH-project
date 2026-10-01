@@ -11,7 +11,9 @@ import com.talent360bank.talent360bank.ui.model.VivierRow;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -19,6 +21,9 @@ import java.util.Optional;
  *
  * REGLE : aucun calcul ici. La liste des collaborateurs par vivier vient de
  * AppartenanceVivierRepository, leurs scores viennent de ScoreRepository.
+ *
+ * <p>Deux lectures quel que soit le nombre de lignes : les appartenances du
+ * trimestre (collaborateur et entite compris) et les scores du trimestre.
  */
 @Service
 public class VivierService {
@@ -45,10 +50,15 @@ public class VivierService {
 
         Trimestre trimestre = dernierTrimestre.get();
 
-        for (AppartenanceVivier appartenance : appartenanceVivierRepository.findByTrimestre(trimestre)) {
+        Map<String, Score> scores = new HashMap<>();
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            scores.put(score.getCollaborateur().getIdCollaborateur(), score);
+        }
+
+        for (AppartenanceVivier appartenance : appartenanceVivierRepository.findByTrimestreAvecCollaborateur(trimestre)) {
             Collaborateur collaborateur = appartenance.getCollaborateur();
 
-            Optional<Score> score = scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre);
+            Optional<Score> score = Optional.ofNullable(scores.get(collaborateur.getIdCollaborateur()));
 
             rows.add(new VivierRow(
                     collaborateur.getNom(),

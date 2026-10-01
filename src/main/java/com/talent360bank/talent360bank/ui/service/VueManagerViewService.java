@@ -150,7 +150,7 @@ public class VueManagerViewService {
                 ResultatsCollaborateurs.synthese(groupe.membres(), cases),
                 groupe.membres(),
                 List.copyOf(alertes),
-                null,
+                ResultatsCollaborateurs.autoVsManager(groupe.ecartsAutoManager(), parametre),
                 List.copyOf(manquantes));
     }
 

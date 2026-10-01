@@ -55,10 +55,15 @@ public class ChargeurRessources {
         return exigerTrimestre(annee, numero);
     }
 
-    /** @throws RessourceIntrouvableException si le collaborateur n'existe pas */
+    /**
+     * Le collaborateur avec son manager, son entite et ses parents : les
+     * reponses (direction, departement...) sont serialisees hors transaction.
+     *
+     * @throws RessourceIntrouvableException si le collaborateur n'existe pas
+     */
     @Transactional(readOnly = true)
     public Collaborateur exigerCollaborateur(String idCollaborateur) {
-        return collaborateurRepository.findById(idCollaborateur)
+        return collaborateurRepository.findByIdAvecManager(idCollaborateur)
                 .orElseThrow(() -> new RessourceIntrouvableException(
                         "Aucun collaborateur " + idCollaborateur));
     }

@@ -7,6 +7,7 @@ import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.Score;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
@@ -234,7 +235,7 @@ class PosteCritiqueServiceTest {
         when(competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(any()))
                 .thenReturn(List.of(skill(candidat, 5)));
         when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of(score(candidat, "95")));
-        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre))
+        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre, SourceEvaluation.MANAGER))
                 .thenReturn(List.of(potentiel(candidat, "95")));
 
         List<CouverturePoste> couvertures = service.listerPostesCritiques(trimestre);

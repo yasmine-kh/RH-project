@@ -195,6 +195,7 @@ com.talent360bank.talent360bank
 │   ├── VivierReleveInitializer       creates the relief pool row
 │   ├── ImportExcelInitializer        makes import_excel.id_utilisateur nullable (old DBs)
 │   ├── TrimestreDateReferenceInitializer  fills trimestre.date_reference (old DBs)
+│   ├── SourceEvaluationInitializer   one evaluation per source: marks old rows MANAGER, drops the old unique key (old DBs)
 │   ├── PremierCompteRhInitializer    first RH account from environment variables
 │   ├── SecurityConfig                form login, RH only
 │   └── ProtectionRequetesFilter      Host check + X-Talent360 header on writes
@@ -230,7 +231,7 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Critical positions | `GET /api/postes-critiques`, `.../alertes`, `.../synthese`, `.../{posteId}` |
 | Committee | `GET /api/comite-talent`, `GET /api/comite-talent/talents-valides` |
 | Thematic pools | `GET /api/viviers-thematiques`, `GET /api/viviers-thematiques/{code}` |
-| Vigilance | `GET .../vigilance[?minimum=MODEREE]`, `GET .../vigilance/{id}` |
+| Vigilance | `GET .../vigilance[?minimum=MODEREE]` (every active employee with at least one vigilance input, with or without a score: same rule as the fiche and the views, `EntreesVigilance`), `GET .../vigilance/{id}` |
 | Skills | `GET /api/collaborateurs/{id}/competences[?annee=&numero=]` |
 | Dashboard | `GET /api/dashboard/synthese` |
 | Quarters | `GET /api/trimestres`, `POST /api/trimestres` (`annee`, `numero`, optional `dateReference`), `PUT /api/trimestres/{annee}/{numero}` (`dateReference`), `POST .../calcul` |
@@ -269,7 +270,7 @@ One call returns everything HR sees for **one** employee in **one** quarter:
 |---|---|---|
 | `trimestre` | `annee`, `numero`, `libelle` ("T3 2026"), `dateReference` | — |
 | `identite` | `matricule`, `nom`, `prenom`, `fonction` (job), `grade`, `entite` {`code`, `libelle`, `type`, `chemin`: labels from the direction down}, `manager` {`matricule`, `nom`} or null, `statut`, `dateEntree`, `anciennete` | — |
-| `performance` / `potentiel` | `score` /100 (stored), `categorie` + `categorieLibelle`, `criteres`: [{`code`, `libelle`, `note` /100, `poids` (quarter's weight)}] — 5 criteria / 7 criteria | no marks for the quarter (`score` alone is null when marks exist but the quarter was not calculated) |
+| `performance` / `potentiel` | `score` /100 (the stored **official** score, see [section 6](#6-the-calculation-engine)), `categorie` + `categorieLibelle`, `criteres`: [{`code`, `libelle`, `note` /100, `poids` (quarter's weight)}] — 5 criteria / 7 criteria, the **manager's** marks | no manager evaluation for the quarter (`donneesManquantes` says so, and says "auto-évaluation seule" when only the self-evaluation exists); `score` alone is null when marks exist but the quarter was not calculated |
 | `neufBox` | `numero` 1–9 (9 = high performance and potential, as `04_9BOX` column H) + `libelle` (the case's current name). The number comes from the placement rule (column = stored potential category, row = performance score on the quarter's 9-box axis), never from the stored label: renaming a case does not break the fiche or the history | no score, 9-box placement not run, or no settings for the quarter |
 | `talent` | `estTalent`, `estHautPotentiel`, `estVivierSuccession` (talent OR high potential), `decisionComite` (`OUI` / `NON` / `EN_ATTENTE`, null if nothing entered) + `decisionComiteLibelle`, `viviers`: [{`code`, `libelle`, `origine`}] (`origine` = `MOTEUR`/`IMPORT`/`SAISIE_RH` for saved pools, `THEMATIQUE` for the direction's pool) | flags null without scores |
 | `competences` | [{`competenceId`, `nom`, `categorie`, `niveauRequis`, `niveauActuel`, `gap`, `statut` (`MAITRISE` / `A_DEVELOPPER` / `PRIORITAIRE`) + `statutLibelle`}], by skill id | empty list |
@@ -277,7 +278,7 @@ One call returns everything HR sees for **one** employee in **one** quarter:
 | `vigilance` | `indice` /100, `niveau` (`FAIBLE` / `MODEREE` / `ELEVEE`) + `niveauLibelle`, `raisons`: [{`code`, `libelle`, `points`}] (the points add up to `indice`) | no settings for the quarter, or **no vigilance input at all** (no engagement questionnaire, no vigilance declaration, no evaluation): then `donneesManquantes` says "Aucune donnée de vigilance pour ce trimestre" instead of showing a misleading 0 / FAIBLE. One input is enough for the index to be calculated as usual |
 | `successions` | critical positions where the employee is an identified successor: [{`posteId`, `nomPoste`, `direction`, `criticite`, `scoreMatching`, `readiness` + `readinessLibelle`}] | empty list |
 | `historique` | earlier quarters, most recent first: [{`annee`, `numero`, `libelle`, `scorePerformance`, `scorePotentiel`, `neufBox` {`numero`, `libelle`} or null (not placed, or no settings that quarter)}] | empty list |
-| `autoEvaluation` | always `null` for now (self-evaluation model pending) | — |
+| `autoEvaluation` | the self-evaluation against the manager's, per axis: `performance` / `potentiel` = {`score` (self-evaluation score, same formula), `categorie` + `categorieLibelle`, `scoreManager` (manager's evaluation, same formula), `ecart` (= `score` − `scoreManager`: positive when the employee rates themselves higher), `criteres`: [{`code`, `libelle`, `note`, `noteManager`, `ecart`, `poids`}]}; an axis is null without a self-evaluation on it | no self-evaluation for the quarter. `scoreManager` / `noteManager` / `ecart` are null without a manager evaluation |
 | `donneesManquantes` | sentences, e.g. "Pas d'évaluation de potentiel pour ce trimestre" | empty list |
 
 Shortened example (BP005, dataset T3 2026):
@@ -339,7 +340,7 @@ How it works:
 | `synthese` | `effectif`, `nbAvecScore`, `moyennePerformance`, `moyennePotentiel`, `moyenneEngagement` (averages over members who have the value, 2 decimals, null if none), `categoriesPerformance` (5 entries) and `categoriesPotentiel` (3) and `niveauxVigilance` (3): [{`code`, `libelle`, `nombre`}], `neufBox`: always 9 entries [{`numero`, `libelle`, `nombre`}], `nbTalents`, `nbHautsPotentiels`, `nbVivierSuccession`, `nbSansVigilance` (members without vigilance, not counted in `niveauxVigilance`) |
 | `membres` | direct reports sorted by name: [{`matricule`, `nom`, `prenom`, `fonction`, `scorePerformance`, `categoriePerformance` + `...Libelle`, `scorePotentiel`, `categoriePotentiel` + `...Libelle`, `neufBox`, `estTalent`, `estHautPotentiel`, `estVivierSuccession`, `engagement`, `indiceVigilance`, `niveauVigilance` + `...Libelle`, `aDesDonnees`}]. `aDesDonnees` is false when the member has no evaluation and no score this quarter (grey the row). Vigilance is `null` for a member with no vigilance input at all (same rule as the fiche, shared helper `EntreesVigilance`); `donneesManquantes` then names them |
 | `alertes` | [{`matricule`, `nom`, `type`, `message`}]: `VIGILANCE_ELEVEE` (level ELEVEE) and `EVALUATION_MANQUANTE` (performance and/or potential evaluation missing), in member order |
-| `autoVsManager` | always `null` for now (self-evaluation vs manager evaluation, pending the AUTO/MANAGER model) |
+| `autoVsManager` | self-evaluations of the team against the manager's evaluations, or null if no member has a self-evaluation (or no settings): `membres`: [{`matricule`, `nom`, `prenom`, `performanceAuto`, `performanceManager`, `ecartPerformance`, `potentielAuto`, `potentielManager`, `ecartPotentiel`}] (members with a self-evaluation, in team order; each source scored by the engine's formula; `ecart` = auto − manager), `ecartMoyenPerformance` / `ecartMoyenPotentiel` (average of the known gaps, 2 decimals), `seuilEcartImportant` (the quarter's setting `seuilsAutoEvaluation.seuilEcartImportant`, default 15), `ecartsImportants` (members with a gap ≥ that threshold, either way) |
 | `donneesManquantes` | sentences for what affects the whole view, e.g. "Aucun réglage pour T2 2025 : …" |
 
 Shortened example (BP005, dataset T3 2026, 5 direct reports):
@@ -489,9 +490,9 @@ Tests: `VueEntiteViewServiceTest` (H2: agence, région = sum of its agences, sam
 | `Entite` (`entite`) | `code` (unique: path from the direction, e.g. `DIR:RESEAU_RETAIL/DEP:…/REG:…/AGE:…`), `libelle`, `type` (DIRECTION / DEPARTEMENT / REGION / AGENCE) | `parent` → `Entite` (null for a direction) | Org chart built by the import from `01_COLLABORATEURS` H–K. The same region under two departments is two nodes |
 | `Manager` (`manager`) | — | `collaborateur` → `Collaborateur` (1–1, unique), `entiteGeree` → `Entite` (optional, not in the workbook) | One per distinct `Manager_ID` (`01_COLLABORATEURS` N) |
 | `Trimestre` (`trimestre`) | `numero`, `annee`, `dateReference` | — | Unique on (`numero`, `annee`). `dateReference` (not null) is the date the quarter is evaluated at: seniority is measured there, never at today's date. Default: last day of the quarter |
-| `Parametre` (`parametre`) | `libelle` + 14 embedded blocks: `PoidsPerformance`, `PoidsPotentiel`, `PoidsSuccession`, `BaremeExperience`, `BaremeCompetences`, `SeuilsNeufBox` (performance axis), `SeuilsNeufBox` (potential axis, `seuil_box_pot_*` columns), `SeuilsCategoriePerformance`, `SeuilsGapCompetence`, `SeuilsReadiness`, `SeuilsCouverture`, `SeuilsTalent`, `PointsVigilance`, `SeuilsVigilance` | → `Trimestre` | One per quarter (unique) |
-| `Performance` (`performance`) | 5 marks /100: objectives, competences, behaviour, contribution, development | → `Collaborateur`, → `Trimestre`, `evaluateur` → `Manager` (optional) | Unique per employee and quarter. The evaluator is the employee's manager at import time: `02_PERFORMANCE` does not name it |
-| `Potentiel` (`potentiel`) | 7 marks /100: learning, leadership, adaptability, complexity, mobility, strategy, autonomy | → `Collaborateur`, → `Trimestre` | Unique per employee and quarter |
+| `Parametre` (`parametre`) | `libelle` + 16 embedded blocks: `PoidsPerformance`, `PoidsPotentiel`, `PoidsSuccession`, `PonderationSources` (manager / self-evaluation, `pond_src_*` columns), `SeuilsAutoEvaluation` (large self / manager gap shown in the manager view, `seuil_ecart_auto`), `BaremeExperience`, `BaremeCompetences`, `SeuilsNeufBox` (performance axis), `SeuilsNeufBox` (potential axis, `seuil_box_pot_*` columns), `SeuilsCategoriePerformance`, `SeuilsGapCompetence`, `SeuilsReadiness`, `SeuilsCouverture`, `SeuilsTalent`, `PointsVigilance`, `SeuilsVigilance` | → `Trimestre` | One per quarter (unique) |
+| `Performance` (`performance`) | 5 marks /100: objectives, competences, behaviour, contribution, development; `source` (`AUTO` self-evaluation / `MANAGER`, column `source_evaluation`) | → `Collaborateur`, → `Trimestre`, `evaluateur` → `Manager` (optional) | Unique per employee, quarter and source: a self-evaluation and a manager evaluation can coexist. The workbook import writes `MANAGER`. The evaluator is the employee's manager at import time: `02_PERFORMANCE` does not name it |
+| `Potentiel` (`potentiel`) | 7 marks /100: learning, leadership, adaptability, complexity, mobility, strategy, autonomy; `source` (`AUTO` / `MANAGER`) | → `Collaborateur`, → `Trimestre` | Unique per employee, quarter and source, like `Performance`. Succession matching reads leadership and mobility from the `MANAGER` evaluation |
 | `Score` (`score`) | `scorePerformance`, `scorePotentiel`, `categoriePerformance`, `categoriePotentiel`, `positionBox`, `dateCalcul` | → `Collaborateur`, → `Trimestre`, `entite` → `Entite` and `manager` → `Manager` (snapshot at calculation time) | Written by the engine; unique per employee and quarter. Per-quarter screens read the direction from the snapshot, so past quarters keep their original direction and manager |
 | `Competence` (`competence`) | `competenceId` (C01…C25), `nom`, `categorie` | — | Skill reference list |
 | `CompetenceCollaborateur` (`competence_collaborateur`) | `niveauActuel`, `niveauCible`, `gap`, `statutGap` (as imported), `cleLookup` | → `Collaborateur`, → `Competence` | Not tied to a quarter; no uniqueness constraint yet |
@@ -565,9 +566,11 @@ erDiagram
         string positionBox
     }
     PERFORMANCE {
+        string source
         decimal five_marks
     }
     POTENTIEL {
+        string source
         decimal seven_marks
     }
     COMPETENCE_COLLABORATEUR {
@@ -612,6 +615,7 @@ All values below are the **defaults** of `Parametre.parDefaut`, identical to `00
 |---|---|---|
 | **Performance score** | `CalculService` | Weighted average of 5 marks: objectives 40, competences 20, behaviour 20, contribution 10, development 10. Divided by the actual sum of weights. |
 | **Potential score** | `CalculService` | Weighted average of 7 marks: learning 20, leadership 20, adaptability 15, complexity 15, mobility 10, strategy 10, autonomy 10. |
+| **Official score** (manager / self-evaluation) | `CalculService.scoreOfficiel`, `ScoreService` | Each source's score is computed with the two formulas above, then blended per axis with `PonderationSources`: (manager × `poidsManager` + self × `poidsAuto`) / 100, rounded. **Default 100 / 0: the official score is the manager's**, exactly as before, until the client decides (audit question 2). No self-evaluation, or `poidsAuto` = 0 → the manager's score. No manager evaluation while `poidsManager` > 0 → no official score: the employee is skipped with "Evaluation du manager absente : auto-evaluation seule, pas de score officiel". |
 | **Performance category** | `CalculService.categoriePerformance` | ≥ 90 Exceptionnelle, ≥ 80 Élevée, ≥ 70 Solide, ≥ 60 À renforcer, else Insuffisante. Stored on `Score` at recalculation. |
 | **9-Box** | `NeufBoxService` | Each axis: ≥ 85 high, ≥ 70 medium, else low, with separate thresholds per axis. The pair (performance level, potential level) selects one of the 9 `Matrice9Box` rows. |
 | **Potential category** | `NeufBoxService.categoriePotentiel` | The potential-axis level: Élevé / Moyen / Faible. Stored at 9-Box placement. |
@@ -660,7 +664,7 @@ Every weight and threshold lives in the quarter's `Parametre`. No number from th
 - HR changes a rule by configuration, without a developer.
 - Each quarter keeps the settings it was calculated with, so past results stay explainable.
 - Bean Validation protects consistency: weights sum to 100, thresholds strictly decreasing, the high vigilance threshold reachable with the available points.
-- New blocks are added without breaking existing data. Columns carry a database default, `ParametreInitializer` completes older rows at startup, and optional blocks may be omitted from a `PUT` (they keep their value).
+- New blocks are added without breaking existing data. Columns carry a database default, `ParametreInitializer` completes older rows at startup, and optional blocks may be omitted from a `PUT` (they keep their value). The latest are `ponderationSources` {`poidsManager`, `poidsAuto`} (sum 100, default 100 / 0) and `seuilsAutoEvaluation` {`seuilEcartImportant`} (0–100, default 15: the self / manager gap from which the manager view flags a member; it changes no score); saving them recalculates the quarter like any other setting. It is unrelated to the removed `poidsSources` block, which is still accepted and ignored.
 
 ### Changing the settings
 
@@ -713,6 +717,14 @@ The service constructor takes an `ObjectProvider` and logs a warning when the fa
 
 Ima's `ui.service` classes carry the rule "REGLE : aucun calcul ici" (no calculation here). They call the engine or the repositories, then build plain display objects (`ui.model`). Business rules therefore exist in one place only, the engine, which is tested against the workbook; the screens cannot drift from the API.
 
+### Loading: LAZY associations, no open session in views
+
+`spring.jpa.open-in-view=false`: no JPA session stays open while a page or a JSON response is rendered. `Collaborateur.entite`, `Score.entite` and `Entite.parent` are LAZY. Every repository query whose results are displayed loads what the display reads, with `join fetch` (the org chart has four levels: `left join fetch x.entite e left join fetch e.parent e1 left join fetch e1.parent e2 left join fetch e2.parent`). A forgotten association fails loudly with a `LazyInitializationException` instead of silently running one query per row.
+
+- `Entite.ancetre` walks up through the getters: a LAZY parent is a Hibernate proxy, whose fields are empty.
+- An entity returned by `save` on a detached object is a merged copy whose associations are proxies; read the response from the object you saved, or reload it with a fetch query (`ParametreController.modifier`, `CollaborateurController.creer`).
+- `SansSessionOuverteIntegrationTest` calls every page and every GET endpoint on a four-level org chart, and checks that the main pages (`/`, `/9box`, `/viviers`, `/comite-talent`), the main lists of the API and the recalculation read the database in the same number of queries for a small and a three-times larger population.
+
 ### Server-side rendering
 
 Screens are Thymeleaf templates rendered on the server. There's no JavaScript framework and no build step, and every screen is a normal GET page whose filters are ordinary query parameters. Thymeleaf escapes output by default, and no template uses `th:utext`. This is enough for a single-user local tool, and keeps the codebase small for a three-person team.
@@ -760,7 +772,7 @@ sequenceDiagram
     CS->>R: ParametreRepository.findByTrimestre
     TS->>R: ScoreRepository.findByTrimestreAvecCollaborateur (join fetch)
     TS-->>VC: talents (perf >= 85 and pot >= 85), best first
-    VC->>VC: ValidationComiteSource.statut(id, quarter) per talent
+    VC->>R: ValidationComiteSource.statuts(talents, quarter), one query
     VC-->>VS: List<DecisionComite>
     VS->>VS: count per status, KPI = count of OUI, filter rows
     VS-->>PC: ComiteTalentView
@@ -778,9 +790,9 @@ Class by class:
    - calls the engine.
 4. **`ValidationComiteService.getDecisionsComite`** asks **`TalentService.detecterTalents`** for the proposed talents:
    - that loads the settings through **`CalculService.chargerParametre`** (404 if the quarter has none);
-   - loads the quarter's scores in one query (`join fetch` employee and quarter);
+   - loads the quarter's scores in one query (`join fetch` employee, quarter, and the frozen entité with its parents, which gives the direction shown in the table);
    - keeps active employees with complete scores that pass both thresholds, sorted by performance.
-5. For each talent, **`ValidationComiteSource`** gives the committee decision. Without an implementation, everything is "En attente".
+5. **`ValidationComiteSource.statuts`** gives the committee decision of every talent in one query. Without an implementation, everything is "En attente".
 6. The view service counts decisions per status, builds the KPI card (count of "Oui", on the whole quarter), keeps only the rows matching the filter, and maps each `Score` to a `ComiteTalentRow` (badge class `bg-success`, `bg-warning text-dark` or `bg-danger`).
 7. **`comite-talent.html`** renders the sidebar fragment, the filter form (a GET form), the KPI card and the table.
 
@@ -806,10 +818,11 @@ sequenceDiagram
     SC->>SS: recalculerTrimestre(T3 2026)
     SS->>CS: chargerParametre
     SS->>R: Performance + Potentiel findByTrimestreAvecCollaborateur
+    SS->>R: ScoreRepository.findByTrimestreAvecCollaborateur (existing scores, one query)
     loop each employee with performance marks
         SS->>SS: skip if not ACTIF or no potential marks (reason recorded)
         SS->>CS: calculerScorePerformance, categoriePerformance, calculerScorePotentiel
-        SS->>R: ScoreRepository find + save (one row per employee and quarter)
+        SS->>R: ScoreRepository.save (insert, or update of the preloaded row)
     end
     SS-->>SC: ResultatRecalcul (saved scores + ignored with reason)
     SC-->>C: 200 RecalculResponse JSON
@@ -819,8 +832,9 @@ sequenceDiagram
 1. **`ProtectionRequetesFilter`** rejects the request with **403** if `Host` is not local, or if the `X-Talent360` header is missing (`en_tete_manquant`). The controller is never reached.
 2. **`ScoreController.recalculer`** resolves the quarter through **`ChargeurRessources.exigerTrimestre`**, which throws a 404 if it doesn't exist.
 3. **`ScoreService.recalculerTrimestre`** runs in one transaction:
-   - loads the settings once, then all performance and potential marks of the quarter in two queries;
-   - for each employee, calls the pure functions of **`CalculService`** and creates or updates the single `Score` row, keeping its 9-Box box.
+   - loads the settings once, then all performance and potential marks of the quarter in two queries, and the quarter's existing scores in a third (a map by matricule);
+   - for each employee, calls the pure functions of **`CalculService`** and creates or updates the single `Score` row, keeping its 9-Box box. Entité and manager are frozen on the score by reference (`figerOrganisation`), without loading them;
+   - reads the database in a fixed number of queries whatever the population (5 on the dataset), plus one INSERT per new score; a second run with nothing changed writes nothing.
    - Employees not ACTIF, or missing one set of marks, are reported with the reason instead of failing the whole run.
 4. The controller returns `RecalculResponse`: `nombreCalcules`, `nombreIgnores`, the scores and the ignored employees with their reason.
 5. Any exception is turned into the `ErreurApi` JSON by **`ApiExceptionHandler`**, and the transaction is rolled back.
@@ -922,7 +936,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**662 test executions in 61 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
+**708 test executions in 65 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
 
 | Folder | What it covers |
 |---|---|
@@ -931,7 +945,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 | `config` | Initializers, the protection filter and `SecurityConfigTest` (anonymous → `/login` or 401, RH everywhere, login, CSRF, first RH account), including JPA tests on H2 that reproduce old database shapes |
 | `entity` | Bean Validation of the settings and marks |
 | `ui` | The Comité screen: view service and real template rendering |
-| `dataset` | The Excel comparison, skipped when the workbook is absent |
+| `dataset` | The Excel comparison and query counts on the real workbook, skipped when the workbook is absent |
 
 **Troubleshooting.** If you see "Port 8080 was already in use", an earlier instance is still running: stopping `mvnw` doesn't always stop the Java process it started. Find the leftover `java.exe` and stop it.
 
@@ -972,12 +986,15 @@ git push -u origin feature/my-change
 - REST API for all modules; Comité screen; security fixes.
 - RH-only login (Spring Security, BCrypt, first RH account from environment variables), dedicated MySQL account, `CollaborateurResponse` instead of the entity.
 - Quarter reference date (`Trimestre.dateReference`): seniority no longer depends on today's date (audit C4).
+- Vigilance list covers every active employee with a vigilance input, scored or not (audit C8). No N+1 in the recalculation or the main pages, LAZY entités, `open-in-view=false` (audit 3.3, 3.4).
+- Self-evaluation and manager evaluation stored side by side (`source` on `Performance` / `Potentiel`), official score blended by `PonderationSources` (default manager only), fiche `autoEvaluation` and manager view `autoVsManager` (audit R1d).
 
 ### Left, by owner
 
 **Dou — data and import**
 
 - Import `11_DEVELOPMENT_PLAN`.
+- Import the self-evaluation files with `source = AUTO` (the workbook import writes `MANAGER`). Read and write through the repository methods that take a `SourceEvaluation`; the uniqueness is (employee, quarter, source).
 - Secure `CollaborateurController` / `CompetenceController`: DTOs and validation, and no deletion in the demo build.
 - Uniqueness on `CompetenceCollaborateur` (employee, skill) and `QuestionnaireEngagement` (employee, quarter).
 
@@ -988,15 +1005,18 @@ git push -u origin feature/my-change
 - Serve Bootstrap and its icons locally, so the app works offline.
 - `/viviers` shows only saved pools; the thematic pools are available from the API.
 - Page tests for `/`, `/9box`, `/viviers`.
-- `VivierService` runs one query per pool member; load them in one query.
 
 **Jas — engine and platform**
 
 - Schema migrations (Flyway) instead of `ddl-auto=update`.
 - Plan the move to Spring Boot 4.x: 3.5 no longer receives free security fixes after June 2026.
 - Make CI a required check on `develop`, and set `develop` as the default branch.
+- `GET /api/viviers-thematiques` still runs one query per score (`ViviersThematiquesEnBase.vivierPourDirection`); add a batch method to the source.
 
 ### Known limitations
+
+- The official score is the manager's (`PonderationSources` 100 / 0) until the client answers audit question 2.
+- Vigilance and the "evaluation missing" alerts look at the manager's evaluation only; a self-evaluation alone does not count as an evaluation.
 
 - Skills are not tied to a quarter; the quarter only selects the gap threshold.
 - The engine compares rounded scores with thresholds, while the workbook compares unrounded ones. No employee in the dataset is affected.

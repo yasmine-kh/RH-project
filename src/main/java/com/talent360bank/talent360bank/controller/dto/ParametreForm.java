@@ -7,6 +7,8 @@ import com.talent360bank.talent360bank.entity.PoidsPerformance;
 import com.talent360bank.talent360bank.entity.PoidsPotentiel;
 import com.talent360bank.talent360bank.entity.PoidsSuccession;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
+import com.talent360bank.talent360bank.entity.PonderationSources;
+import com.talent360bank.talent360bank.entity.SeuilsAutoEvaluation;
 import com.talent360bank.talent360bank.entity.SeuilsCategoriePerformance;
 import com.talent360bank.talent360bank.entity.SeuilsCouverture;
 import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
@@ -28,19 +30,24 @@ import jakarta.validation.constraints.Size;
  *
  * <p>Les blocs ajoutes apres les autres sont facultatifs, pour ne pas casser
  * un client qui ne les connait pas encore : {@code seuilsCouverture},
- * {@code seuilsNeufBoxPotentiel}, {@code seuilsCategoriePerformance} et
- * {@code seuilsGapCompetence}. Absents, la valeur en place est conservee. En
+ * {@code seuilsNeufBoxPotentiel}, {@code seuilsCategoriePerformance},
+ * {@code seuilsGapCompetence}, {@code ponderationSources} et
+ * {@code seuilsAutoEvaluation}. Absents, la valeur en place est conservee. En
  * particulier, un client qui n'envoie que {@code seuilsNeufBox} ne change que
  * l'axe performance de la 9-box : l'axe potentiel garde ses seuils.
  *
  * <p>{@code poidsSources} a ete retire (aucune formule du classeur ne l'utilise) :
- * un client qui l'envoie encore voit le bloc accepte et ignore.
+ * un client qui l'envoie encore voit le bloc accepte et ignore. Ne pas le
+ * confondre avec {@code ponderationSources} (manager / auto-evaluation), qui
+ * compte dans les scores officiels.
  */
 @JsonIgnoreProperties({"poidsSources"})
 public record ParametreForm(@Size(max = 100) String libelle,
                             @Valid @NotNull PoidsPerformance poidsPerformance,
                             @Valid @NotNull PoidsPotentiel poidsPotentiel,
                             @Valid @NotNull PoidsSuccession poidsSuccession,
+                            @Valid PonderationSources ponderationSources,
+                            @Valid SeuilsAutoEvaluation seuilsAutoEvaluation,
                             @Valid @NotNull BaremeExperience baremeExperience,
                             @Valid @NotNull BaremeCompetences baremeCompetences,
                             @Valid @NotNull SeuilsNeufBox seuilsNeufBox,
@@ -59,6 +66,12 @@ public record ParametreForm(@Size(max = 100) String libelle,
         parametre.setPoidsPerformance(poidsPerformance);
         parametre.setPoidsPotentiel(poidsPotentiel);
         parametre.setPoidsSuccession(poidsSuccession);
+        if (ponderationSources != null) {
+            parametre.setPonderationSources(ponderationSources);
+        }
+        if (seuilsAutoEvaluation != null) {
+            parametre.setSeuilsAutoEvaluation(seuilsAutoEvaluation);
+        }
         parametre.setBaremeExperience(baremeExperience);
         parametre.setBaremeCompetences(baremeCompetences);
         parametre.setSeuilsNeufBox(seuilsNeufBox);

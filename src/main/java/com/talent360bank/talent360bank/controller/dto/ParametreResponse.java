@@ -7,6 +7,8 @@ import com.talent360bank.talent360bank.entity.PoidsPerformance;
 import com.talent360bank.talent360bank.entity.PoidsPotentiel;
 import com.talent360bank.talent360bank.entity.PoidsSuccession;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
+import com.talent360bank.talent360bank.entity.PonderationSources;
+import com.talent360bank.talent360bank.entity.SeuilsAutoEvaluation;
 import com.talent360bank.talent360bank.entity.SeuilsCategoriePerformance;
 import com.talent360bank.talent360bank.entity.SeuilsCouverture;
 import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
@@ -23,6 +25,8 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                                 PoidsPerformance poidsPerformance,
                                 PoidsPotentiel poidsPotentiel,
                                 PoidsSuccession poidsSuccession,
+                                PonderationSources ponderationSources,
+                                SeuilsAutoEvaluation seuilsAutoEvaluation,
                                 BaremeExperience baremeExperience,
                                 BaremeCompetences baremeCompetences,
                                 SeuilsNeufBox seuilsNeufBox,
@@ -44,6 +48,8 @@ public record ParametreResponse(Integer idParametre, Integer annee, Integer nume
                 parametre.getPoidsPerformance(),
                 parametre.getPoidsPotentiel(),
                 parametre.getPoidsSuccession(),
+                parametre.getPonderationSources(),
+                parametre.getSeuilsAutoEvaluation(),
                 parametre.getBaremeExperience(),
                 parametre.getBaremeCompetences(),
                 parametre.getSeuilsNeufBox(),

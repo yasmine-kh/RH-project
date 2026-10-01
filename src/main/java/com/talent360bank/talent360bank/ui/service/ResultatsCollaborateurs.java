@@ -4,8 +4,11 @@ import com.talent360bank.talent360bank.entity.CategoriePerformance;
 import com.talent360bank.talent360bank.entity.CategoriePotentiel;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
+import com.talent360bank.talent360bank.entity.Performance;
+import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
@@ -13,12 +16,15 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.CalculService;
+import com.talent360bank.talent360bank.service.EntreesVigilance;
 import com.talent360bank.talent360bank.service.NeufBoxService;
 import com.talent360bank.talent360bank.service.TalentService;
 import com.talent360bank.talent360bank.service.VigilanceService;
 import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
 import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.CaseNeufBox;
+import com.talent360bank.talent360bank.ui.model.VueManager.AutoVsManager;
+import com.talent360bank.talent360bank.ui.model.VueManager.EcartAutoManager;
 import com.talent360bank.talent360bank.ui.model.VueManager.Compte;
 import com.talent360bank.talent360bank.ui.model.VueManager.CompteCase;
 import com.talent360bank.talent360bank.ui.model.VueManager.Membre;
@@ -50,7 +56,10 @@ import java.util.stream.Collectors;
  * moyenner) sont faites ici.
  *
  * <p><strong>Requetes.</strong> Un nombre fixe quel que soit le groupe : chaque
- * donnee est lue en une requete (IN sur les matricules).
+ * donnee est lue en une requete (IN sur les matricules). Les notes de
+ * performance et de potentiel sont lues avec leurs deux sources : l'evaluation
+ * du manager dit qui est evalue, l'auto-evaluation sert a la comparaison
+ * auto / manager.
  */
 @Component
 public class ResultatsCollaborateurs {
@@ -90,10 +99,13 @@ public class ResultatsCollaborateurs {
     /**
      * Resultats du groupe, une ligne par collaborateur dans l'ordre donne.
      *
-     * @param avecPerformance matricules du groupe evalues en performance sur le trimestre
-     * @param avecPotentiel   matricules du groupe evalues en potentiel sur le trimestre
+     * @param avecPerformance matricules du groupe evalues en performance par leur manager sur le trimestre
+     * @param avecPotentiel   matricules du groupe evalues en potentiel par leur manager sur le trimestre
+     * @param ecartsAutoManager membres qui ont une auto-evaluation, avec le score de chaque source ;
+     *                          vide sans auto-evaluation ou sans reglages
      */
-    public record Groupe(List<Membre> membres, Set<String> avecPerformance, Set<String> avecPotentiel) {
+    public record Groupe(List<Membre> membres, Set<String> avecPerformance, Set<String> avecPotentiel,
+                         List<EcartAutoManager> ecartsAutoManager) {
 
         public boolean evaluePerformance(String matricule) {
             return avecPerformance.contains(matricule);
@@ -113,7 +125,7 @@ public class ResultatsCollaborateurs {
     public Groupe charger(List<Collaborateur> collaborateurs, Trimestre trimestre, Parametre parametre,
                           CasesNeufBox cases, Set<String> manquantes) {
         if (collaborateurs.isEmpty()) {
-            return new Groupe(List.of(), Set.of(), Set.of());
+            return new Groupe(List.of(), Set.of(), Set.of(), List.of());
         }
         List<String> ids = collaborateurs.stream().map(Collaborateur::getIdCollaborateur).toList();
 
@@ -122,8 +134,21 @@ public class ResultatsCollaborateurs {
         Map<String, QuestionnaireEngagement> engagements = new HashMap<>();
         questionnaireRepository.findByTrimestreEtCollaborateurs(trimestre, ids)
                 .forEach(q -> engagements.put(q.getCollaborateur().getIdCollaborateur(), q));
-        Set<String> avecPerformance = new HashSet<>(performanceRepository.findMatriculesEvalues(trimestre, ids));
-        Set<String> avecPotentiel = new HashSet<>(potentielRepository.findMatriculesEvalues(trimestre, ids));
+        // Notes des deux sources, une requete par axe.
+        Map<String, Performance> performancesManager = new HashMap<>();
+        Map<String, Performance> performancesAuto = new HashMap<>();
+        for (Performance performance : performanceRepository.findByTrimestreEtCollaborateurs(trimestre, ids)) {
+            (performance.getSource() == SourceEvaluation.AUTO ? performancesAuto : performancesManager)
+                    .put(performance.getCollaborateur().getIdCollaborateur(), performance);
+        }
+        Map<String, Potentiel> potentielsManager = new HashMap<>();
+        Map<String, Potentiel> potentielsAuto = new HashMap<>();
+        for (Potentiel potentiel : potentielRepository.findByTrimestreEtCollaborateurs(trimestre, ids)) {
+            (potentiel.getSource() == SourceEvaluation.AUTO ? potentielsAuto : potentielsManager)
+                    .put(potentiel.getCollaborateur().getIdCollaborateur(), potentiel);
+        }
+        Set<String> avecPerformance = new HashSet<>(performancesManager.keySet());
+        Set<String> avecPotentiel = new HashSet<>(potentielsManager.keySet());
         Map<String, ResultatVigilance> vigilances = vigilances(collaborateurs, trimestre, parametre, scores,
                 engagements, avecPerformance, avecPotentiel, manquantes);
 
@@ -133,7 +158,83 @@ public class ResultatsCollaborateurs {
             membres.add(membre(collaborateur, scores.get(id), parametre, cases, engagements.get(id),
                     vigilances.get(id), avecPerformance.contains(id), avecPotentiel.contains(id), manquantes));
         }
-        return new Groupe(List.copyOf(membres), Set.copyOf(avecPerformance), Set.copyOf(avecPotentiel));
+        List<EcartAutoManager> ecarts = ecartsAutoManager(collaborateurs, parametre, performancesManager,
+                performancesAuto, potentielsManager, potentielsAuto, manquantes);
+        return new Groupe(List.copyOf(membres), Set.copyOf(avecPerformance), Set.copyOf(avecPotentiel), ecarts);
+    }
+
+    /**
+     * Auto-evaluation et evaluation du manager des membres qui ont une
+     * auto-evaluation, dans l'ordre du groupe. Le score de chaque source vient
+     * de la formule du moteur (CalculService) ; ici, seulement les ecarts.
+     */
+    private List<EcartAutoManager> ecartsAutoManager(List<Collaborateur> collaborateurs, Parametre parametre,
+                                                     Map<String, Performance> performancesManager,
+                                                     Map<String, Performance> performancesAuto,
+                                                     Map<String, Potentiel> potentielsManager,
+                                                     Map<String, Potentiel> potentielsAuto,
+                                                     Set<String> manquantes) {
+        if (parametre == null || (performancesAuto.isEmpty() && potentielsAuto.isEmpty())) {
+            return List.of();
+        }
+        List<EcartAutoManager> ecarts = new ArrayList<>();
+        try {
+            for (Collaborateur collaborateur : collaborateurs) {
+                String id = collaborateur.getIdCollaborateur();
+                if (!performancesAuto.containsKey(id) && !potentielsAuto.containsKey(id)) {
+                    continue;
+                }
+                BigDecimal performanceAuto = scorePerformance(performancesAuto.get(id), parametre);
+                BigDecimal performanceManager = scorePerformance(performancesManager.get(id), parametre);
+                BigDecimal potentielAuto = scorePotentiel(potentielsAuto.get(id), parametre);
+                BigDecimal potentielManager = scorePotentiel(potentielsManager.get(id), parametre);
+                ecarts.add(new EcartAutoManager(id, collaborateur.getNom(), collaborateur.getPrenom(),
+                        performanceAuto, performanceManager, ecart(performanceAuto, performanceManager),
+                        potentielAuto, potentielManager, ecart(potentielAuto, potentielManager)));
+            }
+        } catch (DonneesIncompletesException e) {
+            manquantes.add("Auto-évaluation / manager : " + e.getMessage());
+            return List.of();
+        }
+        return List.copyOf(ecarts);
+    }
+
+    private BigDecimal scorePerformance(Performance evaluation, Parametre parametre) {
+        return evaluation == null ? null : calculService.calculerScorePerformance(evaluation, parametre);
+    }
+
+    private BigDecimal scorePotentiel(Potentiel evaluation, Parametre parametre) {
+        return evaluation == null ? null : calculService.calculerScorePotentiel(evaluation, parametre);
+    }
+
+    /** auto - manager (positif : l'auto-evaluation est plus haute) ; null si l'un manque. */
+    static BigDecimal ecart(BigDecimal auto, BigDecimal manager) {
+        return auto == null || manager == null ? null : auto.subtract(manager);
+    }
+
+    /**
+     * Synthese auto / manager d'un groupe : ecarts moyens (sur les membres qui
+     * ont les deux evaluations, 2 decimales) et membres dont un ecart atteint,
+     * en valeur absolue, le seuil des reglages du trimestre
+     * ({@link com.talent360bank.talent360bank.entity.SeuilsAutoEvaluation}).
+     * null si aucun membre n'a d'auto-evaluation ou sans reglages.
+     */
+    public static AutoVsManager autoVsManager(List<EcartAutoManager> ecarts, Parametre parametre) {
+        if (ecarts.isEmpty() || parametre == null || parametre.getSeuilsAutoEvaluation() == null) {
+            return null;
+        }
+        BigDecimal seuil = parametre.getSeuilsAutoEvaluation().getSeuilEcartImportant();
+        List<EcartAutoManager> importants = ecarts.stream()
+                .filter(e -> important(e.ecartPerformance(), seuil) || important(e.ecartPotentiel(), seuil))
+                .toList();
+        return new AutoVsManager(ecarts,
+                moyenneDe(ecarts.stream().map(EcartAutoManager::ecartPerformance).toList()),
+                moyenneDe(ecarts.stream().map(EcartAutoManager::ecartPotentiel).toList()),
+                seuil, importants);
+    }
+
+    private static boolean important(BigDecimal ecart, BigDecimal seuil) {
+        return ecart != null && seuil != null && ecart.abs().compareTo(seuil) >= 0;
     }
 
     /**
@@ -150,7 +251,7 @@ public class ResultatsCollaborateurs {
         }
         Set<String> sansDonnee = entreesVigilance.sansDonnee(
                 collaborateurs.stream().map(Collaborateur::getIdCollaborateur).toList(), trimestre,
-                id -> engagements.containsKey(id) && engagements.get(id).getScoreEngagement() != null,
+                EntreesVigilance.questionnaireRempli(engagements),
                 id -> avecPerformance.contains(id) || avecPotentiel.contains(id));
         if (!sansDonnee.isEmpty()) {
             manquantes.add(EntreesVigilance.AUCUNE_DONNEE + " : " + collaborateurs.stream()
@@ -291,7 +392,12 @@ public class ResultatsCollaborateurs {
 
     /** Moyenne des valeurs connues, arrondie a 2 decimales ; null si aucune. */
     static BigDecimal moyenne(List<Membre> membres, Function<Membre, BigDecimal> valeur) {
-        List<BigDecimal> valeurs = membres.stream().map(valeur).filter(Objects::nonNull).toList();
+        return moyenneDe(membres.stream().map(valeur).toList());
+    }
+
+    /** Moyenne des valeurs non nulles, arrondie a 2 decimales ; null si aucune. */
+    private static BigDecimal moyenneDe(List<BigDecimal> toutes) {
+        List<BigDecimal> valeurs = toutes.stream().filter(Objects::nonNull).toList();
         if (valeurs.isEmpty()) {
             return null;
         }

@@ -8,7 +8,10 @@ import com.talent360bank.talent360bank.entity.Entite;
 import com.talent360bank.talent360bank.entity.Manager;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
+import com.talent360bank.talent360bank.entity.PonderationSources;
 import com.talent360bank.talent360bank.entity.Potentiel;
+import com.talent360bank.talent360bank.entity.Score;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.entity.TypeEntite;
@@ -22,7 +25,9 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.CalculTrimestreService;
+import com.talent360bank.talent360bank.ui.model.FicheCollaborateur;
 import com.talent360bank.talent360bank.ui.model.NineBoxCell;
+import com.talent360bank.talent360bank.ui.model.VueManager;
 import com.talent360bank.talent360bank.ui.service.FicheCollaborateurViewService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
 import com.talent360bank.talent360bank.ui.service.VueManagerViewService;
@@ -69,7 +74,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Equipe : MGR01 (manager, 60/60) et C01 (80/80). Aux seuils par defaut de
  * la matrice (eleve 85, moyen 70), C01 est Confirme (case 5) ; seuils eleves
- * baisses a 75, il devient Talent cle (case 9).
+ * baisses a 75, il devient Talent cle (case 9). Avec une auto-evaluation a 100
+ * et un melange 70 / 30, son score officiel passe a 86 : case 9 aussi.
  */
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:reglages-recalcul;DB_CLOSE_DELAY=-1;MODE=MySQL")
 @AutoConfigureMockMvc
@@ -232,6 +238,87 @@ class ReglagesRecalculIntegrationTest {
         assertThat(parametreRepository.findByTrimestre(trimestre).orElseThrow().getLibelle()).isEqualTo("Premier clic");
     }
 
+    // ------------------------------------------------------------ auto-evaluation
+
+    /**
+     * C01 : manager 80 partout, auto-evaluation 100 partout. A 100 / 0, le
+     * score officiel reste 80 (case 5) et les vues montrent l'ecart de 20 ; a
+     * 70 / 30, le recalcul automatique donne 80 x 0,7 + 100 x 0,3 = 86 (case 9),
+     * partout a la fois.
+     */
+    @Test
+    void la_ponderation_des_sources_change_le_score_officiel_et_les_vues_comparent_auto_et_manager()
+            throws Exception {
+        Collaborateur c01 = collaborateurRepository.findById("C01").orElseThrow();
+        BigDecimal cent = new BigDecimal("100");
+        Performance performanceAuto = new Performance(c01, trimestre, cent, cent, cent, cent, cent);
+        performanceAuto.setSource(SourceEvaluation.AUTO);
+        performanceAuto = performanceRepository.save(performanceAuto);
+        Potentiel potentielAuto = new Potentiel(c01, trimestre, cent, cent, cent, cent, cent, cent, cent);
+        potentielAuto.setSource(SourceEvaluation.AUTO);
+        potentielAuto = potentielRepository.save(potentielAuto);
+        try {
+            modifier(p -> {
+                Parametre defauts = Parametre.parDefaut(trimestre);
+                p.setSeuilsNeufBox(defauts.getSeuilsNeufBox());
+                p.setSeuilsNeufBoxPotentiel(defauts.getSeuilsNeufBoxPotentiel());
+                p.setPonderationSources(defauts.getPonderationSources());
+            }).andExpect(status().isOk());
+            assertThat(scoreRepository.findByCollaborateurIdCollaborateurAndTrimestre("C01", trimestre)
+                    .orElseThrow().getScorePerformance()).isEqualByComparingTo("80");
+            verifierCasePartout(5, "Confirmé");
+
+            FicheCollaborateur.EvaluationAuto auto = ficheService.construire("C01", 2026, 1)
+                    .autoEvaluation().performance();
+            assertThat(auto.score()).isEqualByComparingTo("100");
+            assertThat(auto.categorie()).isEqualTo("EXCEPTIONNELLE");
+            assertThat(auto.scoreManager()).isEqualByComparingTo("80");
+            assertThat(auto.ecart()).isEqualByComparingTo("20");
+            assertThat(auto.criteres()).hasSize(5).allSatisfy(critere -> {
+                assertThat(critere.note()).isEqualByComparingTo("100");
+                assertThat(critere.noteManager()).isEqualByComparingTo("80");
+                assertThat(critere.ecart()).isEqualByComparingTo("20");
+            });
+
+            VueManager.AutoVsManager equipe = vueManagerService.construire("MGR01", 2026, 1).autoVsManager();
+            assertThat(equipe.membres()).singleElement().satisfies(membre -> {
+                assertThat(membre.matricule()).isEqualTo("C01");
+                assertThat(membre.performanceAuto()).isEqualByComparingTo("100");
+                assertThat(membre.performanceManager()).isEqualByComparingTo("80");
+                assertThat(membre.ecartPotentiel()).isEqualByComparingTo("20");
+            });
+            assertThat(equipe.ecartMoyenPerformance()).isEqualByComparingTo("20");
+            assertThat(equipe.seuilEcartImportant()).isEqualByComparingTo("15");
+            assertThat(equipe.ecartsImportants()).extracting(VueManager.EcartAutoManager::matricule)
+                    .containsExactly("C01");
+
+            // Seuil des reglages releve a 25 : l'ecart de 20 n'est plus signale.
+            modifier(p -> p.getSeuilsAutoEvaluation().setSeuilEcartImportant(new BigDecimal("25")))
+                    .andExpect(status().isOk());
+            equipe = vueManagerService.construire("MGR01", 2026, 1).autoVsManager();
+            assertThat(equipe.seuilEcartImportant()).isEqualByComparingTo("25");
+            assertThat(equipe.ecartsImportants()).isEmpty();
+
+            modifier(p -> p.setPonderationSources(new PonderationSources(new BigDecimal("70"), new BigDecimal("30"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.ponderationSources.poidsAuto").value(30))
+                    .andExpect(jsonPath("$.recalcul.recalcule").value(true));
+
+            Score score = scoreRepository.findByCollaborateurIdCollaborateurAndTrimestre("C01", trimestre)
+                    .orElseThrow();
+            assertThat(score.getScorePerformance()).isEqualByComparingTo("86");
+            assertThat(score.getScorePotentiel()).isEqualByComparingTo("86");
+            verifierCasePartout(9, "Talent clé");
+        } finally {
+            performanceRepository.delete(performanceAuto);
+            potentielRepository.delete(potentielAuto);
+            modifier(p -> {
+                p.setPonderationSources(Parametre.parDefaut(trimestre).getPonderationSources());
+                p.setSeuilsAutoEvaluation(Parametre.parDefaut(trimestre).getSeuilsAutoEvaluation());
+            }).andExpect(status().isOk());
+        }
+    }
+
     // ------------------------------------------------------------ outils
 
     /** La case de C01 est la meme sur la page 9-box, dans la fiche et dans la vue manager. */
@@ -260,8 +347,9 @@ class ReglagesRecalculIntegrationTest {
         Parametre p = parametreRepository.findByTrimestre(trimestre).orElseThrow();
         modification.accept(p);
         ParametreForm form = new ParametreForm(p.getLibelle(),
-                p.getPoidsPerformance(), p.getPoidsPotentiel(), p.getPoidsSuccession(), p.getBaremeExperience(),
-                p.getBaremeCompetences(), p.getSeuilsNeufBox(), p.getSeuilsNeufBoxPotentiel(),
+                p.getPoidsPerformance(), p.getPoidsPotentiel(), p.getPoidsSuccession(), p.getPonderationSources(),
+                p.getSeuilsAutoEvaluation(), p.getBaremeExperience(), p.getBaremeCompetences(), p.getSeuilsNeufBox(),
+                p.getSeuilsNeufBoxPotentiel(),
                 p.getSeuilsCategoriePerformance(), p.getSeuilsGapCompetence(), p.getSeuilsReadiness(),
                 p.getSeuilsCouverture(), p.getSeuilsTalent(), p.getPointsVigilance(), p.getSeuilsVigilance());
         return mockMvc.perform(ecriture(put(URL))

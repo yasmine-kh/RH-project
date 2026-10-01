@@ -8,6 +8,7 @@ import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.talent360bank.talent360bank.entity.SourceEvaluation.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,6 +57,8 @@ class VigilanceServiceTest {
     private PerformanceRepository performanceRepository;
     @Mock
     private PotentielRepository potentielRepository;
+    @Mock
+    private CollaborateurRepository collaborateurRepository;
 
     private VigilanceService vigilanceService;
     private FaitsVigilanceEnMemoire faits;
@@ -69,7 +73,8 @@ class VigilanceServiceTest {
                 parametreRepository, performanceRepository, potentielRepository);
         faits = new FaitsVigilanceEnMemoire();
         vigilanceService = new VigilanceService(scoreRepository, questionnaireRepository,
-                trimestreRepository, calculService, faits);
+                trimestreRepository, collaborateurRepository, performanceRepository, potentielRepository,
+                calculService, faits);
 
         trimestre = trimestre(2, 2026);
         trimestrePrecedent = trimestre(1, 2026);
@@ -441,7 +446,8 @@ class VigilanceServiceTest {
     @Test
     void sans_source_declaree_les_faits_importes_ne_levent_rien() {
         VigilanceService sansSource = new VigilanceService(scoreRepository, questionnaireRepository,
-                trimestreRepository, new CalculService(parametreRepository, performanceRepository, potentielRepository),
+                trimestreRepository, collaborateurRepository, performanceRepository, potentielRepository,
+                new CalculService(parametreRepository, performanceRepository, potentielRepository),
                 new DefaultListableBeanFactory().getBeanProvider(FaitsVigilanceSource.class));
         Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
@@ -453,7 +459,8 @@ class VigilanceServiceTest {
     @Test
     void une_source_qui_rend_null_vaut_aucun_fait() {
         VigilanceService sourceMuette = new VigilanceService(scoreRepository, questionnaireRepository,
-                trimestreRepository, new CalculService(parametreRepository, performanceRepository, potentielRepository),
+                trimestreRepository, collaborateurRepository, performanceRepository, potentielRepository,
+                new CalculService(parametreRepository, performanceRepository, potentielRepository),
                 trimestreDemande -> null);
         Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
@@ -585,6 +592,7 @@ class VigilanceServiceTest {
                         score(serein, trimestrePrecedent, "60.00")));
         when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(
                 List.of(score(serein, trimestre, "70.00"), score(aRisque, trimestre, "50.00")));
+        population(List.of(score(serein, trimestre, "70.00"), score(aRisque, trimestre, "50.00")));
         when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .thenReturn(List.of(engagement(aRisque, "20.00")));
 
@@ -596,6 +604,7 @@ class VigilanceServiceTest {
         assertThat(lot.get(1).indice()).isEqualByComparingTo("0.00");
     }
 
+    /** Les scores d'inactifs ou d'archives ne font pas entrer leur titulaire dans la liste. */
     @Test
     void le_lot_ecarte_les_collaborateurs_hors_perimetre() {
         Collaborateur actif = collaborateur("E001", StatutCollaborateur.ACTIF);
@@ -604,6 +613,83 @@ class VigilanceServiceTest {
 
         preparerLotSansPrecedent(List.of(score(actif, trimestre, "70.00"),
                 score(inactif, trimestre, "70.00"), score(archive, trimestre, "70.00")));
+
+        assertThat(vigilanceService.evaluerTrimestre(trimestre))
+                .extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
+                .containsExactly("E001");
+    }
+
+    @Test
+    void un_actif_avec_un_questionnaire_mais_sans_score_est_dans_le_lot() {
+        Collaborateur score = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur sansScore = collaborateur("E002", StatutCollaborateur.ACTIF);
+
+        when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
+        when(trimestreRepository.findPrecedents(eq(2026), eq(2), any())).thenReturn(List.of());
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre))
+                .thenReturn(List.of(score(score, trimestre, "70.00")));
+        when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre))
+                .thenReturn(List.of(engagement(sansScore, "20.00")));
+        when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF))
+                .thenReturn(List.of(score, sansScore));
+        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre, MANAGER)).thenReturn(List.of("E001"));
+
+        List<ResultatVigilance> lot = vigilanceService.evaluerTrimestre(trimestre);
+
+        assertThat(lot).extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
+                .containsExactly("E002", "E001");
+        assertThat(lot.get(0).signaux()).containsExactly(SignalVigilance.ENGAGEMENT_FAIBLE);
+        assertThat(lot.get(0).indice()).isEqualByComparingTo("25.00");
+    }
+
+    @Test
+    void des_faits_declares_suffisent_sans_score_ni_questionnaire() {
+        Collaborateur declare = collaborateur("E001", StatutCollaborateur.ACTIF);
+        faits.declarer("E001", FaitsVigilance.builder().sansMobilite4Ans(true).baissePerformance(true).build());
+
+        preparerTrimestreSansPrecedent(List.of(), List.of());
+        when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF)).thenReturn(List.of(declare));
+
+        List<ResultatVigilance> lot = vigilanceService.evaluerTrimestre(trimestre);
+
+        // Sans score precedent ni courant, la baisse vient du drapeau importe.
+        assertThat(lot).singleElement().satisfies(resultat -> {
+            assertThat(resultat.signaux()).containsExactlyInAnyOrder(
+                    SignalVigilance.SANS_MOBILITE_4_ANS, SignalVigilance.BAISSE_PERFORMANCE);
+            assertThat(resultat.indice()).isEqualByComparingTo("30.00");
+        });
+    }
+
+    @Test
+    void un_actif_note_en_potentiel_seulement_est_dans_le_lot() {
+        Collaborateur potentielSeul = collaborateur("E001", StatutCollaborateur.ACTIF);
+
+        preparerTrimestreSansPrecedent(List.of(), List.of());
+        when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF))
+                .thenReturn(List.of(potentielSeul));
+        when(potentielRepository.findMatriculesEvaluesDuTrimestre(trimestre, MANAGER)).thenReturn(List.of("E001"));
+
+        assertThat(vigilanceService.evaluerTrimestre(trimestre))
+                .extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
+                .containsExactly("E001");
+    }
+
+    /**
+     * Ni questionnaire (ou un questionnaire sans score), ni faits, ni notes :
+     * pas d'indice, comme dans les vues (EntreesVigilance), plutot qu'un 0 qui
+     * ne dit rien du risque.
+     */
+    @Test
+    void un_actif_sans_aucune_donnee_n_est_pas_dans_le_lot() {
+        Collaborateur note = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur muet = collaborateur("E002", StatutCollaborateur.ACTIF);
+        Collaborateur questionnaireVide = collaborateur("E003", StatutCollaborateur.ACTIF);
+
+        preparerTrimestreSansPrecedent(List.of(score(note, trimestre, "70.00")),
+                List.of(engagement(questionnaireVide, null)));
+        when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF))
+                .thenReturn(List.of(note, muet, questionnaireVide));
+        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre, MANAGER)).thenReturn(List.of("E001"));
 
         assertThat(vigilanceService.evaluerTrimestre(trimestre))
                 .extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
@@ -643,6 +729,7 @@ class VigilanceServiceTest {
         when(trimestreRepository.findPrecedents(eq(2026), eq(2), any())).thenReturn(List.of());
         when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(
                 List.of(score(repondant, trimestre, "70.00"), score(muet, trimestre, "70.00")));
+        population(List.of(score(repondant, trimestre, "70.00"), score(muet, trimestre, "70.00")));
         when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .thenReturn(List.of(engagement(repondant, "10.00")));
 
@@ -667,6 +754,7 @@ class VigilanceServiceTest {
                 .thenReturn(List.of(score(aRisque, trimestrePrecedent, "80.00")));
         when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(
                 List.of(score(aRisque, trimestre, "70.00"), score(serein, trimestre, "70.00")));
+        population(List.of(score(aRisque, trimestre, "70.00"), score(serein, trimestre, "70.00")));
         when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .thenReturn(List.of(engagement(aRisque, "10.00")));
 
@@ -678,9 +766,26 @@ class VigilanceServiceTest {
     }
 
     private void preparerLotSansPrecedent(List<Score> scores) {
+        preparerTrimestreSansPrecedent(scores, List.of());
+        population(scores);
+    }
+
+    /** Reglages, pas de trimestre precedent, scores et questionnaires du trimestre ; population a poser. */
+    private void preparerTrimestreSansPrecedent(List<Score> scores, List<QuestionnaireEngagement> engagements) {
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(trimestreRepository.findPrecedents(eq(2026), eq(2), any())).thenReturn(List.of());
         when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(scores);
-        when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of());
+        when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(engagements);
+    }
+
+    /**
+     * Population du lot telle que la base la rendrait : les actifs parmi les
+     * collaborateurs des scores, tous notes en performance sur le trimestre.
+     */
+    private void population(List<Score> scoresDuTrimestre) {
+        when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF)).thenReturn(
+                scoresDuTrimestre.stream().map(Score::getCollaborateur).filter(Collaborateur::estCalculable).toList());
+        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre, MANAGER)).thenReturn(
+                scoresDuTrimestre.stream().map(score -> score.getCollaborateur().getIdCollaborateur()).toList());
     }
 }

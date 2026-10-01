@@ -8,6 +8,7 @@ import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.SeuilsCouverture;
 import com.talent360bank.talent360bank.entity.SeuilsReadiness;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -320,7 +321,9 @@ public class PosteCritiqueService {
             scores.put(score.getCollaborateur().getIdCollaborateur(), score);
         }
         Map<String, Potentiel> potentiels = new HashMap<>();
-        for (Potentiel potentiel : potentielRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+        // Leadership et mobilite du matching : evaluation du manager, comme SuccessionService.
+        for (Potentiel potentiel
+                : potentielRepository.findByTrimestreAvecCollaborateur(trimestre, SourceEvaluation.MANAGER)) {
             potentiels.put(potentiel.getCollaborateur().getIdCollaborateur(), potentiel);
         }
 

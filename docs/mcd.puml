@@ -64,7 +64,10 @@ entity "parametre" as parametre {
   --
   * id_trimestre : INT <<FK, UK>>
   libelle : VARCHAR
-  poids, baremes et seuils : 14 blocs embarques
+  poids, baremes et seuils : 16 blocs embarques
+  (dont pond_src_manager / pond_src_auto :
+   part du manager et de l'auto-evaluation,
+   seuil_ecart_auto : ecart auto / manager signale)
 }
 
 entity "competence" as competence {
@@ -131,10 +134,11 @@ entity "performance" as performance {
   * id_collaborateur : VARCHAR(20) <<FK>>
   * id_trimestre : INT <<FK>>
   id_manager_evaluateur : INT <<FK>>
+  * source_evaluation : ENUM (AUTO / MANAGER)
   * note_objectifs, note_competences,
     note_comportement, note_contribution,
     note_developpement : DECIMAL(5,2)
-  <<UK (id_collaborateur, id_trimestre)>>
+  <<UK (id_collaborateur, id_trimestre, source_evaluation)>>
 }
 
 entity "potentiel" as potentiel {
@@ -146,7 +150,8 @@ entity "potentiel" as potentiel {
     note_adaptabilite, note_complexite,
     note_mobilite, note_strategie,
     note_autonomie : DECIMAL(5,2)
-  <<UK (id_collaborateur, id_trimestre)>>
+  * source_evaluation : ENUM (AUTO / MANAGER)
+  <<UK (id_collaborateur, id_trimestre, source_evaluation)>>
 }
 
 entity "score" as score {
@@ -289,6 +294,13 @@ end note
 note bottom of matrice_9box
   Table de reference autonome :
   9 cases (niveau performance x niveau potentiel).
+end note
+
+note bottom of performance
+  Au plus une evaluation par source et par trimestre :
+  AUTO (le collaborateur) et MANAGER (son manager).
+  Score officiel = melange des deux selon
+  parametre.pond_src_* (100 / 0 par defaut). Idem potentiel.
 end note
 
 @enduml
