@@ -664,7 +664,7 @@ Every weight and threshold lives in the quarter's `Parametre`. No number from th
 - HR changes a rule by configuration, without a developer.
 - Each quarter keeps the settings it was calculated with, so past results stay explainable.
 - Bean Validation protects consistency: weights sum to 100, thresholds strictly decreasing, the high vigilance threshold reachable with the available points.
-- New blocks are added without breaking existing data. Columns carry a database default, `ParametreInitializer` completes older rows at startup, and optional blocks may be omitted from a `PUT` (they keep their value). The latest are `ponderationSources` {`poidsManager`, `poidsAuto`} (sum 100, default 100 / 0) and `seuilsAutoEvaluation` {`seuilEcartImportant`} (0–100, default 15: the self / manager gap from which the manager view flags a member; it changes no score); saving them recalculates the quarter like any other setting. It is unrelated to the removed `poidsSources` block, which is still accepted and ignored.
+- New blocks are added without breaking existing data. Columns carry a database default, `ParametreInitializer` completes older rows at startup, and optional blocks may be omitted from a `PUT` (they keep their value). The latest are `ponderationSources` {`poidsManager`, `poidsAuto`} (sum 100, default 100 / 0) and `seuilsAutoEvaluation` {`seuilEcartImportant`} (0–100, default 15: the self / manager gap from which the manager view flags a member; it changes no score); saving them recalculates the quarter like any other setting.
 
 ### Changing the settings
 
@@ -936,7 +936,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**708 test executions in 65 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
+**707 test executions in 65 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
 
 | Folder | What it covers |
 |---|---|
@@ -1011,6 +1011,7 @@ git push -u origin feature/my-change
 - Schema migrations (Flyway) instead of `ddl-auto=update`.
 - Plan the move to Spring Boot 4.x: 3.5 no longer receives free security fixes after June 2026.
 - Make CI a required check on `develop`, and set `develop` as the default branch.
+- Delete `ColonnesObsoletesInitializer` and its test once every MySQL database has been recreated (`DROP DATABASE`, see [`import-donnees.md`](import-donnees.md)): it only makes the old `src_*` settings columns nullable on databases created before they were removed.
 - `GET /api/viviers-thematiques` still runs one query per score (`ViviersThematiquesEnBase.vivierPourDirection`); add a batch method to the source.
 
 ### Known limitations

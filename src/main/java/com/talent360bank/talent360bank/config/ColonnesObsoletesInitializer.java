@@ -28,6 +28,9 @@ import java.util.Locale;
  *
  * <p>Sans effet sur une base neuve, ou les colonnes n'existent pas, et sur une
  * base deja passee par ici.
+ *
+ * <p>A supprimer (avec son test) une fois toutes les bases recreees : voir la
+ * checklist de livraison (docs/guide-developpeur.md, section 12, a faire de Jas).
  */
 @Component
 public class ColonnesObsoletesInitializer implements ApplicationRunner {
