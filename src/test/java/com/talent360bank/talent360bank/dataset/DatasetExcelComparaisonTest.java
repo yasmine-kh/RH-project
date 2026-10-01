@@ -609,7 +609,7 @@ class DatasetExcelComparaisonTest {
         }
 
         PosteRepository posteRepository = mock(PosteRepository.class);
-        when(posteRepository.findAll()).thenReturn(new ArrayList<>(postes(referentiel).values()));
+        when(posteRepository.findAllAvecCompetences()).thenReturn(new ArrayList<>(postes(referentiel).values()));
 
         CollaborateurRepository collaborateurRepository = mock(CollaborateurRepository.class);
         when(collaborateurRepository.findAllByIdAvecEntite(anyCollection())).thenAnswer(appel -> {

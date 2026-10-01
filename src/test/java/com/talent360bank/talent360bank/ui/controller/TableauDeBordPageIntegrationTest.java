@@ -39,11 +39,14 @@ import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.enums.VivierThematique;
 import com.talent360bank.talent360bank.service.resultat.ResultatViviersThematiques;
 import com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord;
+import com.talent360bank.talent360bank.ui.model.AlerteVue;
 import com.talent360bank.talent360bank.ui.model.KpiCard;
 import com.talent360bank.talent360bank.ui.model.OptionTrimestre;
+import com.talent360bank.talent360bank.ui.model.SeveriteAlerte;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.CaseTableau;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.VivierTableau;
+import com.talent360bank.talent360bank.ui.model.TypeAlerte;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -67,6 +70,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -257,11 +261,16 @@ class TableauDeBordPageIntegrationTest {
                 synthese.vigilanceParNiveau().get(NiveauVigilance.ELEVEE)).containsExactly(3, 1, 1);
         assertThat(tableau.nbSansVigilance()).isEqualTo(1);
 
-        assertThat(tableau.alertes()).extracting(TableauDeBordView.AlerteTableau::severite)
-                .containsExactly("CRITIQUE", "ATTENTION");
-        assertThat(tableau.alertes().get(0).message()).contains("Responsable risques", "Risques");
-        assertThat(tableau.alertes().get(1).message()).contains("Vigilance élevée", "D04", "60");
-        assertThat(tableau.nbAlertes()).isEqualTo(2);
+        // Les alertes de l'ecran Alertes (AlertesViewService), les plus graves d'abord.
+        assertThat(tableau.alertes()).extracting(AlerteVue::type, AlerteVue::severite, AlerteVue::matricule)
+                .containsExactly(
+                        tuple(TypeAlerte.POSTE_SANS_SUCCESSEUR, SeveriteAlerte.CRITIQUE, "PB"),
+                        tuple(TypeAlerte.VIGILANCE_ELEVEE, SeveriteAlerte.ELEVEE, "D04"),
+                        tuple(TypeAlerte.EVALUATION_MANAGER_MANQUANTE, SeveriteAlerte.ELEVEE, "D06"),
+                        tuple(TypeAlerte.GAPS_COMPETENCES_PRIORITAIRES, SeveriteAlerte.MOYENNE, "D01"));
+        assertThat(tableau.alertes().get(0).direction()).isEqualTo("Risques");
+        assertThat(tableau.alertes().get(1).message()).contains("60");
+        assertThat(tableau.nbAlertes()).isEqualTo(4);
 
         Map<String, VivierTableau> viviers = tableau.viviers().stream()
                 .collect(Collectors.toMap(VivierTableau::code, v -> v));

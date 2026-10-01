@@ -94,15 +94,15 @@
                 <div class="card shadow-sm">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h2 class="h6 mb-0">Alertes prioritaires</h2>
-                        <span class="small text-muted" th:if="${tableau.nbAlertes > #lists.size(tableau.alertes)}"
-                              th:text="${#lists.size(tableau.alertes)} + ' sur ' + ${tableau.nbAlertes}">6 sur 12</span>
+                        <a class="small" th:href="@{/alertes(trimestre=${trimestre.valeur})}"
+                           th:text="${tableau.nbAlertes > #lists.size(tableau.alertes)} ? |${#lists.size(tableau.alertes)} sur ${tableau.nbAlertes} - voir tout| : 'Voir les alertes'">6 sur 12 - voir tout</a>
                     </div>
                     <div class="card-body">
                         <p class="text-muted mb-0" th:if="${#lists.isEmpty(tableau.alertes)}">Aucune alerte.</p>
                         <div th:each="alerte : ${tableau.alertes}" class="alert py-2 mb-2"
-                             th:classappend="${alerte.severite == 'CRITIQUE'} ? 'alert-danger' : 'alert-warning'">
-                            <strong th:text="${alerte.severite}">CRITIQUE</strong>
-                            <span th:text="${alerte.message}">Message</span>
+                             th:classappend="${alerte.severite.name() == 'CRITIQUE'} ? 'alert-danger' : (${alerte.severite.name() == 'ELEVEE'} ? 'alert-warning' : 'alert-info')">
+                            <strong th:text="${alerte.severite.libelle}">Critique</strong>
+                            <span th:text="|${alerte.type.libelle} : ${alerte.sujet} - ${alerte.message}|">Message</span>
                         </div>
                     </div>
                 </div>

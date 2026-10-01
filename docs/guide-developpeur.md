@@ -77,14 +77,14 @@ The rule is simple: **the engine must produce the same results as the workbook.*
 | `/viviers` | Working | Sees the pool members (currently the relief pool saved by the engine) with their scores. |
 | `/comite-talent` | Working | Chooses a quarter and a committee status; sees the "Talents validés (Comité)" indicator and the table of proposed talents with scores, categories, 9-Box box and a coloured status badge. |
 | `/postes-critiques` | Working | Sees every critical position of the displayed quarter: direction, criticality, holder, number of successors, best candidate and matching score, coverage status (rows in alert highlighted). `PosteCritiqueViewService` → `templates/postes-critiques.html`. |
-| `/alertes` | Placeholder | — |
+| `/alertes` | Working | Alerts of the displayed quarter ([below](#alerts)), computed on the fly by the engine: counters per type and severity, table sorted by severity, filters by type, severity, direction and name. Quarter selector |
 | `/parametres` | Placeholder | — (settings are editable through the API only; see [`requetes-ecriture.md`](requetes-ecriture.md)) |
 
 All screens are read-only. Everything else is available through the REST API (`/api/...`), listed in [section 3](#rest-api).
 
 ### Displayed quarter (all screens)
 
-Every screen that shows a quarter (`/`, `/9box`, `/viviers`, `/postes-critiques`, `/comite-talent`, and the placeholder `/alertes`) accepts **`?trimestre=AAAA-N`** (e.g. `?trimestre=2026-3`). `ui/service/TrimestreCourantService` resolves it:
+Every screen that shows a quarter (`/`, `/9box`, `/viviers`, `/postes-critiques`, `/comite-talent`, `/alertes`) accepts **`?trimestre=AAAA-N`** (e.g. `?trimestre=2026-3`). `ui/service/TrimestreCourantService` resolves it:
 
 - given → that quarter; **404** if it is unknown or badly written (`2030-1`, `T3 2026`, `abc`);
 - not given → the **most recent quarter that has scores**, not simply the most recent one created. A quarter opened before its import, or left empty by a failed import (audit B5), no longer empties every screen while the previous quarter has all the data;
@@ -121,11 +121,35 @@ A selector is a GET form with a `<select name="trimestre">`, as on `dashboard.ht
 | Compétences en gap prioritaire | skills of active employees whose gap reaches the quarter's threshold | G10 |
 | Engagement moyen /100 (N réponses) | average questionnaire score of active employees | — |
 
-Below the cards: the 9-Box counts (with placed / not placed), vigilance by level and the number of active employees without vigilance input, the 6 first **priority alerts** (critical positions without successor, positions under the minimum, high vigilance, most serious first, with the total), and one row per thematic pool (members, average performance and potential, talents, members Ready Now on a critical position, critical positions covered by a member). Without settings for the quarter, only the active employees and the engagement are shown, with the reason.
+Below the cards: the 9-Box counts (with placed / not placed), vigilance by level and the number of active employees without vigilance input, the 6 first **priority alerts** (the same list as [`/alertes`](#alerts), from the same `AlertesViewService`, so the total always matches the page), and one row per thematic pool (members, average performance and potential, talents, members Ready Now on a critical position, critical positions covered by a member). Without settings for the quarter, only the active employees and the engagement are shown, with the reason.
 
-Not shown, because nothing provides them yet: development plans followed / late (`00_DASHBOARD` A15, C15: `11_DEVELOPMENT_PLAN` is not imported), the pools' "last review" date, a CSV export, "alertes actives" (no alert service yet).
+Not shown, because nothing provides them yet: development plans followed / late (`00_DASHBOARD` A15, C15: `11_DEVELOPMENT_PLAN` is not imported), the pools' "last review" date, a CSV export.
 
 `TableauDeBordDatasetTest` checks every card that exists in `00_DASHBOARD` and the 9-Box counts against the workbook; `TableauDeBordPageIntegrationTest` checks every card against the engine on H2.
+
+### Alerts
+
+`/alertes` (`AlertesController` → `ui/service/AlertesViewService` → `templates/alertes.html`). No alert table: the alerts are recomputed from the engine on each request, for the displayed quarter. `AlertesViewService.alertes(trimestre)` is also the source of the dashboard's panel.
+
+| Type | Severity | Rule (source) | Subject / link |
+|---|---|---|---|
+| Poste critique sans successeur | Critique | critical position with 0 identified successor (`PosteCritiqueService`) | position → `/postes-critiques` |
+| Successeurs insuffisants | Élevée | fewer successors than `seuilsCouverture.nbMinSuccesseurs` (`PosteCritiqueService`) | position → `/postes-critiques` |
+| Vigilance élevée | Élevée | level ELEVEE, with index and signals (`VigilanceService`, `EntreesVigilance` rule) | employee → fiche |
+| Évaluation du manager manquante | Élevée | manager performance or potential evaluation missing for an active employee: same rule as the manager view; the message says whether a self-evaluation exists (`ResultatsCollaborateurs`) | employee → manager view (fiche if no manager) |
+| Écart auto-évaluation / manager | Moyenne | self minus manager ≥ `seuilsAutoEvaluation.seuilEcartImportant` (`ResultatsCollaborateurs.autoVsManager`) | employee → manager view |
+| Talent sans décision du Comité | Moyenne | proposed talent with committee status EN_ATTENTE (`ValidationComiteService`) | employee → `/comite-talent?statut=EN_ATTENTE` |
+| Compétences en gap prioritaire | Moyenne | number of skills with a Prioritaire gap; the `TOP_GAPS_COMPETENCES` (10) employees with the most | employee → fiche |
+
+- Sorted by severity, then type (table order), then each source's order (highest vigilance index first, most gaps first...).
+- Counters (per type, per severity, total) cover all alerts of the quarter; filters (`type`, `severite`, `direction` = direction label, `q` = name or ID, case and accents ignored) only narrow the table. An unknown filter value means "all".
+- The fiche and manager-view links point to the JSON API (`/api/trimestres/{a}/{n}/collaborateurs/{m}/fiche`, `.../managers/{m}/vue`) until those screens exist; they are built in one place (`AlertesViewService.Liens`).
+- Without settings for the quarter, the page shows the reason and no alerts (as the dashboard).
+- Fixed number of queries whatever the population (`SansSessionOuverteIntegrationTest`).
+
+Not implemented, because no data source exists: late development-plan actions (`11_DEVELOPMENT_PLAN` not imported), the alert lifecycle of the prototype (new / in progress / treated: needs a persisted alert), "compétence stratégique insuffisante" (no critical-skill flag in the reference data), "nouveau talent identifié" (no quarter-to-quarter comparison).
+
+`AlertesPageIntegrationTest` (H2) covers each type, the counters, the filters, `?trimestre=`, the 404 and the equality with the dashboard panel; `AlertesDatasetTest` checks the workbook (1 position without successor = E10, 10 high vigilance = E15, 23 alerts in total).
 
 ### The quarterly workflow
 
@@ -189,7 +213,7 @@ flowchart TB
     subgraph App[Spring Boot application - 127.0.0.1:8080]
         F[ProtectionRequetesFilter + Spring Security<br/>Host check, write header, RH login]
         subgraph UIL[UI - Ima]
-            PC[PagesController, DashboardController,<br/>AlertesController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService, VivierService,<br/>PosteCritiqueViewService, DashboardService,<br/>TrimestreCourantService]
+            PC[PagesController, DashboardController,<br/>AlertesController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService, VivierService,<br/>PosteCritiqueViewService, DashboardService,<br/>AlertesViewService, TrimestreCourantService]
             VS --> UM[ui.model rows]
         end
         subgraph API[REST API - Jas / Dou]
@@ -258,8 +282,8 @@ com.talent360bank.talent360bank
 └── ui
     ├── controller                    PagesController (9-Box, Viviers, Postes critiques, Comité, Paramètres - Ima),
     │                                 DashboardController, AlertesController (Jas)
-    ├── service (11)                  view services, TrimestreCourantService
-    └── model (12)                    display rows
+    ├── service (12)                  view services, TrimestreCourantService
+    └── model (16)                    display rows
 ```
 
 ### REST API
@@ -982,7 +1006,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**734 test executions in 70 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
+**742 test executions in 72 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
 
 | Folder | What it covers |
 |---|---|
@@ -1048,7 +1072,7 @@ git push -u origin feature/my-change
 **Ima — UI**
 
 - Quarter selector on `/9box` and `/viviers`: the `trimestre` and `trimestres` model attributes are already there ([Displayed quarter](#displayed-quarter-all-screens)).
-- Screens still to build: Alertes (vigilance), Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)).
+- Screens still to build: Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)).
 - Serve Bootstrap and its icons locally, so the app works offline.
 - `/viviers` shows only saved pools; the thematic pools are available from the API.
 - Page tests for `/`, `/9box`, `/viviers`.

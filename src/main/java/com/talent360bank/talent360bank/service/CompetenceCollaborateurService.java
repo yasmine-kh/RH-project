@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -70,15 +72,28 @@ public class CompetenceCollaborateurService {
      */
     @Transactional(readOnly = true)
     public int compterGapsPrioritaires(Trimestre trimestre) {
+        return gapsPrioritairesParCollaborateur(trimestre).values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    /**
+     * Nombre de competences en gap Prioritaire de chaque collaborateur actif qui
+     * en a au moins une, avec le seuil du trimestre (meme regle que
+     * {@link #evaluer}). Deux requetes quel que soit le nombre de competences.
+     *
+     * @return par matricule ; un collaborateur sans gap prioritaire est absent
+     * @throws RessourceIntrouvableException si les reglages du trimestre sont absents
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Integer> gapsPrioritairesParCollaborateur(Trimestre trimestre) {
         Objects.requireNonNull(trimestre, "trimestre");
         SeuilsGapCompetence seuils = calculService.chargerParametre(trimestre).getSeuilsGapCompetence();
-        int prioritaires = 0;
-        for (Object[] niveaux : competenceCollaborateurRepository.findNiveauxParStatut(StatutCollaborateur.ACTIF)) {
-            if (calculService.statutGap((Integer) niveaux[0], (Integer) niveaux[1], seuils)
+        Map<String, Integer> parCollaborateur = new HashMap<>();
+        for (Object[] ligne : competenceCollaborateurRepository.findNiveauxParStatut(StatutCollaborateur.ACTIF)) {
+            if (calculService.statutGap((Integer) ligne[1], (Integer) ligne[2], seuils)
                     == StatutGapCompetence.PRIORITAIRE) {
-                prioritaires++;
+                parCollaborateur.merge((String) ligne[0], 1, Integer::sum);
             }
         }
-        return prioritaires;
+        return parCollaborateur;
     }
 }

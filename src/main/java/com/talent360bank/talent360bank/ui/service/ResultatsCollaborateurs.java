@@ -103,9 +103,11 @@ public class ResultatsCollaborateurs {
      * @param avecPotentiel   matricules du groupe evalues en potentiel par leur manager sur le trimestre
      * @param ecartsAutoManager membres qui ont une auto-evaluation, avec le score de chaque source ;
      *                          vide sans auto-evaluation ou sans reglages
+     * @param avecAutoEvaluation matricules du groupe qui ont une auto-evaluation (performance ou
+     *                           potentiel) sur le trimestre, reglages ou non
      */
     public record Groupe(List<Membre> membres, Set<String> avecPerformance, Set<String> avecPotentiel,
-                         List<EcartAutoManager> ecartsAutoManager) {
+                         List<EcartAutoManager> ecartsAutoManager, Set<String> avecAutoEvaluation) {
 
         public boolean evaluePerformance(String matricule) {
             return avecPerformance.contains(matricule);
@@ -125,7 +127,7 @@ public class ResultatsCollaborateurs {
     public Groupe charger(List<Collaborateur> collaborateurs, Trimestre trimestre, Parametre parametre,
                           CasesNeufBox cases, Set<String> manquantes) {
         if (collaborateurs.isEmpty()) {
-            return new Groupe(List.of(), Set.of(), Set.of(), List.of());
+            return new Groupe(List.of(), Set.of(), Set.of(), List.of(), Set.of());
         }
         List<String> ids = collaborateurs.stream().map(Collaborateur::getIdCollaborateur).toList();
 
@@ -160,7 +162,10 @@ public class ResultatsCollaborateurs {
         }
         List<EcartAutoManager> ecarts = ecartsAutoManager(collaborateurs, parametre, performancesManager,
                 performancesAuto, potentielsManager, potentielsAuto, manquantes);
-        return new Groupe(List.copyOf(membres), Set.copyOf(avecPerformance), Set.copyOf(avecPotentiel), ecarts);
+        Set<String> avecAutoEvaluation = new HashSet<>(performancesAuto.keySet());
+        avecAutoEvaluation.addAll(potentielsAuto.keySet());
+        return new Groupe(List.copyOf(membres), Set.copyOf(avecPerformance), Set.copyOf(avecPotentiel), ecarts,
+                Set.copyOf(avecAutoEvaluation));
     }
 
     /**

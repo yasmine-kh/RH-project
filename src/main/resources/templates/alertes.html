@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Alertes</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('alertes')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Alertes</h1>
+            <p class="text-muted" th:if="${vue.trimestreLibelle == null}">Aucun trimestre enregistre pour le moment.</p>
+            <p class="text-muted" th:if="${vue.trimestreLibelle != null}"
+               th:text="|Signaux necessitant une action RH - ${vue.trimestreLibelle}|">
+                Signaux necessitant une action RH - T3 2026</p>
+        </header>
+
+        <div class="alert alert-warning mt-4" th:if="${vue.erreur != null}" th:text="${vue.erreur}">Reglages absents</div>
+
+        <!-- Compteurs sur toutes les alertes du trimestre, avant filtres. -->
+        <div class="kpi-grid" th:if="${vue.trimestreLibelle != null and vue.erreur == null}">
+            <div class="kpi-card kpi-red">
+                <div class="kpi-icon"><i class="bi bi-bell"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value" th:text="${vue.total}">0</div>
+                    <div class="kpi-label">Alertes</div>
+                </div>
+            </div>
+            <div class="kpi-card" th:each="compteur : ${vue.parSeverite}"
+                 th:classappend="${compteur.code == 'CRITIQUE'} ? 'kpi-red' : (${compteur.code == 'ELEVEE'} ? 'kpi-orange' : 'kpi-blue')">
+                <div class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value" th:text="${compteur.nombre}">0</div>
+                    <div class="kpi-label" th:text="${compteur.libelle}">Critique</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3" th:if="${vue.trimestreLibelle != null and vue.erreur == null}">
+            <a th:each="compteur : ${vue.parType}" class="badge text-bg-light border text-decoration-none"
+               th:href="@{/alertes(trimestre=${trimestre.valeur}, type=${compteur.code})}"
+               th:text="|${compteur.libelle} : ${compteur.nombre}|">Vigilance elevee : 3</a>
+        </div>
+
+        <form method="get" action="/alertes" class="filtre-bar" th:if="${vue.trimestreLibelle != null}">
+            <div>
+                <label for="trimestre" class="form-label">Trimestre</label>
+                <select id="trimestre" name="trimestre" class="form-select">
+                    <option th:each="option : ${trimestres}" th:value="${option.valeur}"
+                            th:text="${option.hasData} ? ${option.libelle} : ${option.libelle} + ' (pas encore calcule)'"
+                            th:selected="${trimestre != null and option.valeur == trimestre.valeur}">T3 2026</option>
+                </select>
+            </div>
+            <div>
+                <label for="type" class="form-label">Type</label>
+                <select id="type" name="type" class="form-select">
+                    <option value="">Tous</option>
+                    <option th:each="compteur : ${vue.parType}" th:value="${compteur.code}" th:text="${compteur.libelle}"
+                            th:selected="${compteur.code == vue.filtres.type}">Vigilance elevee</option>
+                </select>
+            </div>
+            <div>
+                <label for="severite" class="form-label">Gravite</label>
+                <select id="severite" name="severite" class="form-select">
+                    <option value="">Toutes</option>
+                    <option th:each="compteur : ${vue.parSeverite}" th:value="${compteur.code}" th:text="${compteur.libelle}"
+                            th:selected="${compteur.code == vue.filtres.severite}">Critique</option>
+                </select>
+            </div>
+            <div>
+                <label for="direction" class="form-label">Direction</label>
+                <select id="direction" name="direction" class="form-select">
+                    <option value="">Toutes</option>
+                    <option th:each="direction : ${vue.directions}" th:value="${direction}" th:text="${direction}"
+                            th:selected="${direction == vue.filtres.direction}">Reseau Retail</option>
+                </select>
+            </div>
+            <div>
+                <label for="q" class="form-label">Nom</label>
+                <input type="search" id="q" name="q" class="form-control" placeholder="Nom ou matricule"
+                       th:value="${vue.filtres.recherche}">
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
+        </form>
+
+        <p class="text-muted mt-4" th:if="${vue.trimestreLibelle != null and vue.erreur == null and vue.total == 0}">
+            Aucune alerte pour ce trimestre.</p>
+        <p class="text-muted mt-4" th:if="${vue.total > 0 and #lists.isEmpty(vue.alertes)}">
+            Aucune alerte pour ces filtres.</p>
+
+        <div class="table-responsive mt-4" th:if="${not #lists.isEmpty(vue.alertes)}">
+            <p class="text-muted small" th:text="|${#lists.size(vue.alertes)} alerte(s) affichee(s) sur ${vue.total}|">
+                12 alertes affichees sur 30</p>
+            <table class="table table-hover bg-white rounded shadow-sm">
+                <thead>
+                <tr>
+                    <th>Gravite</th>
+                    <th>Type</th>
+                    <th>Sujet</th>
+                    <th>Entite</th>
+                    <th>Direction</th>
+                    <th>Message</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="alerte : ${vue.alertes}">
+                    <td><span class="badge" th:classappend="${alerte.severite.badgeClass}"
+                              th:text="${alerte.severite.libelle}">Critique</span></td>
+                    <td th:text="${alerte.type.libelle}">Vigilance elevee</td>
+                    <td>
+                        <span th:text="${alerte.sujet}">Nom</span>
+                        <span class="text-muted small d-block" th:text="${alerte.matricule}">BP001</span>
+                    </td>
+                    <td th:text="${alerte.entite} ?: '-'">Agence</td>
+                    <td th:text="${alerte.direction} ?: '-'">Direction</td>
+                    <td th:text="${alerte.message}">Message</td>
+                    <td><a th:href="${alerte.lien}" th:text="${alerte.lienLibelle}">Fiche collaborateur</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+</div>
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>
