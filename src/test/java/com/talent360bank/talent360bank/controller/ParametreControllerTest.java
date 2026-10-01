@@ -122,8 +122,7 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.ponderationSources.poidsManager").value(100))
                 .andExpect(jsonPath("$.ponderationSources.poidsAuto").value(0))
                 .andExpect(jsonPath("$.ponderationSources.sommeValide").value(true))
-                .andExpect(jsonPath("$.seuilsAutoEvaluation.seuilEcartImportant").value(15))
-                .andExpect(jsonPath("$.poidsSources").doesNotExist());
+                .andExpect(jsonPath("$.seuilsAutoEvaluation.seuilEcartImportant").value(15));
     }
 
     @Test
@@ -561,24 +560,6 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.erreur").value("requete_mal_formee"))
                 // Le detail de Jackson (classes internes) reste dans le journal.
                 .andExpect(jsonPath("$.message").value("Corps de la requete illisible (JSON mal forme ou valeur invalide)"));
-    }
-
-    @Test
-    void un_corps_qui_envoie_encore_les_poids_des_sources_est_accepte_et_ignore() throws Exception {
-        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
-        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
-
-        // Corps d'un client anterieur au retrait du bloc.
-        ObjectNode corps = objectMapper.valueToTree(formDepuis(Parametre.parDefaut(trimestre)));
-        corps.putObject("poidsSources")
-                .put("poidsAutoEvaluation", 25).put("poidsManager", 25)
-                .put("poidsCompetences", 25).put("poidsEngagement", 25);
-
-        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(corps.toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.poidsSources").doesNotExist());
     }
 
     @Test

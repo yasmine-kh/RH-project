@@ -16,7 +16,6 @@ import com.talent360bank.talent360bank.entity.SeuilsNeufBox;
 import com.talent360bank.talent360bank.entity.SeuilsReadiness;
 import com.talent360bank.talent360bank.entity.SeuilsTalent;
 import com.talent360bank.talent360bank.entity.SeuilsVigilance;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -35,13 +34,7 @@ import jakarta.validation.constraints.Size;
  * {@code seuilsAutoEvaluation}. Absents, la valeur en place est conservee. En
  * particulier, un client qui n'envoie que {@code seuilsNeufBox} ne change que
  * l'axe performance de la 9-box : l'axe potentiel garde ses seuils.
- *
- * <p>{@code poidsSources} a ete retire (aucune formule du classeur ne l'utilise) :
- * un client qui l'envoie encore voit le bloc accepte et ignore. Ne pas le
- * confondre avec {@code ponderationSources} (manager / auto-evaluation), qui
- * compte dans les scores officiels.
  */
-@JsonIgnoreProperties({"poidsSources"})
 public record ParametreForm(@Size(max = 100) String libelle,
                             @Valid @NotNull PoidsPerformance poidsPerformance,
                             @Valid @NotNull PoidsPotentiel poidsPotentiel,

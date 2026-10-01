@@ -2,12 +2,13 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Talent 360 Bank - Tableau de bord</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <title>Talent 360 Bank - Dashboard</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
 
 <div class="app-layout">
 
@@ -15,10 +16,12 @@
 
     <main class="main-content">
         <header class="page-header">
-            <h1>Tableau de bord RH</h1>
-            <p class="text-muted" th:if="${tableau.trimestreLibelle == null}">Aucun trimestre enregistre pour le moment.</p>
+            <h1>Dashboard general</h1>
+            <p class="text-muted" th:if="${tableau.trimestreLibelle == null}">
+                Vue d'ensemble des indicateurs RH - aucun trimestre enregistre pour le moment.</p>
             <p class="text-muted" th:if="${tableau.trimestreLibelle != null}"
-               th:text="'Capital talents - ' + ${tableau.trimestreLibelle}">Capital talents - T3 2026</p>
+               th:text="|Vue d'ensemble des indicateurs RH - ${tableau.trimestreLibelle}|">
+                Vue d'ensemble des indicateurs RH - T3 2026</p>
         </header>
 
         <!-- Choix du trimestre : par defaut le plus recent qui a des scores. -->

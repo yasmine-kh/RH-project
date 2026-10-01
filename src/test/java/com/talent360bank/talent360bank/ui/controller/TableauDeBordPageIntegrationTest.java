@@ -281,7 +281,7 @@ class TableauDeBordPageIntegrationTest {
         String page = mockMvc.perform(get("/")).andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString();
 
-        assertThat(page).contains("Tableau de bord RH", "T1 2026", "Talents validés par le Comité",
+        assertThat(page).contains("Dashboard general", "indicateurs RH - T1 2026", "Talents validés par le Comité",
                         "Matrice 9-Box", "Alertes prioritaires", "Vivier Commercial", "46.67")
                 .doesNotContain("donnees mockees", "Alertes actives");
     }
@@ -346,6 +346,13 @@ class TableauDeBordPageIntegrationTest {
         mockMvc.perform(get("/9box").param("trimestre", "2026-2")).andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("PrenomD01"))));
+        // Postes critiques (ecran d'Ima) : T1 par defaut, T2 sans reglages vide sans erreur.
+        mockMvc.perform(get("/postes-critiques")).andExpect(status().isOk())
+                .andExpect(view().name("postes-critiques"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Responsable risques")));
+        mockMvc.perform(get("/postes-critiques").param("trimestre", "2026-2")).andExpect(status().isOk())
+                .andExpect(model().attribute("rows", List.of()))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Aucun poste critique")));
     }
 
     // ------------------------------------------------------------ outils

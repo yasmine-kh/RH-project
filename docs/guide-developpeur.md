@@ -76,7 +76,7 @@ The rule is simple: **the engine must produce the same results as the workbook.*
 | `/9box` | Working | Sees the 3×3 matrix for the displayed quarter, with the names in each box. |
 | `/viviers` | Working | Sees the pool members (currently the relief pool saved by the engine) with their scores. |
 | `/comite-talent` | Working | Chooses a quarter and a committee status; sees the "Talents validés (Comité)" indicator and the table of proposed talents with scores, categories, 9-Box box and a coloured status badge. |
-| `/postes-critiques` | Placeholder | — |
+| `/postes-critiques` | Working | Sees every critical position of the displayed quarter: direction, criticality, holder, number of successors, best candidate and matching score, coverage status (rows in alert highlighted). `PosteCritiqueViewService` → `templates/postes-critiques.html`. |
 | `/alertes` | Placeholder | — |
 | `/parametres` | Placeholder | — (settings are editable through the API only; see [`requetes-ecriture.md`](requetes-ecriture.md)) |
 
@@ -84,7 +84,7 @@ All screens are read-only. Everything else is available through the REST API (`/
 
 ### Displayed quarter (all screens)
 
-Every screen that shows a quarter (`/`, `/9box`, `/viviers`, `/comite-talent`, and the placeholders `/postes-critiques`, `/alertes`) accepts **`?trimestre=AAAA-N`** (e.g. `?trimestre=2026-3`). `ui/service/TrimestreCourantService` resolves it:
+Every screen that shows a quarter (`/`, `/9box`, `/viviers`, `/postes-critiques`, `/comite-talent`, and the placeholder `/alertes`) accepts **`?trimestre=AAAA-N`** (e.g. `?trimestre=2026-3`). `ui/service/TrimestreCourantService` resolves it:
 
 - given → that quarter; **404** if it is unknown or badly written (`2030-1`, `T3 2026`, `abc`);
 - not given → the **most recent quarter that has scores**, not simply the most recent one created. A quarter opened before its import, or left empty by a failed import (audit B5), no longer empties every screen while the previous quarter has all the data;
@@ -189,7 +189,7 @@ flowchart TB
     subgraph App[Spring Boot application - 127.0.0.1:8080]
         F[ProtectionRequetesFilter + Spring Security<br/>Host check, write header, RH login]
         subgraph UIL[UI - Ima]
-            PC[PagesController, DashboardController,<br/>PostesCritiquesController, AlertesController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService, VivierService,<br/>DashboardService, TrimestreCourantService]
+            PC[PagesController, DashboardController,<br/>AlertesController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService, VivierService,<br/>PosteCritiqueViewService, DashboardService,<br/>TrimestreCourantService]
             VS --> UM[ui.model rows]
         end
         subgraph API[REST API - Jas / Dou]
@@ -256,10 +256,10 @@ com.talent360bank.talent360bank
 ├── excel (1)                       Cellules - cell reading helpers for the import
 ├── securite                        login and 403 pages, UtilisateurDetailsService
 └── ui
-    ├── controller                    PagesController (9-Box, Viviers, Comité, Paramètres - Ima), DashboardController,
-    │                                 PostesCritiquesController, AlertesController (Jas)
-    ├── service (10)                  view services, TrimestreCourantService
-    └── model (11)                    display rows
+    ├── controller                    PagesController (9-Box, Viviers, Postes critiques, Comité, Paramètres - Ima),
+    │                                 DashboardController, AlertesController (Jas)
+    ├── service (11)                  view services, TrimestreCourantService
+    └── model (12)                    display rows
 ```
 
 ### REST API
@@ -710,7 +710,7 @@ Every weight and threshold lives in the quarter's `Parametre`. No number from th
 - HR changes a rule by configuration, without a developer.
 - Each quarter keeps the settings it was calculated with, so past results stay explainable.
 - Bean Validation protects consistency: weights sum to 100, thresholds strictly decreasing, the high vigilance threshold reachable with the available points.
-- New blocks are added without breaking existing data. Columns carry a database default, `ParametreInitializer` completes older rows at startup, and optional blocks may be omitted from a `PUT` (they keep their value). The latest are `ponderationSources` {`poidsManager`, `poidsAuto`} (sum 100, default 100 / 0) and `seuilsAutoEvaluation` {`seuilEcartImportant`} (0–100, default 15: the self / manager gap from which the manager view flags a member; it changes no score); saving them recalculates the quarter like any other setting. It is unrelated to the removed `poidsSources` block, which is still accepted and ignored.
+- New blocks are added without breaking existing data. Columns carry a database default, `ParametreInitializer` completes older rows at startup, and optional blocks may be omitted from a `PUT` (they keep their value). The latest are `ponderationSources` {`poidsManager`, `poidsAuto`} (sum 100, default 100 / 0) and `seuilsAutoEvaluation` {`seuilEcartImportant`} (0–100, default 15: the self / manager gap from which the manager view flags a member; it changes no score); saving them recalculates the quarter like any other setting.
 
 ### Changing the settings
 
@@ -982,7 +982,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**733 test executions in 69 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
+**734 test executions in 70 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
 
 | Folder | What it covers |
 |---|---|
@@ -1048,7 +1048,7 @@ git push -u origin feature/my-change
 **Ima — UI**
 
 - Quarter selector on `/9box` and `/viviers`: the `trimestre` and `trimestres` model attributes are already there ([Displayed quarter](#displayed-quarter-all-screens)).
-- Screens still to build: Postes critiques, Alertes (vigilance), Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)).
+- Screens still to build: Alertes (vigilance), Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)).
 - Serve Bootstrap and its icons locally, so the app works offline.
 - `/viviers` shows only saved pools; the thematic pools are available from the API.
 - Page tests for `/`, `/9box`, `/viviers`.
@@ -1058,6 +1058,7 @@ git push -u origin feature/my-change
 - Schema migrations (Flyway) instead of `ddl-auto=update`.
 - Plan the move to Spring Boot 4.x: 3.5 no longer receives free security fixes after June 2026.
 - Make CI a required check on `develop`, and set `develop` as the default branch.
+- Delete `ColonnesObsoletesInitializer` and its test once every MySQL database has been recreated (`DROP DATABASE`, see [`import-donnees.md`](import-donnees.md)): it only makes the old `src_*` settings columns nullable on databases created before they were removed.
 
 ### Known limitations
 
