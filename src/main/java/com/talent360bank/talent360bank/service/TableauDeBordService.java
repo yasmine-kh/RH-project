@@ -14,6 +14,7 @@ import com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -83,8 +84,12 @@ public class TableauDeBordService {
         for (NiveauVigilance niveau : NiveauVigilance.values()) {
             vigilance.put(niveau, 0);
         }
+        List<ResultatVigilance> vigilancesElevees = new ArrayList<>();
         for (ResultatVigilance resultat : vigilanceService.evaluerTrimestre(trimestre)) {
             vigilance.merge(resultat.niveau(), 1, Integer::sum);
+            if (resultat.niveau() == NiveauVigilance.ELEVEE) {
+                vigilancesElevees.add(resultat);
+            }
         }
 
         List<CouverturePoste> couvertures = posteCritiqueService.listerPostesCritiques(trimestre);
@@ -107,6 +112,7 @@ public class TableauDeBordService {
         return new SyntheseTableauDeBord(nbTalents, nbTalentsValides, nbHautsPotentiels,
                 Collections.unmodifiableMap(vigilance),
                 couvertures.size(), posteCritiqueService.tauxCouverture(couvertures), alertes,
-                Collections.unmodifiableMap(repartition), nonPlaces);
+                Collections.unmodifiableMap(repartition), nonPlaces,
+                vivier.size(), List.copyOf(couvertures), List.copyOf(vigilancesElevees));
     }
 }

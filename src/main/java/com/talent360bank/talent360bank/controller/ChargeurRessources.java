@@ -5,6 +5,7 @@ import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
+import com.talent360bank.talent360bank.ui.service.TrimestreCourantService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,11 +21,14 @@ public class ChargeurRessources {
 
     private final TrimestreRepository trimestreRepository;
     private final CollaborateurRepository collaborateurRepository;
+    private final TrimestreCourantService trimestreCourant;
 
     public ChargeurRessources(TrimestreRepository trimestreRepository,
-                              CollaborateurRepository collaborateurRepository) {
+                              CollaborateurRepository collaborateurRepository,
+                              TrimestreCourantService trimestreCourant) {
         this.trimestreRepository = trimestreRepository;
         this.collaborateurRepository = collaborateurRepository;
+        this.trimestreCourant = trimestreCourant;
     }
 
     /** @throws RessourceIntrouvableException si aucun trimestre ne porte ce couple */
@@ -36,7 +40,10 @@ public class ChargeurRessources {
     }
 
     /**
-     * Le trimestre demande ou, sans annee ni numero, le plus recent.
+     * Le trimestre demande ou, sans annee ni numero, le trimestre courant des
+     * ecrans : le plus recent qui a des scores (sinon le plus recent cree),
+     * meme regle que {@link TrimestreCourantService}, pour que pages et API
+     * montrent toujours le meme trimestre.
      *
      * @throws IllegalArgumentException      si un seul des deux est fourni (400)
      * @throws RessourceIntrouvableException si le trimestre demande n'existe
@@ -45,7 +52,7 @@ public class ChargeurRessources {
     @Transactional(readOnly = true)
     public Trimestre exigerTrimestreOuDernier(Integer annee, Integer numero) {
         if (annee == null && numero == null) {
-            return trimestreRepository.findTopByOrderByAnneeDescNumeroDesc()
+            return trimestreCourant.resoudre(null)
                     .orElseThrow(() -> new RessourceIntrouvableException("Aucun trimestre enregistre"));
         }
         if (annee == null || numero == null) {

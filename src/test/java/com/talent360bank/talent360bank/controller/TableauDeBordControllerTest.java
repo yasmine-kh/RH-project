@@ -62,7 +62,7 @@ class TableauDeBordControllerTest {
         when(tableauDeBordService.synthese(trimestre)).thenReturn(new SyntheseTableauDeBord(10, 8, 21, vigilance,
                 15, new BigDecimal("93.33"),
                 List.of(new CouverturePoste(pst13, 0, List.of(), List.of(), NiveauCouverture.ALERTE)),
-                repartition, 0));
+                repartition, 0, 0, List.of(), List.of()));
 
         mockMvc.perform(get("/api/dashboard/synthese?annee=2026&numero=3"))
                 .andExpect(status().isOk())

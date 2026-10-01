@@ -34,6 +34,13 @@ public interface ScoreRepository extends JpaRepository<Score, Integer> {
             + "where s.trimestre = :trimestre")
     List<Score> findByTrimestreAvecCollaborateur(@Param("trimestre") Trimestre trimestre);
 
+    /**
+     * Identifiants des trimestres qui ont au moins un score : les trimestres
+     * "avec donnees" du selecteur des ecrans (TrimestreCourantService).
+     */
+    @Query("select distinct s.trimestre.idTrimestre from Score s")
+    List<Integer> findIdsTrimestresAvecScores();
+
     /** Scores du trimestre hors de la liste : ceux que le dernier recalcul n'a pas produits. */
     @Modifying
     @Query("delete from Score s where s.trimestre = :trimestre and s.idScore not in :conserves")

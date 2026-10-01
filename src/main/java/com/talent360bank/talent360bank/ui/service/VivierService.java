@@ -6,7 +6,6 @@ import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.AppartenanceVivierRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
-import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.ui.model.VivierRow;
 import org.springframework.stereotype.Service;
 
@@ -30,25 +29,22 @@ public class VivierService {
 
     private final AppartenanceVivierRepository appartenanceVivierRepository;
     private final ScoreRepository scoreRepository;
-    private final TrimestreRepository trimestreRepository;
 
     public VivierService(AppartenanceVivierRepository appartenanceVivierRepository,
-                         ScoreRepository scoreRepository,
-                         TrimestreRepository trimestreRepository) {
+                         ScoreRepository scoreRepository) {
         this.appartenanceVivierRepository = appartenanceVivierRepository;
         this.scoreRepository = scoreRepository;
-        this.trimestreRepository = trimestreRepository;
     }
 
-    public List<VivierRow> buildRows() {
+    /**
+     * @param trimestre trimestre affiche (TrimestreCourantService), null s'il n'en existe aucun
+     */
+    public List<VivierRow> buildRows(Trimestre trimestre) {
         List<VivierRow> rows = new ArrayList<>();
 
-        Optional<Trimestre> dernierTrimestre = trimestreRepository.findTopByOrderByAnneeDescNumeroDesc();
-        if (dernierTrimestre.isEmpty()) {
+        if (trimestre == null) {
             return rows;
         }
-
-        Trimestre trimestre = dernierTrimestre.get();
 
         Map<String, Score> scores = new HashMap<>();
         for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
@@ -64,7 +60,6 @@ public class VivierService {
                     collaborateur.getNom(),
                     collaborateur.getPrenom(),
                     collaborateur.getFonction(),
-                    // Departement du trimestre (fige sur le score), sinon l'actuel.
                     score.map(Score::getDepartement).orElse(collaborateur.getDepartement()),
                     score.map(Score::getScorePotentiel).orElse(null),
                     score.map(Score::getScorePerformance).orElse(null),

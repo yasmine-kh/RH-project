@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Postes critiques</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('postes-critiques')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Postes critiques</h1>
+            <p class="text-muted" th:if="${#lists.isEmpty(rows)}">
+                Aucun poste critique pour le trimestre en cours.
+            </p>
+        </header>
+
+        <div class="table-responsive" th:if="${not #lists.isEmpty(rows)}">
+            <table class="table table-hover bg-white rounded shadow-sm">
+                <thead>
+                <tr>
+                    <th>Poste</th>
+                    <th>Direction</th>
+                    <th>Criticite</th>
+                    <th>Titulaire</th>
+                    <th>Successeurs</th>
+                    <th>Candidat potentiel</th>
+                    <th>Score matching</th>
+                    <th>Statut</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${rows}" th:classappend="${row.enAlerte} ? 'table-danger' : ''">
+                    <td th:text="${row.nomPoste}"></td>
+                    <td th:text="${row.direction}"></td>
+                    <td th:text="${row.criticite}"></td>
+                    <td th:text="${row.titulaire}"></td>
+                    <td th:text="${row.nbSuccesseurs}"></td>
+                    <td th:text="${row.candidatPotentiel}"></td>
+                    <td th:text="${row.scoreMatching != null ? row.scoreMatching : '-'}"></td>
+                    <td>
+                        <span class="badge" th:classappend="${row.enAlerte} ? 'bg-danger' : 'bg-success'"
+                              th:text="${row.statut}"></span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+</div>
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>
