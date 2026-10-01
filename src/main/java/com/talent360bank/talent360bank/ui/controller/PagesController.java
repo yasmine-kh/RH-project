@@ -53,8 +53,8 @@ public class PagesController {
     @GetMapping("/postes-critiques")
     public String postesCritiques(Model model) {
         model.addAttribute("rows", posteCritiqueViewService.buildRows());
-        model.addAttribute("activePage", "postes-critiques.html");
-        return "postes-critiques.html";
+        model.addAttribute("activePage", "postes-critiques");
+        return "postes-critiques";
     }
 
     @GetMapping("/comite-talent")

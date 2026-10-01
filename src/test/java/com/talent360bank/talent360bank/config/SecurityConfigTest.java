@@ -79,7 +79,7 @@ class SecurityConfigTest {
 
     /** Echantillon de pages : ecrans existants, URL inconnue, anciens espaces par profil supprimes. */
     private static final List<String> PAGES = List.of("/", "/9box", "/viviers", "/comite-talent",
-            "/postes-critiques.html", "/alertes", "/parametres", "/moi", "/manager", "/comite", "/nimporte-quoi");
+            "/postes-critiques", "/alertes", "/parametres", "/moi", "/manager", "/comite", "/nimporte-quoi");
 
     /** Echantillon d'API, lectures. */
     private static final List<String> API = List.of("/api/trimestres", "/api/collaborateurs",
