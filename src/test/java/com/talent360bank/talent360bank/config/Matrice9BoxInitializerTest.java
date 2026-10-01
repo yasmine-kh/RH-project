@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class  ?Matrice9BoxInitializerTest {
+class Matrice9BoxInitializerTest {
 
     @Mock
     private Matrice9BoxRepository matriceRepository;
