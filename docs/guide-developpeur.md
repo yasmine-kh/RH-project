@@ -72,15 +72,60 @@ The rule is simple: **the engine must produce the same results as the workbook.*
 
 | URL | Status | What HR does there |
 |---|---|---|
-| `/` | Working, **partly mock data** | Home dashboard: nine indicator cards. Three are real (active employees, talents, critical positions); six are hardcoded in `DashboardService` (9, 18, 1, 23, 5, 100). |
-| `/9box` | Working | Sees the 3×3 matrix for the latest quarter, with the names in each box. |
+| `/` | Working | Home dashboard ([below](#home-dashboard)): 13 indicator cards, the 9-Box counts, vigilance by level, priority alerts and the thematic pools, all from the engine for the displayed quarter. Quarter selector |
+| `/9box` | Working | Sees the 3×3 matrix for the displayed quarter, with the names in each box. |
 | `/viviers` | Working | Sees the pool members (currently the relief pool saved by the engine) with their scores. |
 | `/comite-talent` | Working | Chooses a quarter and a committee status; sees the "Talents validés (Comité)" indicator and the table of proposed talents with scores, categories, 9-Box box and a coloured status badge. |
-| `/postes-critiques` | Placeholder | — |
+| `/postes-critiques` | Working | Sees every critical position of the displayed quarter: direction, criticality, holder, number of successors, best candidate and matching score, coverage status (rows in alert highlighted). `PosteCritiqueViewService` → `templates/postes-critiques.html`. |
 | `/alertes` | Placeholder | — |
 | `/parametres` | Placeholder | — (settings are editable through the API only; see [`requetes-ecriture.md`](requetes-ecriture.md)) |
 
 All screens are read-only. Everything else is available through the REST API (`/api/...`), listed in [section 3](#rest-api).
+
+### Displayed quarter (all screens)
+
+Every screen that shows a quarter (`/`, `/9box`, `/viviers`, `/postes-critiques`, `/comite-talent`, and the placeholder `/alertes`) accepts **`?trimestre=AAAA-N`** (e.g. `?trimestre=2026-3`). `ui/service/TrimestreCourantService` resolves it:
+
+- given → that quarter; **404** if it is unknown or badly written (`2030-1`, `T3 2026`, `abc`);
+- not given → the **most recent quarter that has scores**, not simply the most recent one created. A quarter opened before its import, or left empty by a failed import (audit B5), no longer empties every screen while the previous quarter has all the data;
+- no quarter calculated yet → the most recent created; no quarter at all → nothing (the screens say so).
+
+The API uses the same rule when a quarter is optional and omitted (`GET /api/collaborateurs/{id}/competences` without `annee` / `numero`, through `ChargeurRessources.exigerTrimestreOuDernier`), so screens and API always show the same quarter.
+
+It costs two queries (the quarters and those with scores), whatever their number. Each screen's controller calls `trimestreCourant.selectionner(trimestre)`, gives `selection.trimestre()` to its view service and calls `selection.exposer(model)`, which sets two **model attributes for the templates**:
+
+| Attribute | Type | Content |
+|---|---|---|
+| `trimestre` | `ui.model.OptionTrimestre`, or `null` when there is no quarter | the displayed quarter: `valeur` ("2026-3", the value of `?trimestre=`), `libelle` ("T3 2026"), `annee`, `numero`, `hasData` (true when the quarter has scores) |
+| `trimestres` | `List<OptionTrimestre>`, newest first | every quarter, for a selector. Mark the selected option with `option.valeur == trimestre.valeur`; show the ones with `hasData = false` as "not calculated yet" |
+
+A selector is a GET form with a `<select name="trimestre">`, as on `dashboard.html` and `comite-talent.html`.
+
+### Home dashboard
+
+`GET /` → `ui/controller/DashboardController` → `ui/service/DashboardService` → `templates/dashboard.html`. No figure is computed or written in the screen code: each comes from the engine for the displayed quarter (`TableauDeBordService.synthese`, `VivierThematiqueService.getViviersThematiques`, `CompetenceCollaborateurService.compterGapsPrioritaires`). A figure with no data source is not shown.
+
+| Card | Source | Workbook (`00_DASHBOARD`) |
+|---|---|---|
+| Collaborateurs actifs | employees with status ACTIF (today) | A6 counts every row of `01_COLLABORATEURS` |
+| Talents validés par le Comité | proposed talents with committee decision "Oui" | E6 |
+| Hauts potentiels | potential ≥ 85 and performance ≥ 75 | G6 |
+| Vivier de succession (relève) | talent OR high potential | — |
+| Viviers actifs | thematic pools with at least one member | — |
+| Postes critiques | critical positions followed | C6 |
+| Couverture succession | % of critical positions not in alert | A10 (rounded) |
+| Successeurs Ready Now | (critical position, identified successor) pairs at Ready Now | C10 |
+| Postes critiques sans successeur | critical positions with no identified successor | E10 |
+| Postes critiques en alerte | fewer successors than the minimum setting (same as above while the minimum is 1) | — |
+| À risque (vigilance modérée ou élevée) | vigilance list (`EntreesVigilance` rule: active employees with at least one input) | E15 + G15 |
+| Compétences en gap prioritaire | skills of active employees whose gap reaches the quarter's threshold | G10 |
+| Engagement moyen /100 (N réponses) | average questionnaire score of active employees | — |
+
+Below the cards: the 9-Box counts (with placed / not placed), vigilance by level and the number of active employees without vigilance input, the 6 first **priority alerts** (critical positions without successor, positions under the minimum, high vigilance, most serious first, with the total), and one row per thematic pool (members, average performance and potential, talents, members Ready Now on a critical position, critical positions covered by a member). Without settings for the quarter, only the active employees and the engagement are shown, with the reason.
+
+Not shown, because nothing provides them yet: development plans followed / late (`00_DASHBOARD` A15, C15: `11_DEVELOPMENT_PLAN` is not imported), the pools' "last review" date, a CSV export, "alertes actives" (no alert service yet).
+
+`TableauDeBordDatasetTest` checks every card that exists in `00_DASHBOARD` and the 9-Box counts against the workbook; `TableauDeBordPageIntegrationTest` checks every card against the engine on H2.
 
 ### The quarterly workflow
 
@@ -144,7 +189,7 @@ flowchart TB
     subgraph App[Spring Boot application - 127.0.0.1:8080]
         F[ProtectionRequetesFilter + Spring Security<br/>Host check, write header, RH login]
         subgraph UIL[UI - Ima]
-            PC[PagesController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService,<br/>VivierService, DashboardService]
+            PC[PagesController, DashboardController,<br/>AlertesController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService, VivierService,<br/>PosteCritiqueViewService, DashboardService,<br/>TrimestreCourantService]
             VS --> UM[ui.model rows]
         end
         subgraph API[REST API - Jas / Dou]
@@ -211,9 +256,10 @@ com.talent360bank.talent360bank
 ├── excel (1)                       Cellules - cell reading helpers for the import
 ├── securite                        login and 403 pages, UtilisateurDetailsService
 └── ui
-    ├── controller                    PagesController
-    ├── service (4)                   view services
-    └── model (6)                     display rows
+    ├── controller                    PagesController (9-Box, Viviers, Postes critiques, Comité, Paramètres - Ima),
+    │                                 DashboardController, AlertesController (Jas)
+    ├── service (11)                  view services, TrimestreCourantService
+    └── model (12)                    display rows
 ```
 
 ### REST API
@@ -764,8 +810,8 @@ sequenceDiagram
     B->>F: GET /comite-talent?trimestre=2026-3&statut=EN_ATTENTE
     F->>F: Host is localhost? GET needs no header
     F->>PC: comiteTalent("2026-3", "EN_ATTENTE")
-    PC->>VS: build("2026-3", "EN_ATTENTE")
-    VS->>R: TrimestreRepository.findAllByOrderByAnneeDescNumeroDesc()
+    PC->>R: TrimestreCourantService.selectionner("2026-3"): quarters + quarters with scores
+    PC->>VS: build(selection, "EN_ATTENTE")
     VS->>VC: getDecisionsComite(T3 2026)
     VC->>TS: detecterTalents(T3 2026)
     TS->>CS: chargerParametre(T3 2026)
@@ -783,9 +829,9 @@ sequenceDiagram
 Class by class:
 
 1. **`ProtectionRequetesFilter`** checks that `Host` is `localhost` or `127.0.0.1`. A GET needs no header.
-2. **`PagesController.comiteTalent`** receives the two optional query parameters and delegates everything.
+2. **`PagesController.comiteTalent`** receives the two optional query parameters, resolves the quarter with **`TrimestreCourantService`** (404 if `2026-3` is unknown; without the parameter, the most recent quarter that has scores) and sets the `trimestre` / `trimestres` model attributes.
 3. **`ComiteTalentViewService.build`**:
-   - loads the quarter list (newest first) and picks the requested quarter, falling back to the latest;
+   - builds the quarter options from the selection;
    - reads the status filter, where an unknown value means "all";
    - calls the engine.
 4. **`ValidationComiteService.getDecisionsComite`** asks **`TalentService.detecterTalents`** for the proposed talents:
@@ -936,7 +982,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**707 test executions in 65 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
+**734 test executions in 70 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
 
 | Folder | What it covers |
 |---|---|
@@ -987,6 +1033,7 @@ git push -u origin feature/my-change
 - RH-only login (Spring Security, BCrypt, first RH account from environment variables), dedicated MySQL account, `CollaborateurResponse` instead of the entity.
 - Quarter reference date (`Trimestre.dateReference`): seniority no longer depends on today's date (audit C4).
 - Vigilance list covers every active employee with a vigilance input, scored or not (audit C8). No N+1 in the recalculation or the main pages, LAZY entités, `open-in-view=false` (audit 3.3, 3.4).
+- Real home dashboard (no hard-coded figure, checked against `00_DASHBOARD`), displayed quarter = most recent with scores and `?trimestre=` on every screen (audit 2.3, B5).
 - Self-evaluation and manager evaluation stored side by side (`source` on `Performance` / `Potentiel`), official score blended by `PonderationSources` (default manager only), fiche `autoEvaluation` and manager view `autoVsManager` (audit R1d).
 
 ### Left, by owner
@@ -1000,8 +1047,8 @@ git push -u origin feature/my-change
 
 **Ima — UI**
 
-- Home page: replace the six hardcoded figures with `TableauDeBordService.synthese`. The "Talents valides" card currently counts *proposed* talents.
-- Screens still to build: Postes critiques, Alertes (vigilance), Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)).
+- Quarter selector on `/9box` and `/viviers`: the `trimestre` and `trimestres` model attributes are already there ([Displayed quarter](#displayed-quarter-all-screens)).
+- Screens still to build: Alertes (vigilance), Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)).
 - Serve Bootstrap and its icons locally, so the app works offline.
 - `/viviers` shows only saved pools; the thematic pools are available from the API.
 - Page tests for `/`, `/9box`, `/viviers`.
@@ -1012,7 +1059,6 @@ git push -u origin feature/my-change
 - Plan the move to Spring Boot 4.x: 3.5 no longer receives free security fixes after June 2026.
 - Make CI a required check on `develop`, and set `develop` as the default branch.
 - Delete `ColonnesObsoletesInitializer` and its test once every MySQL database has been recreated (`DROP DATABASE`, see [`import-donnees.md`](import-donnees.md)): it only makes the old `src_*` settings columns nullable on databases created before they were removed.
-- `GET /api/viviers-thematiques` still runs one query per score (`ViviersThematiquesEnBase.vivierPourDirection`); add a batch method to the source.
 
 ### Known limitations
 

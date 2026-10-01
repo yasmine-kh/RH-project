@@ -2,6 +2,9 @@ package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.service.enums.VivierThematique;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -18,4 +21,17 @@ public interface VivierThematiqueSource {
 
     /** Vivier de la direction, vide si elle n'est rattachee a aucun. */
     Optional<VivierThematique> vivierPourDirection(String direction);
+
+    /**
+     * Vivier de chacune de ces directions, par direction telle que donnee ; une
+     * direction sans vivier est absente de la map. Par defaut, une lecture par
+     * direction ; une implementation en base peut tout lire en une requete.
+     */
+    default Map<String, VivierThematique> viviersParDirection(Collection<String> directions) {
+        Map<String, VivierThematique> viviers = new HashMap<>();
+        for (String direction : directions) {
+            vivierPourDirection(direction).ifPresent(vivier -> viviers.put(direction, vivier));
+        }
+        return viviers;
+    }
 }

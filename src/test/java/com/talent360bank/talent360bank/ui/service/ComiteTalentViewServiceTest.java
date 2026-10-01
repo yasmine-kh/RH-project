@@ -8,13 +8,13 @@ import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.ValidationComiteService;
 import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.resultat.DecisionComite;
 import com.talent360bank.talent360bank.ui.model.ComiteTalentRow;
 import com.talent360bank.talent360bank.ui.model.ComiteTalentView;
 import com.talent360bank.talent360bank.ui.model.OptionFiltre;
+import com.talent360bank.talent360bank.ui.model.OptionTrimestre;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,18 +37,27 @@ class ComiteTalentViewServiceTest {
 
     @Mock
     private ValidationComiteService validationComiteService;
-    @Mock
-    private TrimestreRepository trimestreRepository;
 
     private ComiteTalentViewService service;
     private Trimestre t3;
     private Trimestre t2;
+    /** Trimestre affiche et liste du selecteur, comme les rend TrimestreCourantService. */
+    private TrimestreCourantService.Selection courante;
 
     @BeforeEach
     void init() {
-        service = new ComiteTalentViewService(validationComiteService, trimestreRepository);
+        service = new ComiteTalentViewService(validationComiteService);
         t3 = trimestre(3);
         t2 = trimestre(2);
+    }
+
+    private static TrimestreCourantService.Selection selection(Trimestre affiche, Trimestre... tous) {
+        List<OptionTrimestre> options = new java.util.ArrayList<>();
+        for (Trimestre trimestre : tous) {
+            options.add(new OptionTrimestre(TrimestreCourantService.valeur(trimestre),
+                    TrimestreCourantService.libelle(trimestre), trimestre.getAnnee(), trimestre.getNumero(), true));
+        }
+        return new TrimestreCourantService.Selection(affiche, List.copyOf(options));
     }
 
     private Trimestre trimestre(int numero) {
@@ -76,7 +85,7 @@ class ComiteTalentViewServiceTest {
     }
 
     private void troisDecisionsSurT3() {
-        when(trimestreRepository.findAllByOrderByAnneeDescNumeroDesc()).thenReturn(List.of(t3, t2));
+        courante = selection(t3, t3, t2);
         when(validationComiteService.getDecisionsComite(t3)).thenReturn(List.of(
                 decision("Rachid", StatutValidationComite.OUI),
                 decision("Nadia", StatutValidationComite.OUI),
@@ -87,7 +96,7 @@ class ComiteTalentViewServiceTest {
     void sans_choix_le_trimestre_le_plus_recent_est_affiche() {
         troisDecisionsSurT3();
 
-        ComiteTalentView vue = service.build(null, null);
+        ComiteTalentView vue = service.build(courante, null);
 
         assertThat(vue.getTrimestreLibelle()).isEqualTo("T3 2026");
         assertThat(vue.getTrimestres()).extracting(OptionFiltre::getValeur).containsExactly("2026-3", "2026-2");
@@ -101,7 +110,7 @@ class ComiteTalentViewServiceTest {
     void le_kpi_compte_les_talents_valides_par_le_comite() {
         troisDecisionsSurT3();
 
-        ComiteTalentView vue = service.build(null, null);
+        ComiteTalentView vue = service.build(courante, null);
 
         assertThat(vue.getKpis()).singleElement().satisfies(kpi -> {
             assertThat(kpi.getLabel()).isEqualTo("Talents valides (Comite)");
@@ -114,7 +123,7 @@ class ComiteTalentViewServiceTest {
     void chaque_ligne_porte_scores_categories_case_et_statut() {
         troisDecisionsSurT3();
 
-        ComiteTalentRow ligne = service.build(null, null).getRows().get(0);
+        ComiteTalentRow ligne = service.build(courante, null).getRows().get(0);
 
         assertThat(ligne.getNomComplet()).isEqualTo("Rachid Nom");
         assertThat(ligne.getDirection()).isEqualTo("Risques");
@@ -133,10 +142,10 @@ class ComiteTalentViewServiceTest {
         DecisionComite sansCategorie = decision("Rachid", StatutValidationComite.OUI);
         sansCategorie.score().setCategoriePerformance(null);
         sansCategorie.score().setCategoriePotentiel(null);
-        when(trimestreRepository.findAllByOrderByAnneeDescNumeroDesc()).thenReturn(List.of(t3));
+        courante = selection(t3, t3);
         when(validationComiteService.getDecisionsComite(t3)).thenReturn(List.of(sansCategorie));
 
-        ComiteTalentRow ligne = service.build(null, null).getRows().get(0);
+        ComiteTalentRow ligne = service.build(courante, null).getRows().get(0);
 
         assertThat(ligne.getCategoriePerformance()).isNull();
         assertThat(ligne.getCategoriePotentiel()).isNull();
@@ -144,10 +153,10 @@ class ComiteTalentViewServiceTest {
 
     @Test
     void un_trimestre_choisi_est_affiche() {
-        when(trimestreRepository.findAllByOrderByAnneeDescNumeroDesc()).thenReturn(List.of(t3, t2));
+        courante = selection(t2, t3, t2);
         when(validationComiteService.getDecisionsComite(t2)).thenReturn(List.of());
 
-        ComiteTalentView vue = service.build("2026-2", null);
+        ComiteTalentView vue = service.build(courante, null);
 
         assertThat(vue.getTrimestreLibelle()).isEqualTo("T2 2026");
         assertThat(vue.getTrimestres()).extracting(OptionFiltre::isSelectionnee).containsExactly(false, true);
@@ -155,17 +164,10 @@ class ComiteTalentViewServiceTest {
     }
 
     @Test
-    void un_trimestre_inconnu_retombe_sur_le_plus_recent() {
-        troisDecisionsSurT3();
-
-        assertThat(service.build("1999-9", null).getTrimestreLibelle()).isEqualTo("T3 2026");
-    }
-
-    @Test
     void le_filtre_de_statut_ne_garde_que_les_lignes_du_statut_mais_pas_le_kpi() {
         troisDecisionsSurT3();
 
-        ComiteTalentView vue = service.build(null, "EN_ATTENTE");
+        ComiteTalentView vue = service.build(courante, "EN_ATTENTE");
 
         assertThat(vue.getRows()).extracting(ComiteTalentRow::getNomComplet).containsExactly("Ghita Nom");
         assertThat(vue.getKpis().get(0).getValue()).isEqualTo("2");
@@ -178,7 +180,7 @@ class ComiteTalentViewServiceTest {
     void les_options_de_statut_portent_leur_effectif() {
         troisDecisionsSurT3();
 
-        assertThat(service.build(null, null).getStatuts()).extracting(OptionFiltre::getLibelle)
+        assertThat(service.build(courante, null).getStatuts()).extracting(OptionFiltre::getLibelle)
                 .containsExactly("Tous (3)", "Oui (2)", "Non (0)", "En attente (1)");
     }
 
@@ -186,7 +188,7 @@ class ComiteTalentViewServiceTest {
     void un_statut_inconnu_affiche_tous_les_talents() {
         troisDecisionsSurT3();
 
-        ComiteTalentView vue = service.build(null, "PEUT_ETRE");
+        ComiteTalentView vue = service.build(courante, "PEUT_ETRE");
 
         assertThat(vue.getRows()).hasSize(3);
         assertThat(vue.getStatuts().get(0).isSelectionnee()).isTrue();
@@ -194,9 +196,9 @@ class ComiteTalentViewServiceTest {
 
     @Test
     void sans_aucun_trimestre_l_ecran_est_vide_sans_appel_au_moteur() {
-        when(trimestreRepository.findAllByOrderByAnneeDescNumeroDesc()).thenReturn(List.of());
+        courante = selection(null);
 
-        ComiteTalentView vue = service.build(null, null);
+        ComiteTalentView vue = service.build(courante, null);
 
         assertThat(vue.getTrimestreLibelle()).isNull();
         assertThat(vue.getRows()).isEmpty();
@@ -206,11 +208,11 @@ class ComiteTalentViewServiceTest {
 
     @Test
     void des_reglages_absents_sont_signales_au_lieu_de_faire_echouer_la_page() {
-        when(trimestreRepository.findAllByOrderByAnneeDescNumeroDesc()).thenReturn(List.of(t3));
+        courante = selection(t3, t3);
         when(validationComiteService.getDecisionsComite(t3))
                 .thenThrow(new RessourceIntrouvableException("Aucun parametre configure pour T3 2026"));
 
-        ComiteTalentView vue = service.build(null, null);
+        ComiteTalentView vue = service.build(courante, null);
 
         assertThat(vue.getErreur()).isEqualTo("Aucun parametre configure pour T3 2026");
         assertThat(vue.getRows()).isEmpty();

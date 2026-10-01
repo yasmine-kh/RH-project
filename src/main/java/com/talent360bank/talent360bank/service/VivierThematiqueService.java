@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Viviers thematiques (10_TALENTS, colonne Vivier thematique) : chaque collaborateur
@@ -115,12 +116,21 @@ public class VivierThematiqueService {
         }
         List<Collaborateur> nonClasses = new ArrayList<>();
 
-        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+        List<Score> scores = scoreRepository.findByTrimestreAvecCollaborateur(trimestre);
+        // Le vivier de chaque direction en une lecture, pas une par score.
+        Map<String, VivierThematique> parDirection = vivierThematiqueSource.viviersParDirection(scores.stream()
+                .map(Score::getDirection)
+                .filter(direction -> direction != null && !direction.isBlank())
+                .map(String::trim)
+                .collect(Collectors.toSet()));
+
+        for (Score score : scores) {
             Collaborateur collaborateur = score.getCollaborateur();
             if (!collaborateur.estCalculable()) {
                 continue;
             }
-            Optional<VivierThematique> vivier = vivierDe(score);
+            Optional<VivierThematique> vivier = score.getDirection() == null ? Optional.empty()
+                    : Optional.ofNullable(parDirection.get(score.getDirection().trim()));
             if (vivier.isEmpty()) {
                 nonClasses.add(collaborateur);
                 continue;

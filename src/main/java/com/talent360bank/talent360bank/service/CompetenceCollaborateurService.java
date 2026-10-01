@@ -3,9 +3,11 @@ package com.talent360bank.talent360bank.service;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
+import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
 import com.talent360bank.talent360bank.service.resultat.GapCompetence;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,5 +59,26 @@ public class CompetenceCollaborateurService {
                 : skill.getNiveauCible() - skill.getNiveauActuel();
         return new GapCompetence(skill, gap,
                 calculService.statutGap(skill.getNiveauActuel(), skill.getNiveauCible(), seuils));
+    }
+
+    /**
+     * Competences en gap Prioritaire des collaborateurs actifs, avec le seuil du
+     * trimestre (00_DASHBOARD G10 : COUNTIF(06_EMPLOYEE_SKILLS!H, "Prioritaire")).
+     * Deux requetes quel que soit le nombre de competences.
+     *
+     * @throws RessourceIntrouvableException si les reglages du trimestre sont absents
+     */
+    @Transactional(readOnly = true)
+    public int compterGapsPrioritaires(Trimestre trimestre) {
+        Objects.requireNonNull(trimestre, "trimestre");
+        SeuilsGapCompetence seuils = calculService.chargerParametre(trimestre).getSeuilsGapCompetence();
+        int prioritaires = 0;
+        for (Object[] niveaux : competenceCollaborateurRepository.findNiveauxParStatut(StatutCollaborateur.ACTIF)) {
+            if (calculService.statutGap((Integer) niveaux[0], (Integer) niveaux[1], seuils)
+                    == StatutGapCompetence.PRIORITAIRE) {
+                prioritaires++;
+            }
+        }
+        return prioritaires;
     }
 }

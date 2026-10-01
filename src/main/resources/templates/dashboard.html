@@ -17,11 +17,30 @@
     <main class="main-content">
         <header class="page-header">
             <h1>Dashboard general</h1>
-            <p class="text-muted">Vue d'ensemble des indicateurs RH</p>
+            <p class="text-muted" th:if="${tableau.trimestreLibelle == null}">
+                Vue d'ensemble des indicateurs RH - aucun trimestre enregistre pour le moment.</p>
+            <p class="text-muted" th:if="${tableau.trimestreLibelle != null}"
+               th:text="|Vue d'ensemble des indicateurs RH - ${tableau.trimestreLibelle}|">
+                Vue d'ensemble des indicateurs RH - T3 2026</p>
         </header>
 
+        <!-- Choix du trimestre : par defaut le plus recent qui a des scores. -->
+        <form method="get" action="/" class="filtre-bar" th:if="${not #lists.isEmpty(trimestres)}">
+            <div>
+                <label for="trimestre" class="form-label">Trimestre</label>
+                <select id="trimestre" name="trimestre" class="form-select">
+                    <option th:each="option : ${trimestres}" th:value="${option.valeur}"
+                            th:text="${option.hasData} ? ${option.libelle} : ${option.libelle} + ' (pas encore calcule)'"
+                            th:selected="${trimestre != null and option.valeur == trimestre.valeur}">T3 2026</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
+        </form>
+
+        <div class="alert alert-warning mt-4" th:if="${tableau.erreur != null}" th:text="${tableau.erreur}">Reglages absents</div>
+
         <div class="kpi-grid">
-            <div class="kpi-card" th:each="kpi : ${kpis}" th:classappend="${kpi.colorClass}">
+            <div class="kpi-card" th:each="kpi : ${tableau.kpis}" th:classappend="${kpi.colorClass}">
                 <div class="kpi-icon"><i th:class="'bi ' + ${kpi.icon}"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-value" th:text="${kpi.value}">0</div>
@@ -29,6 +48,96 @@
                 </div>
             </div>
         </div>
+
+        <div class="row g-4 mt-1" th:if="${not #lists.isEmpty(tableau.neufBox)}">
+            <section class="col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h2 class="h6 mb-0">Matrice 9-Box</h2>
+                        <a th:href="@{/9box(trimestre=${trimestre.valeur})}" class="small">Voir la matrice</a>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-2">Performance de haut en bas (elevee en haut), potentiel de gauche a droite (eleve a droite).</p>
+                        <div class="row row-cols-3 g-2">
+                            <div class="col" th:each="case9 : ${tableau.neufBox}">
+                                <div class="border rounded p-2 h-100 text-center bg-light">
+                                    <div class="fs-4 fw-bold" th:text="${case9.nombre}">0</div>
+                                    <div class="small" th:text="${case9.libelle}">Case</div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0"
+                           th:text="${tableau.nbPlaces9Box} + ' collaborateur(s) place(s)' + (${tableau.nbNonPlaces9Box} > 0 ? ', ' + ${tableau.nbNonPlaces9Box} + ' non place(s)' : '')">
+                            100 collaborateurs places</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="col-lg-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white"><h2 class="h6 mb-0">Vigilance (risque de depart)</h2></div>
+                    <div class="card-body">
+                        <table class="table table-sm mb-2">
+                            <tbody>
+                            <tr th:each="niveau : ${tableau.vigilance}">
+                                <td th:text="${niveau.libelle}">Faible</td>
+                                <td class="text-end fw-bold" th:text="${niveau.nombre}">0</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        <p class="text-muted small mb-0" th:if="${tableau.nbSansVigilance > 0}"
+                           th:text="${tableau.nbSansVigilance} + ' collaborateur(s) actif(s) sans donnee de vigilance, donc sans indice'">
+                            Sans donnee</p>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h2 class="h6 mb-0">Alertes prioritaires</h2>
+                        <span class="small text-muted" th:if="${tableau.nbAlertes > #lists.size(tableau.alertes)}"
+                              th:text="${#lists.size(tableau.alertes)} + ' sur ' + ${tableau.nbAlertes}">6 sur 12</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0" th:if="${#lists.isEmpty(tableau.alertes)}">Aucune alerte.</p>
+                        <div th:each="alerte : ${tableau.alertes}" class="alert py-2 mb-2"
+                             th:classappend="${alerte.severite == 'CRITIQUE'} ? 'alert-danger' : 'alert-warning'">
+                            <strong th:text="${alerte.severite}">CRITIQUE</strong>
+                            <span th:text="${alerte.message}">Message</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <section class="mt-4" th:if="${not #lists.isEmpty(tableau.viviers)}">
+            <h2 class="h6">Viviers thematiques</h2>
+            <div class="table-responsive">
+                <table class="table table-hover bg-white rounded shadow-sm">
+                    <thead>
+                    <tr>
+                        <th>Vivier</th>
+                        <th class="text-end">Effectif</th>
+                        <th class="text-end">Perf. moyenne</th>
+                        <th class="text-end">Potentiel moyen</th>
+                        <th class="text-end">Talents</th>
+                        <th class="text-end">Ready Now</th>
+                        <th class="text-end">Postes critiques couverts</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="vivier : ${tableau.viviers}">
+                        <td th:text="${vivier.libelle}">Vivier Commercial</td>
+                        <td class="text-end" th:text="${vivier.effectif}">0</td>
+                        <td class="text-end" th:text="${vivier.performanceMoyenne} ?: '-'">-</td>
+                        <td class="text-end" th:text="${vivier.potentielMoyen} ?: '-'">-</td>
+                        <td class="text-end" th:text="${vivier.nbTalents}">0</td>
+                        <td class="text-end" th:text="${vivier.nbReadyNow}">0</td>
+                        <td class="text-end" th:text="${vivier.nbPostesCouverts}">0</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
 </div>

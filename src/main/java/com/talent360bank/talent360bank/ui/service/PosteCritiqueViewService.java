@@ -1,7 +1,8 @@
 package com.talent360bank.talent360bank.ui.service;
 
 import com.talent360bank.talent360bank.entity.Trimestre;
-import com.talent360bank.talent360bank.repository.TrimestreRepository;
+import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
+import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.PosteCritiqueService;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Assemble le tableau de l'ecran Postes critiques.
@@ -20,23 +20,28 @@ import java.util.Optional;
 public class PosteCritiqueViewService {
 
     private final PosteCritiqueService posteCritiqueService;
-    private final TrimestreRepository trimestreRepository;
 
-    public PosteCritiqueViewService(PosteCritiqueService posteCritiqueService,
-                                    TrimestreRepository trimestreRepository) {
+    public PosteCritiqueViewService(PosteCritiqueService posteCritiqueService) {
         this.posteCritiqueService = posteCritiqueService;
-        this.trimestreRepository = trimestreRepository;
     }
 
-    public List<PosteCritiqueRow> buildRows() {
+    /**
+     * @param trimestre trimestre affiche (TrimestreCourantService), null s'il n'en existe aucun
+     */
+    public List<PosteCritiqueRow> buildRows(Trimestre trimestre) {
         List<PosteCritiqueRow> lignes = new ArrayList<>();
 
-        Optional<Trimestre> dernierTrimestre = trimestreRepository.findTopByOrderByAnneeDescNumeroDesc();
-        if (dernierTrimestre.isEmpty()) {
+        if (trimestre == null) {
             return lignes;
         }
 
-        List<CouverturePoste> couvertures = posteCritiqueService.listerPostesCritiques(dernierTrimestre.get());
+        List<CouverturePoste> couvertures;
+        try {
+            couvertures = posteCritiqueService.listerPostesCritiques(trimestre);
+        } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
+            // Trimestre sans reglages (ouvert mais pas encore importe) : ecran vide plutot qu'une erreur 500.
+            return lignes;
+        }
 
         for (CouverturePoste couverture : couvertures) {
             ResultatMatching meilleur = couverture.meilleurSuccesseur();

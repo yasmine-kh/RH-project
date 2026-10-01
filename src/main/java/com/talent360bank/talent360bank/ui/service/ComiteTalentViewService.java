@@ -5,7 +5,6 @@ import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.ValidationComiteService;
 import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.resultat.DecisionComite;
@@ -13,6 +12,7 @@ import com.talent360bank.talent360bank.ui.model.ComiteTalentRow;
 import com.talent360bank.talent360bank.ui.model.ComiteTalentView;
 import com.talent360bank.talent360bank.ui.model.KpiCard;
 import com.talent360bank.talent360bank.ui.model.OptionFiltre;
+import com.talent360bank.talent360bank.ui.model.OptionTrimestre;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -34,27 +34,25 @@ public class ComiteTalentViewService {
     public static final String TOUS = "TOUS";
 
     private final ValidationComiteService validationComiteService;
-    private final TrimestreRepository trimestreRepository;
 
-    public ComiteTalentViewService(ValidationComiteService validationComiteService,
-                                   TrimestreRepository trimestreRepository) {
+    public ComiteTalentViewService(ValidationComiteService validationComiteService) {
         this.validationComiteService = validationComiteService;
-        this.trimestreRepository = trimestreRepository;
     }
 
     /**
-     * @param trimestreDemande trimestre choisi, au format "2026-3" ; absent ou
-     *                         inconnu, c'est le plus recent qui est affiche
-     * @param statutDemande    OUI, EN_ATTENTE ou NON ; absent ou inconnu, tous
+     * @param selection     trimestre affiche et liste des trimestres (TrimestreCourantService :
+     *                      le trimestre demande, sinon le plus recent qui a des scores)
+     * @param statutDemande OUI, EN_ATTENTE ou NON ; absent ou inconnu, tous
      */
-    public ComiteTalentView build(String trimestreDemande, String statutDemande) {
-        List<Trimestre> trimestres = trimestreRepository.findAllByOrderByAnneeDescNumeroDesc();
-        Trimestre trimestre = choisirTrimestre(trimestres, trimestreDemande);
+    public ComiteTalentView build(TrimestreCourantService.Selection selection, String statutDemande) {
+        Trimestre trimestre = selection.trimestre();
         StatutValidationComite filtre = lireStatut(statutDemande);
 
+        String choisi = trimestre == null ? null : TrimestreCourantService.valeur(trimestre);
         List<OptionFiltre> optionsTrimestre = new ArrayList<>();
-        for (Trimestre candidat : trimestres) {
-            optionsTrimestre.add(new OptionFiltre(valeur(candidat), libelle(candidat), candidat == trimestre));
+        for (OptionTrimestre candidat : selection.trimestres()) {
+            optionsTrimestre.add(new OptionFiltre(candidat.valeur(), candidat.libelle(),
+                    candidat.valeur().equals(choisi)));
         }
 
         if (trimestre == null) {
@@ -129,20 +127,6 @@ public class ComiteTalentViewService {
         return options;
     }
 
-    private static Trimestre choisirTrimestre(List<Trimestre> trimestres, String demande) {
-        if (trimestres.isEmpty()) {
-            return null;
-        }
-        if (demande != null) {
-            for (Trimestre trimestre : trimestres) {
-                if (valeur(trimestre).equals(demande.trim())) {
-                    return trimestre;
-                }
-            }
-        }
-        return trimestres.get(0);
-    }
-
     private static StatutValidationComite lireStatut(String demande) {
         if (demande == null) {
             return null;
@@ -155,11 +139,7 @@ public class ComiteTalentViewService {
         return null;
     }
 
-    private static String valeur(Trimestre trimestre) {
-        return trimestre.getAnnee() + "-" + trimestre.getNumero();
-    }
-
     private static String libelle(Trimestre trimestre) {
-        return "T" + trimestre.getNumero() + " " + trimestre.getAnnee();
+        return TrimestreCourantService.libelle(trimestre);
     }
 }

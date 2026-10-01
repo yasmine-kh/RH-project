@@ -94,7 +94,7 @@ class SansSessionOuverteIntegrationTest {
     private static final List<String> A_NOMBRE_FIXE = List.of(
             "/", "/9box", "/viviers", "/comite-talent",
             T + "/vigilance", T + "/scores", T + "/talents", T + "/vivier-releve",
-            "/api/comite-talent" + PARAMS);
+            "/api/comite-talent" + PARAMS, "/api/viviers-thematiques" + PARAMS);
 
     @Autowired
     private MockMvc mockMvc;
