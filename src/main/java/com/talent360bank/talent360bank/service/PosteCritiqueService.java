@@ -273,20 +273,39 @@ public class PosteCritiqueService {
         if (postes.isEmpty()) {
             return List.of();
         }
-        Parametre parametre = calculService.chargerParametre(trimestre);
+        return evaluerPostes(postes, trimestre, calculService.chargerParametre(trimestre));
+    }
 
-        Map<String, List<String>> successeursParPoste = new HashMap<>();
+    /**
+     * Couverture d'un lot de postes (deja charges, competences requises
+     * comprises) avec des reglages deja charges, en un nombre fixe de requetes
+     * quel que soit le nombre de postes : successeurs identifies, successeurs,
+     * leurs competences, scores et potentiels du trimestre. Meme regle que
+     * {@link #listerPostesCritiques} pour chaque poste ({@link #evaluerCouverture}).
+     *
+     * <p>Sans transaction propre : appelee dans une transaction existante, une
+     * donnee manquante (DonneesIncompletesException) ne marque pas la transaction
+     * appelante pour annulation (vue entite).
+     */
+    public List<CouverturePoste> evaluerPostes(List<Poste> postes, Trimestre trimestre, Parametre parametre) {
+        Objects.requireNonNull(postes, "postes");
+        Objects.requireNonNull(trimestre, "trimestre");
+        Objects.requireNonNull(parametre, "parametre");
+        if (postes.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, List<String>> successeursParPoste = successeurIdentifieSource.successeursParPoste(
+                postes.stream().map(Poste::getPosteId).toList());
         Set<String> tousSuccesseurs = new LinkedHashSet<>();
         for (Poste poste : postes) {
-            List<String> identifies = successeurIdentifieSource.successeursIdentifies(poste.getPosteId());
-            successeursParPoste.put(poste.getPosteId(), identifies);
-            tousSuccesseurs.addAll(identifies);
+            tousSuccesseurs.addAll(successeursParPoste.getOrDefault(poste.getPosteId(), List.of()));
         }
 
         Map<String, Collaborateur> collaborateurs = new HashMap<>();
         Map<String, List<CompetenceCollaborateur>> competences = new HashMap<>();
         if (!tousSuccesseurs.isEmpty()) {
-            for (Collaborateur collaborateur : collaborateurRepository.findAllById(tousSuccesseurs)) {
+            for (Collaborateur collaborateur : collaborateurRepository.findAllByIdAvecEntite(tousSuccesseurs)) {
                 collaborateurs.put(collaborateur.getIdCollaborateur(), collaborateur);
             }
             for (CompetenceCollaborateur skill
@@ -307,7 +326,8 @@ public class PosteCritiqueService {
 
         List<CouverturePoste> couvertures = new ArrayList<>();
         for (Poste poste : postes) {
-            CouverturePoste couverture = evaluerCouverture(poste, successeursParPoste.get(poste.getPosteId()),
+            CouverturePoste couverture = evaluerCouverture(poste,
+                    successeursParPoste.getOrDefault(poste.getPosteId(), List.of()),
                     collaborateurs, scores, potentiels, competences, parametre, trimestre.getDateReference());
             if (!couverture.ignores().isEmpty()) {
                 log.warn("Poste critique {} {} : {} successeur(s) identifie(s) hors matching {}",

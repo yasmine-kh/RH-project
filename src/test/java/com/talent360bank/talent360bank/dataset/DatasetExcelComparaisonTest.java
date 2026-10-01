@@ -73,7 +73,6 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -603,7 +602,7 @@ class DatasetExcelComparaisonTest {
         when(posteRepository.findAll()).thenReturn(new ArrayList<>(postes(referentiel).values()));
 
         CollaborateurRepository collaborateurRepository = mock(CollaborateurRepository.class);
-        when(collaborateurRepository.findAllById(anyIterable())).thenAnswer(appel -> {
+        when(collaborateurRepository.findAllByIdAvecEntite(anyCollection())).thenAnswer(appel -> {
             List<Collaborateur> collaborateurs = new ArrayList<>();
             for (Object id : (Iterable<?>) appel.getArgument(0)) {
                 collaborateurs.add(collaborateur((String) id));
