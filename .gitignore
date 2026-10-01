@@ -2,3 +2,5 @@ target/
 .idea/
 *.iml
 docs/data/
+# Prototype HTML du client (fichier client, non versionne)
+docs/prototype/

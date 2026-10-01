@@ -9,13 +9,14 @@ import com.talent360bank.talent360bank.entity.CategoriePotentiel;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
+import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.ValidationComiteService;
 import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.resultat.DecisionComite;
 import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
-import com.talent360bank.talent360bank.ui.service.DashboardService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
+import com.talent360bank.talent360bank.ui.service.TrimestreCourantService;
 import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * seuls le moteur et le depot des trimestres sont simules.
  */
 @WebMvcTest(PagesController.class)
-@Import({ComiteTalentViewService.class, SecurityConfig.class})
+@Import({ComiteTalentViewService.class, TrimestreCourantService.class, SecurityConfig.class})
 @WithMockUser(roles = "RH")
 class ComiteTalentPageTest {
 
@@ -54,7 +55,7 @@ class ComiteTalentPageTest {
     @MockBean
     private TrimestreRepository trimestreRepository;
     @MockBean
-    private DashboardService dashboardService;
+    private ScoreRepository scoreRepository;
     @MockBean
     private NineBoxViewService nineBoxViewService;
     @MockBean

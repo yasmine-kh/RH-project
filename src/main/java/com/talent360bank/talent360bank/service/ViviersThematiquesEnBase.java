@@ -7,6 +7,11 @@ import org.springframework.context.annotation.Fallback;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -32,5 +37,36 @@ public class ViviersThematiquesEnBase implements VivierThematiqueSource {
             return Optional.empty();
         }
         return repository.findByDirection(direction.trim()).map(RattachementVivier::getVivier);
+    }
+
+    /**
+     * Toutes les directions en une requete (la table compte une ligne par
+     * direction). La comparaison ignore la casse et les accents, comme celle
+     * de MySQL (collation utf8mb4 par defaut) dans {@link #vivierPourDirection}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, VivierThematique> viviersParDirection(Collection<String> directions) {
+        Map<String, VivierThematique> parCle = new HashMap<>();
+        for (RattachementVivier rattachement : repository.findAll()) {
+            if (rattachement.getDirection() != null) {
+                parCle.put(cle(rattachement.getDirection()), rattachement.getVivier());
+            }
+        }
+        Map<String, VivierThematique> viviers = new HashMap<>();
+        for (String direction : directions) {
+            if (direction != null && !direction.isBlank()) {
+                VivierThematique vivier = parCle.get(cle(direction));
+                if (vivier != null) {
+                    viviers.put(direction, vivier);
+                }
+            }
+        }
+        return viviers;
+    }
+
+    private static String cle(String direction) {
+        return Normalizer.normalize(direction.trim(), Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
     }
 }

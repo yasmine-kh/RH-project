@@ -326,7 +326,7 @@ class ReglagesRecalculIntegrationTest {
         assertThat(scoreRepository.findByCollaborateurIdCollaborateurAndTrimestre("C01", trimestre)
                 .orElseThrow().getPositionBox()).isEqualTo(libelle);
 
-        NineBoxCell cellule = nineBoxViewService.buildGrid().stream()
+        NineBoxCell cellule = nineBoxViewService.buildGrid(trimestre).stream()
                 .filter(c -> c.getCollaborateurs().contains("Sara Bennani"))
                 .findFirst().orElseThrow();
         assertThat(cellule.getCategorie()).isEqualTo(libelle);

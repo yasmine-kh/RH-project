@@ -6,14 +6,12 @@ import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
-import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Assemble la grille 9-Box pour l'affichage.
@@ -27,22 +25,22 @@ public class NineBoxViewService {
 
     private final Matrice9BoxRepository matriceRepository;
     private final ScoreRepository scoreRepository;
-    private final TrimestreRepository trimestreRepository;
 
     public NineBoxViewService(Matrice9BoxRepository matriceRepository,
-                              ScoreRepository scoreRepository,
-                              TrimestreRepository trimestreRepository) {
+                              ScoreRepository scoreRepository) {
         this.matriceRepository = matriceRepository;
         this.scoreRepository = scoreRepository;
-        this.trimestreRepository = trimestreRepository;
     }
 
-    public List<NineBoxCell> buildGrid() {
+    /**
+     * @param trimestre trimestre affiche (TrimestreCourantService), null s'il n'en existe aucun :
+     *                  les 9 cases sont alors vides
+     */
+    public List<NineBoxCell> buildGrid(Trimestre trimestre) {
         Map<String, List<String>> collaborateursParCategorie = new HashMap<>();
 
-        Optional<Trimestre> dernierTrimestre = trimestreRepository.findTopByOrderByAnneeDescNumeroDesc();
-        if (dernierTrimestre.isPresent()) {
-            for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(dernierTrimestre.get())) {
+        if (trimestre != null) {
+            for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
                 if (score.getPositionBox() != null) {
                     Collaborateur collaborateur = score.getCollaborateur();
                     String nomComplet = collaborateur.getPrenom() + " " + collaborateur.getNom();

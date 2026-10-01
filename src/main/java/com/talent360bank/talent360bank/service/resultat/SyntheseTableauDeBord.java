@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.service.resultat;
 
+import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
 import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
 
 import java.math.BigDecimal;
@@ -25,12 +26,19 @@ import java.util.Map;
  *                               presente (0 si vide), dans l'ordre des cases
  * @param nbNonPlaces9Box        scores du trimestre sans case 9-box (placement
  *                               pas encore lance ou scores incomplets)
+ * @param nbVivierReleve         vivier de releve : talents OU hauts potentiels (10_TALENTS J)
+ * @param couvertures            tous les postes critiques avec leurs successeurs evalues
+ *                               (les alertes en sont un sous-ensemble)
+ * @param vigilancesElevees      collaborateurs au niveau de vigilance ELEVEE, du plus
+ *                               au moins a risque (regle EntreesVigilance)
  */
 public record SyntheseTableauDeBord(int nbTalents, int nbTalentsValides, int nbHautsPotentiels,
                                     Map<NiveauVigilance, Integer> vigilanceParNiveau,
                                     int nbPostesCritiques, BigDecimal tauxCouverture,
                                     List<CouverturePoste> alertesPostesCritiques,
-                                    Map<String, Integer> repartition9Box, int nbNonPlaces9Box) {
+                                    Map<String, Integer> repartition9Box, int nbNonPlaces9Box,
+                                    int nbVivierReleve, List<CouverturePoste> couvertures,
+                                    List<ResultatVigilance> vigilancesElevees) {
 
     public int nbAlertesPostesCritiques() {
         return alertesPostesCritiques.size();
@@ -42,6 +50,23 @@ public record SyntheseTableauDeBord(int nbTalents, int nbTalentsValides, int nbH
                 .filter(entree -> entree.getKey() != NiveauVigilance.FAIBLE)
                 .mapToInt(Map.Entry::getValue)
                 .sum();
+    }
+
+    /** Postes critiques sans aucun successeur identifie (toujours en alerte : le minimum vaut au moins 1). */
+    public int nbPostesSansSuccesseur() {
+        return (int) couvertures.stream().filter(couverture -> couverture.nbSuccesseurs() == 0).count();
+    }
+
+    /**
+     * Successions Ready Now : couples (poste critique, successeur identifie) au
+     * niveau READY_NOW, comme 00_DASHBOARD C10 (COUNTIF(09_SUCCESSION!L, "Ready Now")).
+     * Un collaborateur pret sur deux postes compte deux fois.
+     */
+    public int nbSuccessionsReadyNow() {
+        return (int) couvertures.stream()
+                .flatMap(couverture -> couverture.successeurs().stream())
+                .filter(successeur -> successeur.readiness() == NiveauReadiness.READY_NOW)
+                .count();
     }
 
     public int nbPlaces9Box() {
