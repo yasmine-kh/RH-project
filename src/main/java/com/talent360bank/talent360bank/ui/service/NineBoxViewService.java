@@ -1,4 +1,5 @@
 package com.talent360bank.talent360bank.ui.service;
+
 import com.talent360bank.talent360bank.ui.model.NineBoxCell;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
@@ -60,7 +61,6 @@ public class NineBoxViewService {
                     collaborateurs));
         }
 
-        // Tri pour affichage : performance elevee en haut, potentiel faible a gauche
         grille.sort((a, b) -> {
             int cmp = Integer.compare(b.getNiveauPerformance(), a.getNiveauPerformance());
             if (cmp != 0) return cmp;

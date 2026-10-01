@@ -64,7 +64,6 @@ public class VivierService {
                     collaborateur.getNom(),
                     collaborateur.getPrenom(),
                     collaborateur.getFonction(),
-                    // Departement du trimestre (fige sur le score), sinon l'actuel.
                     score.map(Score::getDepartement).orElse(collaborateur.getDepartement()),
                     score.map(Score::getScorePotentiel).orElse(null),
                     score.map(Score::getScorePerformance).orElse(null),
