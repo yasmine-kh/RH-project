@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 /**
  * Une ligne du tableau Postes critiques, prete pour l'affichage.
- * Aucun calcul ici : tout vient de PosteCritiqueService (Jas).
+ * Aucun calcul ici : tout vient de CouverturePoste (PosteCritiqueService, Jas).
  */
 public class PosteCritiqueRow {
 

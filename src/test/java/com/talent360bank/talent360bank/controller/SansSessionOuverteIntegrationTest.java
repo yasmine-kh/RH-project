@@ -168,8 +168,8 @@ class SansSessionOuverteIntegrationTest {
                 T + "/entites/vue?code=" + Entite.code(null, TypeEntite.DIRECTION, "Direction A"),
                 "/api/comite-talent/talents-valides" + PARAMS, "/api/viviers-thematiques" + PARAMS,
                 "/api/viviers-thematiques/COMMERCIAL" + PARAMS,
-                "/api/postes-critiques" + PARAMS, "/api/postes-critiques/alertes" + PARAMS,
-                "/api/postes-critiques/synthese" + PARAMS, "/api/postes-critiques/PA" + PARAMS,
+                "/api/postes-critiques.html" + PARAMS, "/api/postes-critiques.html/alertes" + PARAMS,
+                "/api/postes-critiques.html/synthese" + PARAMS, "/api/postes-critiques.html/PA" + PARAMS,
                 "/api/postes/PA/candidats" + PARAMS, "/api/postes/PA/candidats/A02" + PARAMS,
                 "/api/dashboard/synthese" + PARAMS));
         for (String url : urls) {

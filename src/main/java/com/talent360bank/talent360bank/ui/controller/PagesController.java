@@ -3,6 +3,7 @@ package com.talent360bank.talent360bank.ui.controller;
 import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
 import com.talent360bank.talent360bank.ui.service.DashboardService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
+import com.talent360bank.talent360bank.ui.service.PosteCritiqueViewService;
 import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,13 +17,16 @@ public class PagesController {
     private final NineBoxViewService nineBoxViewService;
     private final VivierService vivierService;
     private final ComiteTalentViewService comiteTalentViewService;
+    private final PosteCritiqueViewService posteCritiqueViewService;
 
     public PagesController(DashboardService dashboardService, NineBoxViewService nineBoxViewService,
-                           VivierService vivierService, ComiteTalentViewService comiteTalentViewService) {
+                           VivierService vivierService, ComiteTalentViewService comiteTalentViewService,
+                           PosteCritiqueViewService posteCritiqueViewService) {
         this.dashboardService = dashboardService;
         this.nineBoxViewService = nineBoxViewService;
         this.vivierService = vivierService;
         this.comiteTalentViewService = comiteTalentViewService;
+        this.posteCritiqueViewService = posteCritiqueViewService;
     }
 
     @GetMapping("/")
@@ -48,9 +52,9 @@ public class PagesController {
 
     @GetMapping("/postes-critiques")
     public String postesCritiques(Model model) {
-        model.addAttribute("activePage", "postes-critiques");
-        model.addAttribute("pageTitle", "Postes critiques");
-        return "placeholder";
+        model.addAttribute("rows", posteCritiqueViewService.buildRows());
+        model.addAttribute("activePage", "postes-critiques.html");
+        return "postes-critiques.html";
     }
 
     @GetMapping("/comite-talent")
