@@ -75,7 +75,8 @@ public class ScoreService {
                         "Aucune note de potentiel pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
 
-        return enregistrer(collaborateur, trimestre, performance, potentiel, parametre);
+        return enregistrer(collaborateur, trimestre, performance, potentiel, parametre,
+                scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null));
     }
 
     /**
@@ -88,6 +89,10 @@ public class ScoreService {
      * <p>Idempotent : les scores du trimestre que ce recalcul ne produit pas
      * (collaborateur passe inactif, notes retirees par un fichier corrige) sont
      * supprimes, avec leur case 9-box. Un second passage rend les memes lignes.
+     *
+     * <p><strong>Requetes.</strong> Un nombre fixe de lectures quelle que soit
+     * la population (reglages, notes, scores existants du trimestre), puis une
+     * ecriture par score (insertion ou mise a jour) et une suppression groupee.
      */
     @Transactional
     public ResultatRecalcul recalculerTrimestre(Trimestre trimestre) {
@@ -101,6 +106,12 @@ public class ScoreService {
         Map<String, Potentiel> potentielParMatricule = new HashMap<>();
         for (Potentiel potentiel : potentiels) {
             potentielParMatricule.put(potentiel.getCollaborateur().getIdCollaborateur(), potentiel);
+        }
+        // Scores deja enregistres sur le trimestre, lus en une fois : un recalcul
+        // les met a jour au lieu d'en chercher un par collaborateur.
+        Map<String, Score> existants = new HashMap<>();
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            existants.put(score.getCollaborateur().getIdCollaborateur(), score);
         }
 
         List<Score> enregistres = new ArrayList<>();
@@ -125,7 +136,8 @@ public class ScoreService {
                 continue;
             }
 
-            enregistres.add(enregistrer(collaborateur, trimestre, performance, potentiel, parametre));
+            enregistres.add(enregistrer(collaborateur, trimestre, performance, potentiel, parametre,
+                    existants.get(matricule)));
         }
 
         // Collaborateurs notes en potentiel mais pas en performance : sans les deux
@@ -163,16 +175,17 @@ public class ScoreService {
     /**
      * Cree ou met a jour la ligne de Score. positionBox est laissee intacte :
      * elle releve de NeufBoxService, qui la posera a partir de ces deux scores.
+     *
+     * @param existant score deja enregistre du collaborateur sur le trimestre, null s'il n'en a pas
      */
     private Score enregistrer(Collaborateur collaborateur, Trimestre trimestre, Performance performance,
-                              Potentiel potentiel, Parametre parametre) {
-        Score score = scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
-                .orElseGet(() -> {
-                    Score nouveau = new Score();
-                    nouveau.setCollaborateur(collaborateur);
-                    nouveau.setTrimestre(trimestre);
-                    return nouveau;
-                });
+                              Potentiel potentiel, Parametre parametre, Score existant) {
+        Score score = existant;
+        if (score == null) {
+            score = new Score();
+            score.setCollaborateur(collaborateur);
+            score.setTrimestre(trimestre);
+        }
 
         BigDecimal scorePerformance = calculService.calculerScorePerformance(performance, parametre);
         score.setScorePerformance(scorePerformance);
@@ -181,6 +194,7 @@ public class ScoreService {
         score.setScorePotentiel(calculService.calculerScorePotentiel(potentiel, parametre));
         score.setDateCalcul(LocalDate.now());
         // Direction et manager du moment : l'import suivant ecrasera ceux du collaborateur.
+        // Entite et manager sont LAZY : seules leurs references sont recopiees, sans lecture.
         score.figerOrganisation();
 
         return scoreRepository.save(score);

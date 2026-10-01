@@ -56,10 +56,11 @@ public class Collaborateur {
     /**
      * Entite la plus fine connue (agence, sinon region, departement ou
      * direction). Direction, departement, region et agence s'en deduisent en
-     * remontant l'arbre : voir {@link #getDirection()}. Chargee avec le
-     * collaborateur, car la plupart des ecrans regroupent par direction.
+     * remontant l'arbre : voir {@link #getDirection()}. LAZY : les requetes
+     * des ecrans qui regroupent par direction la chargent par jointure, avec
+     * ses parents.
      */
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_entite")
     private Entite entite;
 

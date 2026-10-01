@@ -19,10 +19,18 @@ public interface ScoreRepository extends JpaRepository<Score, Integer> {
     Optional<Score> findByCollaborateurIdCollaborateurAndTrimestre(String matricule, Trimestre trimestre);
 
     /**
-     * Collaborateur et Trimestre etant LAZY, les parcourir hors transaction leverait
-     * une LazyInitializationException : cette requete les charge d'emblee.
+     * Scores du trimestre avec tout ce que leurs lecteurs affichent, en une
+     * requete : le collaborateur et son entite actuelle (direction des listes
+     * de candidats), l'entite figee sur le score (direction du trimestre :
+     * comite, viviers) et, pour chacune, ses parents sur les quatre niveaux.
+     * Les entites sont LAZY : sans ces jointures, chaque ligne lue hors
+     * transaction leverait une LazyInitializationException.
      */
-    @Query("select s from Score s join fetch s.collaborateur join fetch s.trimestre "
+    @Query("select s from Score s join fetch s.trimestre join fetch s.collaborateur c "
+            + "left join fetch c.entite ce left join fetch ce.parent ce1 "
+            + "left join fetch ce1.parent ce2 left join fetch ce2.parent "
+            + "left join fetch s.entite se left join fetch se.parent se1 "
+            + "left join fetch se1.parent se2 left join fetch se2.parent "
             + "where s.trimestre = :trimestre")
     List<Score> findByTrimestreAvecCollaborateur(@Param("trimestre") Trimestre trimestre);
 

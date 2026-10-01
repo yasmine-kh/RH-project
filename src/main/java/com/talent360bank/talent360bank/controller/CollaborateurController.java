@@ -42,7 +42,10 @@ public class CollaborateurController {
 
     @PostMapping
     public Collaborateur creer(@RequestBody Collaborateur collaborateur) {
-        return collaborateurRepository.save(collaborateur);
+        String id = collaborateurRepository.save(collaborateur).getIdCollaborateur();
+        // Relu avec son entite et ses parents : LAZY, ils seraient illisibles a la
+        // serialisation, qui a lieu hors transaction.
+        return collaborateurRepository.findAllByIdAvecEntite(List.of(id)).get(0);
     }
 
     @DeleteMapping("/{id}")

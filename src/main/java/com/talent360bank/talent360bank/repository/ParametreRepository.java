@@ -15,7 +15,7 @@ public interface ParametreRepository extends JpaRepository<Parametre, Integer> {
     Optional<Parametre> findByTrimestre(Trimestre trimestre);
 
     /** Evite d'avoir a charger le Trimestre pour atteindre ses reglages. */
-    @Query("select p from Parametre p where p.trimestre.numero = :numero and p.trimestre.annee = :annee")
+    @Query("select p from Parametre p join fetch p.trimestre t where t.numero = :numero and t.annee = :annee")
     Optional<Parametre> findByNumeroEtAnnee(@Param("numero") Integer numero, @Param("annee") Integer annee);
 
     boolean existsByTrimestre(Trimestre trimestre);

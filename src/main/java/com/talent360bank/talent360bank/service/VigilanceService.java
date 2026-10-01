@@ -6,9 +6,13 @@ import com.talent360bank.talent360bank.entity.PointsVigilance;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.SeuilsVigilance;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
+import com.talent360bank.talent360bank.repository.PerformanceRepository;
+import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
@@ -30,6 +34,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -75,6 +80,9 @@ public class VigilanceService {
     private final ScoreRepository scoreRepository;
     private final QuestionnaireEngagementRepository questionnaireRepository;
     private final TrimestreRepository trimestreRepository;
+    private final CollaborateurRepository collaborateurRepository;
+    private final PerformanceRepository performanceRepository;
+    private final PotentielRepository potentielRepository;
     private final CalculService calculService;
     private final FaitsVigilanceSource faitsVigilanceSource;
 
@@ -86,9 +94,13 @@ public class VigilanceService {
     public VigilanceService(ScoreRepository scoreRepository,
                             QuestionnaireEngagementRepository questionnaireRepository,
                             TrimestreRepository trimestreRepository,
+                            CollaborateurRepository collaborateurRepository,
+                            PerformanceRepository performanceRepository,
+                            PotentielRepository potentielRepository,
                             CalculService calculService,
                             ObjectProvider<FaitsVigilanceSource> faitsVigilanceSource) {
-        this(scoreRepository, questionnaireRepository, trimestreRepository, calculService,
+        this(scoreRepository, questionnaireRepository, trimestreRepository, collaborateurRepository,
+                performanceRepository, potentielRepository, calculService,
                 faitsVigilanceSource.getIfAvailable(() -> {
                     log.warn("Aucune source de faits de vigilance : mobilite, developpement, "
                             + "reconnaissance et formation ne seront pas leves tant que l'import "
@@ -100,11 +112,17 @@ public class VigilanceService {
     public VigilanceService(ScoreRepository scoreRepository,
                             QuestionnaireEngagementRepository questionnaireRepository,
                             TrimestreRepository trimestreRepository,
+                            CollaborateurRepository collaborateurRepository,
+                            PerformanceRepository performanceRepository,
+                            PotentielRepository potentielRepository,
                             CalculService calculService,
                             FaitsVigilanceSource faitsVigilanceSource) {
         this.scoreRepository = scoreRepository;
         this.questionnaireRepository = questionnaireRepository;
         this.trimestreRepository = trimestreRepository;
+        this.collaborateurRepository = collaborateurRepository;
+        this.performanceRepository = performanceRepository;
+        this.potentielRepository = potentielRepository;
         this.calculService = calculService;
         this.faitsVigilanceSource = Objects.requireNonNull(faitsVigilanceSource, "faitsVigilanceSource");
     }
@@ -346,38 +364,48 @@ public class VigilanceService {
     }
 
     /**
-     * Vigilance de tous les collaborateurs scores du trimestre, du plus a risque au
-     * moins a risque.
+     * Vigilance du trimestre, du plus a risque au moins a risque : tous les
+     * collaborateurs actifs qui ont au moins une donnee de vigilance (regle
+     * {@link EntreesVigilance}, celle de la fiche, de la vue manager et de la
+     * vue entite). Un score n'est pas exige : un questionnaire ou des faits
+     * declares suffisent, meme si le manager n'a pas encore envoye les notes.
      *
-     * <p>Lecture seule : rien n'est ecrit. Le perimetre est celui des collaborateurs
-     * ayant un Score sur le trimestre, comme pour le placement 9-box et la
-     * detection des talents ; les collaborateurs hors perimetre de calcul sont
-     * comptes et logues plutot qu'ecartes en silence.
+     * <p>Lecture seule : rien n'est ecrit. Les actifs sans aucune donnee sont
+     * comptes et logues plutot qu'ecartes en silence ; ils n'ont pas d'indice
+     * (il vaudrait 0 sans rien dire du risque).
+     *
+     * <p><strong>Requetes.</strong> Un nombre fixe quelle que soit la
+     * population : reglages, actifs (avec entite), scores du trimestre et du
+     * precedent, questionnaires, matricules notes, faits.
      */
     @Transactional(readOnly = true)
     public List<ResultatVigilance> evaluerTrimestre(Trimestre trimestre) {
         Objects.requireNonNull(trimestre, "trimestre");
 
         Parametre parametre = calculService.chargerParametre(trimestre);
-        Map<String, Score> scoresPrecedents = indexerScoresPrecedents(trimestre);
+        List<Collaborateur> actifs = collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF);
+        Map<String, Score> scores = indexerScores(trimestre);
+        Map<String, Score> scoresPrecedents = trimestrePrecedent(trimestre).map(this::indexerScores).orElse(Map.of());
         Map<String, QuestionnaireEngagement> engagements = indexerEngagements(trimestre);
+        Set<String> evalues = new HashSet<>(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre));
+        evalues.addAll(potentielRepository.findMatriculesEvaluesDuTrimestre(trimestre));
         Map<String, FaitsVigilance> faits = faitsVigilanceSource.faitsDuTrimestre(trimestre);
         if (faits == null) {
             faits = Map.of();
         }
 
-        List<ResultatVigilance> resultats = new ArrayList<>();
-        int horsPerimetre = 0;
+        Set<String> sansDonnee = EntreesVigilance.sansDonnee(
+                actifs.stream().map(Collaborateur::getIdCollaborateur).toList(),
+                EntreesVigilance.questionnaireRempli(engagements), evalues::contains, faits);
 
-        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
-            Collaborateur collaborateur = score.getCollaborateur();
-            if (!collaborateur.estCalculable()) {
-                horsPerimetre++;
+        List<ResultatVigilance> resultats = new ArrayList<>();
+        for (Collaborateur collaborateur : actifs) {
+            String idCollaborateur = collaborateur.getIdCollaborateur();
+            if (sansDonnee.contains(idCollaborateur)) {
                 continue;
             }
-            String idCollaborateur = collaborateur.getIdCollaborateur();
             resultats.add(evaluer(collaborateur,
-                    detecterSignaux(score, scoresPrecedents.get(idCollaborateur),
+                    detecterSignaux(scores.get(idCollaborateur), scoresPrecedents.get(idCollaborateur),
                             engagements.get(idCollaborateur),
                             faits.getOrDefault(idCollaborateur, FaitsVigilance.AUCUN),
                             parametre.getSeuilsVigilance()),
@@ -390,9 +418,9 @@ public class VigilanceService {
                 .comparing(ResultatVigilance::indice, Comparator.reverseOrder())
                 .thenComparing(resultat -> resultat.collaborateur().getIdCollaborateur()));
 
-        if (horsPerimetre > 0) {
-            log.warn("Vigilance {} : {} collaborateur(s) hors perimetre de calcul ecarte(s)",
-                    decrire(trimestre), horsPerimetre);
+        if (!sansDonnee.isEmpty()) {
+            log.info("Vigilance {} : {} collaborateur(s) actif(s) sans aucune donnee de vigilance, sans indice",
+                    decrire(trimestre), sansDonnee.size());
         }
         log.info("Vigilance {} : {} collaborateur(s) evalue(s), dont {} a risque",
                 decrire(trimestre), resultats.size(),
@@ -421,13 +449,9 @@ public class VigilanceService {
         return precedents.isEmpty() ? Optional.empty() : Optional.of(precedents.get(0));
     }
 
-    private Map<String, Score> indexerScoresPrecedents(Trimestre trimestre) {
-        Optional<Trimestre> precedent = trimestrePrecedent(trimestre);
-        if (precedent.isEmpty()) {
-            return Map.of();
-        }
+    private Map<String, Score> indexerScores(Trimestre trimestre) {
         Map<String, Score> index = new HashMap<>();
-        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(precedent.get())) {
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
             index.put(score.getCollaborateur().getIdCollaborateur(), score);
         }
         return index;

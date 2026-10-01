@@ -35,7 +35,7 @@ public class DashboardService {
     public List<KpiCard> buildKpis() {
         long collaborateursActifs = collaborateurRepository.countByStatut(StatutCollaborateur.ACTIF);
         int talentsValides = compterTalentsTrimestreCourant();
-        long postesCritiques = posteRepository.findByPosteCritique("Oui").size();
+        long postesCritiques = posteRepository.countByPosteCritique("Oui");
 
         return List.of(
                 new KpiCard("Collaborateurs actifs", String.valueOf(collaborateursActifs), "bi-people", "kpi-blue"),

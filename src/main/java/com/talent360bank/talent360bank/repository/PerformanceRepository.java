@@ -32,4 +32,8 @@ public interface PerformanceRepository extends JpaRepository<Performance, Intege
             + "where x.trimestre = :trimestre and x.collaborateur.idCollaborateur in :ids")
     List<String> findMatriculesEvalues(@Param("trimestre") Trimestre trimestre,
                                        @Param("ids") Collection<String> ids);
+
+    /** Matricules qui ont des notes de performance sur le trimestre, sans charger les collaborateurs. */
+    @Query("select x.collaborateur.idCollaborateur from Performance x where x.trimestre = :trimestre")
+    List<String> findMatriculesEvaluesDuTrimestre(@Param("trimestre") Trimestre trimestre);
 }

@@ -15,6 +15,17 @@ public interface AppartenanceVivierRepository extends JpaRepository<Appartenance
 
     List<AppartenanceVivier> findByTrimestre(Trimestre trimestre);
 
+    /**
+     * Appartenances du trimestre avec vivier, collaborateur, entite et parents,
+     * en une requete : page des viviers.
+     */
+    @Query("select a from AppartenanceVivier a join fetch a.vivier join fetch a.trimestre "
+            + "join fetch a.collaborateur c "
+            + "left join fetch c.entite e left join fetch e.parent e1 "
+            + "left join fetch e1.parent e2 left join fetch e2.parent "
+            + "where a.trimestre = :trimestre")
+    List<AppartenanceVivier> findByTrimestreAvecCollaborateur(@Param("trimestre") Trimestre trimestre);
+
     /** Viviers enregistres d'un collaborateur sur un trimestre, vivier charge : fiche collaborateur. */
     @Query("select a from AppartenanceVivier a join fetch a.vivier "
             + "where a.collaborateur = :collaborateur and a.trimestre = :trimestre order by a.vivier.code")

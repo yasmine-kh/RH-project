@@ -15,16 +15,21 @@ public interface CollaborateurRepository extends JpaRepository<Collaborateur, St
 
     long countByStatut(StatutCollaborateur statut);
 
-    /** Toute la population avec son manager, en une requete (liste de l'API). */
+    /** Toute la population avec son manager, son entite et ses parents, en une requete (liste de l'API). */
     @Query("select c from Collaborateur c left join fetch c.manager m left join fetch m.collaborateur "
+            + "left join fetch c.entite e left join fetch e.parent e1 "
+            + "left join fetch e1.parent e2 left join fetch e2.parent "
             + "order by c.idCollaborateur")
     List<Collaborateur> findAllAvecManager();
 
     /**
      * Un collaborateur avec son manager (et le collaborateur qui tient le role),
-     * en une requete : fiche collaborateur. L'entite et ses parents sont EAGER.
+     * son entite et ses parents, en une requete : fiche collaborateur, et tout
+     * endpoint qui exige un collaborateur (ChargeurRessources).
      */
     @Query("select c from Collaborateur c left join fetch c.manager m left join fetch m.collaborateur "
+            + "left join fetch c.entite e left join fetch e.parent e1 "
+            + "left join fetch e1.parent e2 left join fetch e2.parent "
             + "where c.idCollaborateur = :idCollaborateur")
     Optional<Collaborateur> findByIdAvecManager(@Param("idCollaborateur") String idCollaborateur);
 
@@ -60,6 +65,16 @@ public interface CollaborateurRepository extends JpaRepository<Collaborateur, St
     @Query("select c.entite.idEntite, count(c) from Collaborateur c "
             + "where c.entite is not null and c.statut <> :exclu group by c.entite.idEntite")
     List<Object[]> compterParEntite(@Param("exclu") StatutCollaborateur exclu);
+
+    /**
+     * Collaborateurs d'un statut, avec entite et parents, par matricule :
+     * liste de vigilance du trimestre (tous les actifs).
+     */
+    @Query("select c from Collaborateur c "
+            + "left join fetch c.entite e left join fetch e.parent e1 "
+            + "left join fetch e1.parent e2 left join fetch e2.parent "
+            + "where c.statut = :statut order by c.idCollaborateur")
+    List<Collaborateur> findByStatutAvecEntite(@Param("statut") StatutCollaborateur statut);
 
     /** Collaborateurs par matricule, avec entite et parents (evite un chargement d'entite par ligne). */
     @Query("select c from Collaborateur c "
