@@ -4,17 +4,20 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import org.hibernate.annotations.ColumnDefault;
 import java.math.BigDecimal;
 
 /**
- * Notes brutes des 7 criteres de potentiel d'un collaborateur sur un trimestre.
+ * Notes brutes des 7 criteres de potentiel d'un collaborateur sur un trimestre,
+ * donnees par son manager ou par le collaborateur lui-meme ({@link #getSource()}) :
+ * une ligne au plus par collaborateur, trimestre et source.
  * Le score pondere qui en decoule est calcule par le service et stocke
  * dans {@link Score} : cette entite ne porte que la saisie.
  */
 @Entity
 @Table(name = "potentiel", uniqueConstraints = @UniqueConstraint(
-        name = "uk_potentiel_collaborateur_trimestre",
-        columnNames = {"id_collaborateur", "id_trimestre"}))
+        name = "uk_potentiel_collaborateur_trimestre_source",
+        columnNames = {"id_collaborateur", "id_trimestre", "source_evaluation"}))
 public class Potentiel {
 
     @Id
@@ -30,6 +33,17 @@ public class Potentiel {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_trimestre", nullable = false)
     private Trimestre trimestre;
+
+    /**
+     * Qui a rempli cette evaluation. MANAGER pour les lignes anterieures a
+     * l'auto-evaluation et pour l'import du classeur (colonne creee avec cette
+     * valeur par defaut, voir SourceEvaluationInitializer).
+     */
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'MANAGER'")
+    @Column(name = "source_evaluation", nullable = false, length = 10)
+    private SourceEvaluation source = SourceEvaluation.MANAGER;
 
     @NotNull
     @DecimalMin("0")
@@ -113,6 +127,14 @@ public class Potentiel {
 
     public void setTrimestre(Trimestre trimestre) {
         this.trimestre = trimestre;
+    }
+
+    public SourceEvaluation getSource() {
+        return source;
+    }
+
+    public void setSource(SourceEvaluation source) {
+        this.source = source;
     }
 
     public BigDecimal getNoteLearning() {

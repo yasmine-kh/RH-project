@@ -68,9 +68,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.talent360bank.talent360bank.entity.SourceEvaluation.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -408,7 +410,7 @@ class DatasetExcelComparaisonTest {
         when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF))
                 .thenReturn(scores.stream().map(Score::getCollaborateur).toList());
         PerformanceRepository performanceRepository = mock(PerformanceRepository.class);
-        when(performanceRepository.findMatriculesEvaluesDuTrimestre(any()))
+        when(performanceRepository.findMatriculesEvaluesDuTrimestre(any(), eq(MANAGER)))
                 .thenReturn(List.copyOf(lignes.keySet()));
 
         VigilanceService service = new VigilanceService(scoreRepository, questionnaireRepository,
@@ -630,7 +632,7 @@ class DatasetExcelComparaisonTest {
         ScoreRepository scoreRepository = mock(ScoreRepository.class);
         when(scoreRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(scores);
         PotentielRepository potentielRepository = mock(PotentielRepository.class);
-        when(potentielRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(potentiels);
+        when(potentielRepository.findByTrimestreAvecCollaborateur(any(), eq(MANAGER))).thenReturn(potentiels);
         ParametreRepository parametreRepository = mock(ParametreRepository.class);
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
 

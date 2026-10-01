@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.talent360bank.talent360bank.entity.SourceEvaluation.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -631,7 +632,7 @@ class VigilanceServiceTest {
                 .thenReturn(List.of(engagement(sansScore, "20.00")));
         when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF))
                 .thenReturn(List.of(score, sansScore));
-        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre)).thenReturn(List.of("E001"));
+        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre, MANAGER)).thenReturn(List.of("E001"));
 
         List<ResultatVigilance> lot = vigilanceService.evaluerTrimestre(trimestre);
 
@@ -666,7 +667,7 @@ class VigilanceServiceTest {
         preparerTrimestreSansPrecedent(List.of(), List.of());
         when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF))
                 .thenReturn(List.of(potentielSeul));
-        when(potentielRepository.findMatriculesEvaluesDuTrimestre(trimestre)).thenReturn(List.of("E001"));
+        when(potentielRepository.findMatriculesEvaluesDuTrimestre(trimestre, MANAGER)).thenReturn(List.of("E001"));
 
         assertThat(vigilanceService.evaluerTrimestre(trimestre))
                 .extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
@@ -688,7 +689,7 @@ class VigilanceServiceTest {
                 List.of(engagement(questionnaireVide, null)));
         when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF))
                 .thenReturn(List.of(note, muet, questionnaireVide));
-        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre)).thenReturn(List.of("E001"));
+        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre, MANAGER)).thenReturn(List.of("E001"));
 
         assertThat(vigilanceService.evaluerTrimestre(trimestre))
                 .extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
@@ -784,7 +785,7 @@ class VigilanceServiceTest {
     private void population(List<Score> scoresDuTrimestre) {
         when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF)).thenReturn(
                 scoresDuTrimestre.stream().map(Score::getCollaborateur).filter(Collaborateur::estCalculable).toList());
-        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre)).thenReturn(
+        when(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre, MANAGER)).thenReturn(
                 scoresDuTrimestre.stream().map(score -> score.getCollaborateur().getIdCollaborateur()).toList());
     }
 }

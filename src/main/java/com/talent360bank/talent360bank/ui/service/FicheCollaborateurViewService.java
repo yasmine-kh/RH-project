@@ -12,6 +12,7 @@ import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -42,10 +43,13 @@ import com.talent360bank.talent360bank.service.resultat.GapCompetence;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur;
+import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.AutoEvaluation;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.CaseNeufBox;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Critere;
+import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.CritereAuto;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.EntiteFiche;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Evaluation;
+import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.EvaluationAuto;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.HistoriqueTrimestre;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Identite;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.ManagerFiche;
@@ -167,8 +171,23 @@ public class FicheCollaborateurViewService {
         Donnees d = new Donnees(collaborateur, trimestre);
         d.parametre = parametreRepository.findByTrimestre(trimestre).orElse(null);
         d.score = scoreService.rechercher(collaborateur, trimestre).orElse(null);
-        d.performance = performanceRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null);
-        d.potentiel = potentielRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null);
+        // Les deux sources (manager et auto-evaluation) en une requete par axe.
+        for (Performance performance
+                : performanceRepository.findByCollaborateurAndTrimestreOrderBySource(collaborateur, trimestre)) {
+            if (performance.getSource() == SourceEvaluation.AUTO) {
+                d.performanceAuto = performance;
+            } else {
+                d.performance = performance;
+            }
+        }
+        for (Potentiel potentiel
+                : potentielRepository.findByCollaborateurAndTrimestreOrderBySource(collaborateur, trimestre)) {
+            if (potentiel.getSource() == SourceEvaluation.AUTO) {
+                d.potentielAuto = potentiel;
+            } else {
+                d.potentiel = potentiel;
+            }
+        }
         d.competences = competenceCollaborateurRepository.findByCollaborateurAvecCompetence(collaborateur);
         d.cases = new CasesNeufBox(neufBoxService, matrice9BoxRepository.findAll());
 
@@ -194,7 +213,7 @@ public class FicheCollaborateurViewService {
                 vigilance(d),
                 successions(d),
                 historique(d),
-                null,
+                autoEvaluation(d),
                 List.copyOf(d.manquantes));
     }
 
@@ -214,22 +233,11 @@ public class FicheCollaborateurViewService {
 
     private Evaluation performance(Donnees d) {
         if (d.performance == null) {
-            d.manque("Pas d'évaluation de performance pour ce trimestre");
+            d.manque(d.performanceAuto == null ? "Pas d'évaluation de performance pour ce trimestre"
+                    : "Pas d'évaluation de performance du manager pour ce trimestre (auto-évaluation seule)");
             return null;
         }
-        Performance p = d.performance;
-        PoidsPerformance poids = d.parametre == null ? null : d.parametre.getPoidsPerformance();
-        List<Critere> criteres = List.of(
-                new Critere("OBJECTIFS", "Objectifs", p.getNoteObjectifs(),
-                        poids == null ? null : poids.getPoidsObjectifs()),
-                new Critere("COMPETENCES", "Compétences", p.getNoteCompetences(),
-                        poids == null ? null : poids.getPoidsCompetences()),
-                new Critere("COMPORTEMENT", "Comportement", p.getNoteComportement(),
-                        poids == null ? null : poids.getPoidsComportement()),
-                new Critere("CONTRIBUTION", "Contribution", p.getNoteContribution(),
-                        poids == null ? null : poids.getPoidsContribution()),
-                new Critere("DEVELOPPEMENT", "Développement", p.getNoteDeveloppement(),
-                        poids == null ? null : poids.getPoidsDeveloppement()));
+        List<Critere> criteres = criteresPerformance(d.performance, d.parametre);
 
         BigDecimal score = d.score == null ? null : d.score.getScorePerformance();
         String categorie = null;
@@ -251,26 +259,11 @@ public class FicheCollaborateurViewService {
 
     private Evaluation potentiel(Donnees d) {
         if (d.potentiel == null) {
-            d.manque("Pas d'évaluation de potentiel pour ce trimestre");
+            d.manque(d.potentielAuto == null ? "Pas d'évaluation de potentiel pour ce trimestre"
+                    : "Pas d'évaluation de potentiel du manager pour ce trimestre (auto-évaluation seule)");
             return null;
         }
-        Potentiel p = d.potentiel;
-        PoidsPotentiel poids = d.parametre == null ? null : d.parametre.getPoidsPotentiel();
-        List<Critere> criteres = List.of(
-                new Critere("AGILITE_APPRENTISSAGE", "Agilité d'apprentissage", p.getNoteLearning(),
-                        poids == null ? null : poids.getPoidsLearning()),
-                new Critere("LEADERSHIP", "Leadership", p.getNoteLeadership(),
-                        poids == null ? null : poids.getPoidsLeadership()),
-                new Critere("ADAPTABILITE", "Adaptabilité", p.getNoteAdaptabilite(),
-                        poids == null ? null : poids.getPoidsAdaptabilite()),
-                new Critere("GESTION_COMPLEXITE", "Gestion de la complexité", p.getNoteComplexite(),
-                        poids == null ? null : poids.getPoidsComplexite()),
-                new Critere("MOBILITE", "Mobilité", p.getNoteMobilite(),
-                        poids == null ? null : poids.getPoidsMobilite()),
-                new Critere("VISION_STRATEGIQUE", "Vision stratégique", p.getNoteStrategie(),
-                        poids == null ? null : poids.getPoidsStrategie()),
-                new Critere("AUTONOMIE", "Autonomie", p.getNoteAutonomie(),
-                        poids == null ? null : poids.getPoidsAutonomie()));
+        List<Critere> criteres = criteresPotentiel(d.potentiel, d.parametre);
 
         BigDecimal score = d.score == null ? null : d.score.getScorePotentiel();
         String categorie = null;
@@ -288,6 +281,134 @@ public class FicheCollaborateurViewService {
             }
         }
         return new Evaluation(score, categorie, libelle, criteres);
+    }
+
+    /** Les 5 criteres de performance d'une evaluation (une source), avec leur poids. */
+    private static List<Critere> criteresPerformance(Performance p, Parametre parametre) {
+        PoidsPerformance poids = parametre == null ? null : parametre.getPoidsPerformance();
+        return List.of(
+                new Critere("OBJECTIFS", "Objectifs", p.getNoteObjectifs(),
+                        poids == null ? null : poids.getPoidsObjectifs()),
+                new Critere("COMPETENCES", "Compétences", p.getNoteCompetences(),
+                        poids == null ? null : poids.getPoidsCompetences()),
+                new Critere("COMPORTEMENT", "Comportement", p.getNoteComportement(),
+                        poids == null ? null : poids.getPoidsComportement()),
+                new Critere("CONTRIBUTION", "Contribution", p.getNoteContribution(),
+                        poids == null ? null : poids.getPoidsContribution()),
+                new Critere("DEVELOPPEMENT", "Développement", p.getNoteDeveloppement(),
+                        poids == null ? null : poids.getPoidsDeveloppement()));
+    }
+
+    /** Les 7 criteres de potentiel d'une evaluation (une source), avec leur poids. */
+    private static List<Critere> criteresPotentiel(Potentiel p, Parametre parametre) {
+        PoidsPotentiel poids = parametre == null ? null : parametre.getPoidsPotentiel();
+        return List.of(
+                new Critere("AGILITE_APPRENTISSAGE", "Agilité d'apprentissage", p.getNoteLearning(),
+                        poids == null ? null : poids.getPoidsLearning()),
+                new Critere("LEADERSHIP", "Leadership", p.getNoteLeadership(),
+                        poids == null ? null : poids.getPoidsLeadership()),
+                new Critere("ADAPTABILITE", "Adaptabilité", p.getNoteAdaptabilite(),
+                        poids == null ? null : poids.getPoidsAdaptabilite()),
+                new Critere("GESTION_COMPLEXITE", "Gestion de la complexité", p.getNoteComplexite(),
+                        poids == null ? null : poids.getPoidsComplexite()),
+                new Critere("MOBILITE", "Mobilité", p.getNoteMobilite(),
+                        poids == null ? null : poids.getPoidsMobilite()),
+                new Critere("VISION_STRATEGIQUE", "Vision stratégique", p.getNoteStrategie(),
+                        poids == null ? null : poids.getPoidsStrategie()),
+                new Critere("AUTONOMIE", "Autonomie", p.getNoteAutonomie(),
+                        poids == null ? null : poids.getPoidsAutonomie()));
+    }
+
+    // --- auto-evaluation ---------------------------------------------------------
+
+    /**
+     * Auto-evaluation face a l'evaluation du manager, null sans auto-evaluation.
+     * Chaque score est calcule par le moteur (CalculService) sur les notes de sa
+     * source ; ici, seulement les ecarts.
+     */
+    private AutoEvaluation autoEvaluation(Donnees d) {
+        if (d.performanceAuto == null && d.potentielAuto == null) {
+            return null;
+        }
+        EvaluationAuto performance = null;
+        if (d.performanceAuto != null) {
+            BigDecimal score = scorePerformance(d.performanceAuto, d);
+            String categorie = null;
+            String libelle = null;
+            if (score != null) {
+                try {
+                    var calculee = calculService.categoriePerformance(score,
+                            d.parametre.getSeuilsCategoriePerformance());
+                    categorie = calculee.name();
+                    libelle = calculee.getLibelle();
+                } catch (DonneesIncompletesException e) {
+                    d.manque("Catégorie de l'auto-évaluation de performance : " + e.getMessage());
+                }
+            }
+            BigDecimal scoreManager = d.performance == null ? null : scorePerformance(d.performance, d);
+            performance = new EvaluationAuto(score, categorie, libelle, scoreManager,
+                    ResultatsCollaborateurs.ecart(score, scoreManager),
+                    criteresAuto(criteresPerformance(d.performanceAuto, d.parametre),
+                            d.performance == null ? null : criteresPerformance(d.performance, d.parametre)));
+        }
+        EvaluationAuto potentiel = null;
+        if (d.potentielAuto != null) {
+            BigDecimal score = scorePotentiel(d.potentielAuto, d);
+            String categorie = null;
+            String libelle = null;
+            if (score != null) {
+                try {
+                    var calculee = neufBoxService.categoriePotentiel(score, d.parametre);
+                    categorie = calculee.name();
+                    libelle = calculee.getLibelle();
+                } catch (DonneesIncompletesException e) {
+                    d.manque("Catégorie de l'auto-évaluation de potentiel : " + e.getMessage());
+                }
+            }
+            BigDecimal scoreManager = d.potentiel == null ? null : scorePotentiel(d.potentiel, d);
+            potentiel = new EvaluationAuto(score, categorie, libelle, scoreManager,
+                    ResultatsCollaborateurs.ecart(score, scoreManager),
+                    criteresAuto(criteresPotentiel(d.potentielAuto, d.parametre),
+                            d.potentiel == null ? null : criteresPotentiel(d.potentiel, d.parametre)));
+        }
+        return new AutoEvaluation(performance, potentiel);
+    }
+
+    /** Score d'une evaluation par la formule du moteur ; null (et un manque) sans reglages complets. */
+    private BigDecimal scorePerformance(Performance evaluation, Donnees d) {
+        if (d.parametre == null) {
+            return null;
+        }
+        try {
+            return calculService.calculerScorePerformance(evaluation, d.parametre);
+        } catch (DonneesIncompletesException e) {
+            d.manque("Score de performance par source : " + e.getMessage());
+            return null;
+        }
+    }
+
+    private BigDecimal scorePotentiel(Potentiel evaluation, Donnees d) {
+        if (d.parametre == null) {
+            return null;
+        }
+        try {
+            return calculService.calculerScorePotentiel(evaluation, d.parametre);
+        } catch (DonneesIncompletesException e) {
+            d.manque("Score de potentiel par source : " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** Les criteres de l'auto-evaluation, chacun avec la note du manager et l'ecart (meme ordre des deux cotes). */
+    private static List<CritereAuto> criteresAuto(List<Critere> auto, List<Critere> manager) {
+        List<CritereAuto> criteres = new ArrayList<>();
+        for (int i = 0; i < auto.size(); i++) {
+            Critere critere = auto.get(i);
+            BigDecimal noteManager = manager == null ? null : manager.get(i).note();
+            criteres.add(new CritereAuto(critere.code(), critere.libelle(), critere.note(), noteManager,
+                    ResultatsCollaborateurs.ecart(critere.note(), noteManager), critere.poids()));
+        }
+        return List.copyOf(criteres);
     }
 
     // --- 9-box -----------------------------------------------------------------
@@ -513,8 +634,11 @@ public class FicheCollaborateurViewService {
         final List<String> manquantes = new ArrayList<>();
         Parametre parametre;
         Score score;
+        /** Evaluation du manager (null si elle manque), et auto-evaluation (null sans elle). */
         Performance performance;
+        Performance performanceAuto;
         Potentiel potentiel;
+        Potentiel potentielAuto;
         List<CompetenceCollaborateur> competences;
         /** Score du questionnaire d'engagement, pose par le bloc engagement (lu avant la vigilance). */
         BigDecimal engagement;

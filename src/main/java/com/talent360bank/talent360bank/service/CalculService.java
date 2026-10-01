@@ -6,9 +6,11 @@ import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.PoidsPerformance;
 import com.talent360bank.talent360bank.entity.PoidsPotentiel;
+import com.talent360bank.talent360bank.entity.PonderationSources;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.SeuilsCategoriePerformance;
 import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
@@ -50,7 +52,9 @@ public class CalculService {
     }
 
     /**
-     * Score de performance d'un collaborateur sur un trimestre, sur 100.
+     * Score de performance de l'evaluation du manager d'un collaborateur sur un
+     * trimestre, sur 100. Le score officiel, qui peut melanger l'auto-evaluation,
+     * est celui enregistre dans Score par ScoreService.
      *
      * @throws RessourceIntrouvableException si les notes ou les reglages du
      *                                       trimestre sont absents
@@ -60,7 +64,8 @@ public class CalculService {
         Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
-        Performance performance = performanceRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
+        Performance performance = performanceRepository
+                .findByCollaborateurAndTrimestreAndSource(collaborateur, trimestre, SourceEvaluation.MANAGER)
                 .orElseThrow(() -> new RessourceIntrouvableException(
                         "Aucune note de performance pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
@@ -69,7 +74,8 @@ public class CalculService {
     }
 
     /**
-     * Score de potentiel d'un collaborateur sur un trimestre, sur 100.
+     * Score de potentiel de l'evaluation du manager d'un collaborateur sur un
+     * trimestre, sur 100 (voir {@link #calculerScorePerformance(Collaborateur, Trimestre)}).
      *
      * @throws RessourceIntrouvableException si les notes ou les reglages du
      *                                       trimestre sont absents
@@ -79,7 +85,8 @@ public class CalculService {
         Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
-        Potentiel potentiel = potentielRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
+        Potentiel potentiel = potentielRepository
+                .findByCollaborateurAndTrimestreAndSource(collaborateur, trimestre, SourceEvaluation.MANAGER)
                 .orElseThrow(() -> new RessourceIntrouvableException(
                         "Aucune note de potentiel pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
@@ -137,6 +144,46 @@ public class CalculService {
                         poids.getPoidsStrategie(),
                         poids.getPoidsAutonomie()},
                 "potentiel");
+    }
+
+    /**
+     * Score officiel d'un axe (performance ou potentiel) a partir du score de
+     * chaque source, deja calcule par {@link #calculerScorePerformance(Performance, Parametre)}
+     * ou {@link #calculerScorePotentiel(Potentiel, Parametre)} : moyenne des deux
+     * ponderee par {@link PonderationSources}, arrondie comme les autres scores.
+     *
+     * <ul>
+     *   <li>sans auto-evaluation, ou avec un poids auto nul : le score du
+     *   manager, tel quel (le resultat d'avant l'auto-evaluation) ;</li>
+     *   <li>sans evaluation du manager : le score auto seulement si le poids du
+     *   manager est nul, sinon null (pas de score officiel sans le manager) ;</li>
+     *   <li>les deux : (manager x poids manager + auto x poids auto) / 100.</li>
+     * </ul>
+     *
+     * @param scoreManager score de l'evaluation du manager, null si elle manque
+     * @param scoreAuto    score de l'auto-evaluation, null si elle manque
+     * @return null s'il n'y a pas de score officiel
+     * @throws DonneesIncompletesException si une auto-evaluation est a melanger et que la
+     *                                     ponderation des sources n'est pas configuree
+     */
+    public BigDecimal scoreOfficiel(BigDecimal scoreManager, BigDecimal scoreAuto, PonderationSources ponderation) {
+        // Sans auto-evaluation, rien a melanger : le resultat d'avant, sans meme lire la ponderation.
+        if (scoreAuto == null) {
+            return scoreManager;
+        }
+        PonderationSources poids = exiger(ponderation, "La ponderation des sources d'evaluation n'est pas configuree");
+        BigDecimal poidsManager = exiger(poids.getPoidsManager(),
+                "Le poids de l'evaluation du manager n'est pas configure");
+        BigDecimal poidsAuto = exiger(poids.getPoidsAuto(), "Le poids de l'auto-evaluation n'est pas configure");
+
+        if (poidsAuto.signum() == 0) {
+            return scoreManager;
+        }
+        if (scoreManager == null) {
+            return poidsManager.signum() == 0 ? scoreAuto : null;
+        }
+        return scoreManager.multiply(poidsManager).add(scoreAuto.multiply(poidsAuto))
+                .divide(poidsManager.add(poidsAuto), PRECISION_SCORE, ARRONDI);
     }
 
     /**

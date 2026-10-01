@@ -6,6 +6,7 @@ import com.talent360bank.talent360bank.entity.PointsVigilance;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.SeuilsVigilance;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
@@ -387,8 +388,9 @@ public class VigilanceService {
         Map<String, Score> scores = indexerScores(trimestre);
         Map<String, Score> scoresPrecedents = trimestrePrecedent(trimestre).map(this::indexerScores).orElse(Map.of());
         Map<String, QuestionnaireEngagement> engagements = indexerEngagements(trimestre);
-        Set<String> evalues = new HashSet<>(performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre));
-        evalues.addAll(potentielRepository.findMatriculesEvaluesDuTrimestre(trimestre));
+        Set<String> evalues = new HashSet<>(
+                performanceRepository.findMatriculesEvaluesDuTrimestre(trimestre, SourceEvaluation.MANAGER));
+        evalues.addAll(potentielRepository.findMatriculesEvaluesDuTrimestre(trimestre, SourceEvaluation.MANAGER));
         Map<String, FaitsVigilance> faits = faitsVigilanceSource.faitsDuTrimestre(trimestre);
         if (faits == null) {
             faits = Map.of();

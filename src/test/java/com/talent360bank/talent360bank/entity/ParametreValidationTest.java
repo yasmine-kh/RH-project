@@ -49,6 +49,52 @@ class ParametreValidationTest {
     }
 
     @Test
+    void unePonderationDesSourcesQuiNeFaitPas100EstRejetee() {
+        Parametre parametre = parametreValide();
+        parametre.setPonderationSources(new PonderationSources(new BigDecimal("70"), new BigDecimal("20")));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("ponderationSources.sommeValide");
+    }
+
+    @Test
+    void unMelangeManagerEtAutoEvaluationQuiFait100EstValide() {
+        Parametre parametre = parametreValide();
+        parametre.setPonderationSources(new PonderationSources(new BigDecimal("70"), new BigDecimal("30")));
+
+        assertThat(validator.validate(parametre)).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"-1", "100.01"})
+    void unSeuilDEcartAutoManagerHorsDe0A100EstRejete(String seuil) {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsAutoEvaluation().setSeuilEcartImportant(new BigDecimal(seuil));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsAutoEvaluation.seuilEcartImportant");
+    }
+
+    @Test
+    void leSeuilDEcartAutoManagerVaut15ParDefautEtAccepte0Et100() {
+        Parametre parametre = parametreValide();
+        assertThat(parametre.getSeuilsAutoEvaluation().getSeuilEcartImportant()).isEqualByComparingTo("15");
+
+        parametre.getSeuilsAutoEvaluation().setSeuilEcartImportant(BigDecimal.ZERO);
+        assertThat(validator.validate(parametre)).isEmpty();
+        parametre.getSeuilsAutoEvaluation().setSeuilEcartImportant(new BigDecimal("100"));
+        assertThat(validator.validate(parametre)).isEmpty();
+    }
+
+    @Test
+    void parDefautLeScoreOfficielEstCeluiDuManagerSeul() {
+        assertThat(parametreValide().getPonderationSources().getPoidsManager()).isEqualByComparingTo("100");
+        assertThat(parametreValide().getPonderationSources().getPoidsAuto()).isEqualByComparingTo("0");
+    }
+
+    @Test
     void desSeuils9BoxInversesSontRejetes() {
         Parametre parametre = parametreValide();
         parametre.getSeuilsNeufBox().setSeuilEleve(new BigDecimal("60"));

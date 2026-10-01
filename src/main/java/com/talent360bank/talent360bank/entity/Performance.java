@@ -4,18 +4,20 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import org.hibernate.annotations.ColumnDefault;
 import java.math.BigDecimal;
 
 /**
  * Notes brutes des 5 criteres de performance d'un collaborateur sur un trimestre,
- * donnees par son manager.
+ * donnees par son manager ou par le collaborateur lui-meme ({@link #getSource()}) :
+ * une ligne au plus par collaborateur, trimestre et source.
  * Le score pondere qui en decoule est calcule par le service et stocke
  * dans {@link Score} : cette entite ne porte que la saisie.
  */
 @Entity
 @Table(name = "performance", uniqueConstraints = @UniqueConstraint(
-        name = "uk_performance_collaborateur_trimestre",
-        columnNames = {"id_collaborateur", "id_trimestre"}))
+        name = "uk_performance_collaborateur_trimestre_source",
+        columnNames = {"id_collaborateur", "id_trimestre", "source_evaluation"}))
 public class Performance {
 
     @Id
@@ -33,9 +35,20 @@ public class Performance {
     private Trimestre trimestre;
 
     /**
-     * Manager qui a evalue, null si inconnu. 02_PERFORMANCE ne le nomme pas :
-     * l'import reprend le manager du collaborateur (01_COLLABORATEURS N) au
-     * moment de l'import.
+     * Qui a rempli cette evaluation. MANAGER pour les lignes anterieures a
+     * l'auto-evaluation et pour l'import du classeur (colonne creee avec cette
+     * valeur par defaut, voir SourceEvaluationInitializer).
+     */
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'MANAGER'")
+    @Column(name = "source_evaluation", nullable = false, length = 10)
+    private SourceEvaluation source = SourceEvaluation.MANAGER;
+
+    /**
+     * Manager qui a evalue, null si inconnu ou pour une auto-evaluation.
+     * 02_PERFORMANCE ne le nomme pas : l'import reprend le manager du
+     * collaborateur (01_COLLABORATEURS N) au moment de l'import.
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_manager_evaluateur")
@@ -108,6 +121,14 @@ public class Performance {
 
     public void setTrimestre(Trimestre trimestre) {
         this.trimestre = trimestre;
+    }
+
+    public SourceEvaluation getSource() {
+        return source;
+    }
+
+    public void setSource(SourceEvaluation source) {
+        this.source = source;
     }
 
     public Manager getEvaluateur() {
