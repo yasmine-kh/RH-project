@@ -1,11 +1,12 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.CategoriePotentiel;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.NiveauGrille;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -68,19 +69,19 @@ class NeufBoxServiceTest {
         parametre = Parametre.parDefaut(trimestre);
     }
 
-    private Employe employe(String matricule, StatutEmploye statut) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(matricule);
-        employe.setNom("Nom" + matricule);
-        employe.setPrenom("Prenom" + matricule);
-        employe.setDateEntree(LocalDate.of(2020, 1, 15));
-        employe.setStatut(statut);
-        return employe;
+    private Collaborateur collaborateur(String matricule, StatutCollaborateur statut) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(matricule);
+        collaborateur.setNom("Nom" + matricule);
+        collaborateur.setPrenom("Prenom" + matricule);
+        collaborateur.setDateEntree(LocalDate.of(2020, 1, 15));
+        collaborateur.setStatut(statut);
+        return collaborateur;
     }
 
-    private Score score(Employe employe, String performance, String potentiel) {
+    private Score score(Collaborateur collaborateur, String performance, String potentiel) {
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(trimestre);
         score.setScorePerformance(performance == null ? null : new BigDecimal(performance));
         score.setScorePotentiel(potentiel == null ? null : new BigDecimal(potentiel));
@@ -147,6 +148,58 @@ class NeufBoxServiceTest {
     }
 
     @Test
+    void chaqueAxeSuitSesPropresSeuils() {
+        // 80 : moyen sur l'axe performance (85/70), eleve sur l'axe potentiel (75/60).
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("75"));
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("60"));
+        when(matriceRepository.findByNiveauPerformanceAndNiveauPotentiel(2, 3))
+                .thenReturn(Optional.of(caseMatrice(2, 3, "Potentiel")));
+
+        Matrice9Box case9Box = neufBoxService.placer(new BigDecimal("80"), new BigDecimal("80"), parametre);
+
+        assertThat(case9Box.getCategorie()).isEqualTo("Potentiel");
+    }
+
+    @Test
+    void desSeuilsDePerformanceModifiesNeDeplacentPasLAxePotentiel() {
+        parametre.getSeuilsNeufBox().setSeuilEleve(new BigDecimal("95"));
+        when(matriceRepository.findByNiveauPerformanceAndNiveauPotentiel(2, 3))
+                .thenReturn(Optional.of(caseMatrice(2, 3, "Potentiel")));
+
+        assertThat(neufBoxService.placer(new BigDecimal("90"), new BigDecimal("90"), parametre).getCategorie())
+                .isEqualTo("Potentiel");
+    }
+
+    @Test
+    void sansSeuilsDeLAxePotentielLePlacementEstRefuse() {
+        parametre.setSeuilsNeufBoxPotentiel(null);
+
+        assertThatThrownBy(() -> neufBoxService.placer(new BigDecimal("90"), new BigDecimal("90"), parametre))
+                .isInstanceOf(DonneesIncompletesException.class)
+                .hasMessageContaining("potentiel");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "85.00, ELEVE",
+            "84.99, MOYEN",
+            "70.00, MOYEN",
+            "69.99, FAIBLE"
+    })
+    void laCategorieDePotentielEstLeNiveauDeLAxePotentiel(String score, CategoriePotentiel attendue) {
+        assertThat(neufBoxService.categoriePotentiel(new BigDecimal(score), parametre)).isEqualTo(attendue);
+    }
+
+    @Test
+    void laCategorieDePotentielSuitLesSeuilsDeLAxePotentiel() {
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("75"));
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("60"));
+
+        assertThat(neufBoxService.categoriePotentiel(new BigDecimal("80"), parametre))
+                .isEqualTo(CategoriePotentiel.ELEVE);
+    }
+
+    @Test
     void uneCaseManquanteDansLaReferenceEstSignalee() {
         when(matriceRepository.findByNiveauPerformanceAndNiveauPotentiel(any(), any()))
                 .thenReturn(Optional.empty());
@@ -159,37 +212,39 @@ class NeufBoxServiceTest {
 
     @Test
     void lePlacementEcritLaCategorieDansLeScore() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
-        Score score = score(employe, "90", "90");
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Score score = score(collaborateur, "90", "90");
 
-        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.of(score));
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.of(score));
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
         when(matriceRepository.findByNiveauPerformanceAndNiveauPotentiel(3, 3))
                 .thenReturn(Optional.of(caseMatrice(3, 3, "Etoile montante")));
         when(scoreRepository.save(any(Score.class))).thenAnswer(appel -> appel.getArgument(0));
 
-        assertThat(neufBoxService.placerEtEnregistrer(employe, trimestre).getPositionBox())
-                .isEqualTo("Etoile montante");
+        Score place = neufBoxService.placerEtEnregistrer(collaborateur, trimestre);
+
+        assertThat(place.getPositionBox()).isEqualTo("Etoile montante");
+        assertThat(place.getCategoriePotentiel()).isEqualTo(CategoriePotentiel.ELEVE);
     }
 
     @Test
-    void unEmployeSansScoreCalculeEstSignale() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
-        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+    void unCollaborateurSansScoreCalculeEstSignale() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> neufBoxService.placerEtEnregistrer(employe, trimestre))
+        assertThatThrownBy(() -> neufBoxService.placerEtEnregistrer(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
                 .hasMessageContaining("Aucun score calcule");
     }
 
     @Test
-    void lePlacementDeTrimestrePlaceChaqueEmployeDansSaCase() {
-        Employe premier = employe("E001", StatutEmploye.ACTIF);
-        Employe second = employe("E002", StatutEmploye.ACTIF);
+    void lePlacementDeTrimestrePlaceChaqueCollaborateurDansSaCase() {
+        Collaborateur premier = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur second = collaborateur("E002", StatutCollaborateur.ACTIF);
 
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
         when(matriceRepository.findAll()).thenReturn(matriceComplete());
-        when(scoreRepository.findByTrimestreAvecEmploye(any()))
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(score(premier, "90", "90"), score(second, "50", "75")));
         when(scoreRepository.save(any(Score.class))).thenAnswer(appel -> appel.getArgument(0));
 
@@ -199,40 +254,43 @@ class NeufBoxServiceTest {
         assertThat(resultat.scoresEnregistres())
                 .extracting(Score::getPositionBox)
                 .containsExactly("Case-33", "Case-12");
+        assertThat(resultat.scoresEnregistres())
+                .extracting(Score::getCategoriePotentiel)
+                .containsExactly(CategoriePotentiel.ELEVE, CategoriePotentiel.MOYEN);
     }
 
     @Test
     void unScoreIncompletEstIgnoreAvecSonMotif() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
         when(matriceRepository.findAll()).thenReturn(matriceComplete());
-        when(scoreRepository.findByTrimestreAvecEmploye(any()))
-                .thenReturn(List.of(score(employe, "90", null)));
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any()))
+                .thenReturn(List.of(score(collaborateur, "90", null)));
 
         ResultatRecalcul resultat = neufBoxService.placerTrimestre(trimestre);
 
         assertThat(resultat.nombreCalcules()).isZero();
         assertThat(resultat.ignores()).singleElement()
-                .extracting(ResultatRecalcul.EmployeIgnore::motif)
+                .extracting(ResultatRecalcul.CollaborateurIgnore::motif)
                 .asString().contains("Score incomplet");
         verify(scoreRepository, never()).save(any());
     }
 
     @Test
-    void unEmployeArchiveNEstPasPlace() {
-        Employe archive = employe("E003", StatutEmploye.ARCHIVE);
+    void unCollaborateurArchiveNEstPasPlace() {
+        Collaborateur archive = collaborateur("E003", StatutCollaborateur.ARCHIVE);
 
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
         when(matriceRepository.findAll()).thenReturn(matriceComplete());
-        when(scoreRepository.findByTrimestreAvecEmploye(any()))
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(score(archive, "90", "90")));
 
         ResultatRecalcul resultat = neufBoxService.placerTrimestre(trimestre);
 
         assertThat(resultat.nombreCalcules()).isZero();
         assertThat(resultat.ignores()).singleElement()
-                .extracting(ResultatRecalcul.EmployeIgnore::motif)
+                .extracting(ResultatRecalcul.CollaborateurIgnore::motif)
                 .asString().contains("ARCHIVE");
     }
 

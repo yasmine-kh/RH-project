@@ -12,7 +12,7 @@ import java.math.BigDecimal;
  * Seuils de detection automatique, tels que les fixe 00_PARAMETRES section 5 :
  * un talent a sa performance ET son potentiel a leur seuil ; un haut potentiel
  * a son potentiel ET sa performance a leurs propres seuils (85 et 75). Les deux
- * statuts sont independants, un employe peut cumuler les deux.
+ * statuts sont independants, un collaborateur peut cumuler les deux.
  *
  * <p>Les seuils de haut potentiel, ajoutes apres coup, portent leur valeur par
  * defaut en base comme les autres colonnes ajoutees (voir BaremeExperience).

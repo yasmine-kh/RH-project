@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface ParametreRepository extends JpaRepository<Parametre, Integer> {
@@ -17,4 +19,7 @@ public interface ParametreRepository extends JpaRepository<Parametre, Integer> {
     Optional<Parametre> findByNumeroEtAnnee(@Param("numero") Integer numero, @Param("annee") Integer annee);
 
     boolean existsByTrimestre(Trimestre trimestre);
+
+    /** Reglages de plusieurs trimestres en une requete : historique de la fiche collaborateur. */
+    List<Parametre> findByTrimestreIn(Collection<Trimestre> trimestres);
 }

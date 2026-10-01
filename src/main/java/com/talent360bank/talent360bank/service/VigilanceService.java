@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.PointsVigilance;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
@@ -17,6 +17,8 @@ import com.talent360bank.talent360bank.service.enums.SignalVigilance;
 import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -34,7 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Indice de vigilance : le risque qu'un employe quitte la banque, note de 0 a
+ * Indice de vigilance : le risque qu'un collaborateur quitte la banque, note de 0 a
  * 100 par addition des points des signaux declenches, puis classe en FAIBLE,
  * MODEREE ou ELEVEE.
  *
@@ -44,18 +47,15 @@ import java.util.Set;
  * en dessous duquel l'engagement est juge faible. Comme ailleurs dans le
  * moteur, aucun bareme n'est ecrit ici.
  *
- * <p><strong>Detection partielle.</strong> Le modele de donnees ne permet
- * aujourd'hui de reconnaitre que deux des sept signaux : ENGAGEMENT_FAIBLE
- * (via QuestionnaireEngagement) et BAISSE_PERFORMANCE (via l'historique des
- * Score). Les cinq autres n'ont pas de source : mobilite, plan de
- * developpement, reconnaissance et formations ne sont pas modelises. La
- * detection automatique plafonne donc a 35 points, ce qui rend le niveau
- * ELEVEE inatteignable tant que ces sources manquent. Les signaux manquants
- * peuvent etre passes a la main a {@link #evaluer(Employe, Set, Parametre)} ;
- * l'indice est alors complet.
+ * <p><strong>Origine des signaux.</strong> ENGAGEMENT_FAIBLE vient du score
+ * du QuestionnaireEngagement compare au seuil. Les cinq signaux de mobilite,
+ * developpement, reconnaissance et formation viennent des faits importes
+ * ({@link FaitsVigilanceSource}, 12_VIGILANCE F a K). BAISSE_PERFORMANCE se
+ * mesure sur l'historique des Score quand le collaborateur a un score au trimestre
+ * precedent ; sinon, c'est le drapeau importe qui decide. Sans source de faits
+ * declaree, seuls l'engagement et la baisse mesuree peuvent etre leves.
  *
- * <p>Service de lecture seule : il calcule et classe, il n'ecrit rien. La
- * creation des Alerte a partir des niveaux ELEVEE n'est pas faite ici.
+ * <p>Service de lecture seule : il calcule et classe, il n'ecrit rien.
  */
 @Service
 public class VigilanceService {
@@ -64,19 +64,49 @@ public class VigilanceService {
 
     private static final RoundingMode ARRONDI = RoundingMode.HALF_UP;
 
+    /** Signaux leves uniquement par les faits importes. */
+    private static final Set<SignalVigilance> SIGNAUX_IMPORTES = EnumSet.of(
+            SignalVigilance.SANS_MOBILITE_4_ANS,
+            SignalVigilance.MOBILITE_NON_TRAITEE,
+            SignalVigilance.SANS_DEVELOPPEMENT_RECENT,
+            SignalVigilance.FAIBLE_RECONNAISSANCE,
+            SignalVigilance.FORMATION_NON_FAITE);
+
     private final ScoreRepository scoreRepository;
     private final QuestionnaireEngagementRepository questionnaireRepository;
     private final TrimestreRepository trimestreRepository;
     private final CalculService calculService;
+    private final FaitsVigilanceSource faitsVigilanceSource;
+
+    /**
+     * Constructeur de Spring. La source des faits est optionnelle : tant que
+     * l'import ne la fournit pas, les signaux importes ne sont jamais leves.
+     */
+    @Autowired
+    public VigilanceService(ScoreRepository scoreRepository,
+                            QuestionnaireEngagementRepository questionnaireRepository,
+                            TrimestreRepository trimestreRepository,
+                            CalculService calculService,
+                            ObjectProvider<FaitsVigilanceSource> faitsVigilanceSource) {
+        this(scoreRepository, questionnaireRepository, trimestreRepository, calculService,
+                faitsVigilanceSource.getIfAvailable(() -> {
+                    log.warn("Aucune source de faits de vigilance : mobilite, developpement, "
+                            + "reconnaissance et formation ne seront pas leves tant que l'import "
+                            + "ne les fournit pas");
+                    return trimestre -> Map.of();
+                }));
+    }
 
     public VigilanceService(ScoreRepository scoreRepository,
                             QuestionnaireEngagementRepository questionnaireRepository,
                             TrimestreRepository trimestreRepository,
-                            CalculService calculService) {
+                            CalculService calculService,
+                            FaitsVigilanceSource faitsVigilanceSource) {
         this.scoreRepository = scoreRepository;
         this.questionnaireRepository = questionnaireRepository;
         this.trimestreRepository = trimestreRepository;
         this.calculService = calculService;
+        this.faitsVigilanceSource = Objects.requireNonNull(faitsVigilanceSource, "faitsVigilanceSource");
     }
 
     /**
@@ -129,14 +159,8 @@ public class VigilanceService {
     }
 
     /**
-     * Signaux reconnaissables a partir des donnees deja chargees.
-     *
-     * <p>Une donnee absente ne leve pas de signal : sans questionnaire, on ne
-     * sait pas si l'engagement est faible, on ne peut pas le supposer. Le seuil
-     * d'engagement est une borne basse exclusive, comme les seuils de l'indice :
-     * un score egal au seuil ne declenche pas le signal. Seul un recul strict de
-     * la performance d'un trimestre a l'autre compte comme baisse, la
-     * specification ne fixant pas d'amplitude minimale.
+     * Signaux reconnaissables a partir des scores et du questionnaire seuls,
+     * sans faits importes.
      *
      * @throws DonneesIncompletesException si un questionnaire est exploitable
      *                                     mais que le seuil n'est pas configure
@@ -144,7 +168,33 @@ public class VigilanceService {
     public Set<SignalVigilance> detecterSignaux(Score scoreCourant, Score scorePrecedent,
                                                 QuestionnaireEngagement engagement,
                                                 SeuilsVigilance seuils) {
+        return detecterSignaux(scoreCourant, scorePrecedent, engagement, FaitsVigilance.AUCUN, seuils);
+    }
+
+    /**
+     * Signaux reconnaissables a partir des donnees deja chargees.
+     *
+     * <p>Une donnee absente ne leve pas de signal : sans questionnaire, on ne
+     * sait pas si l'engagement est faible, on ne peut pas le supposer ; un fait
+     * importe inconnu (null) vaut non. Le seuil d'engagement est une borne
+     * basse exclusive, comme les seuils de l'indice : un score egal au seuil ne
+     * declenche pas le signal.
+     *
+     * <p>Baisse de performance : si les deux scores sont connus, l'historique
+     * decide seul, drapeau importe compris ; seul un recul strict compte, la
+     * specification ne fixant pas d'amplitude minimale. Sans score precedent
+     * comparable, c'est le drapeau importe qui decide.
+     *
+     * @param faits faits importes de le collaborateur, {@link FaitsVigilance#AUCUN} si inconnus
+     * @throws DonneesIncompletesException si un questionnaire est exploitable
+     *                                     mais que le seuil n'est pas configure
+     */
+    public Set<SignalVigilance> detecterSignaux(Score scoreCourant, Score scorePrecedent,
+                                                QuestionnaireEngagement engagement,
+                                                FaitsVigilance faits,
+                                                SeuilsVigilance seuils) {
         Objects.requireNonNull(seuils, "seuils");
+        FaitsVigilance faitsConnus = faits == null ? FaitsVigilance.AUCUN : faits;
         Set<SignalVigilance> signaux = EnumSet.noneOf(SignalVigilance.class);
 
         if (engagement != null && engagement.getScoreEngagement() != null) {
@@ -157,86 +207,151 @@ public class VigilanceService {
             }
         }
 
-        if (scoreCourant != null && scorePrecedent != null
+        boolean historiqueComparable = scoreCourant != null && scorePrecedent != null
                 && scoreCourant.getScorePerformance() != null
-                && scorePrecedent.getScorePerformance() != null
-                && scoreCourant.getScorePerformance()
-                .compareTo(scorePrecedent.getScorePerformance()) < 0) {
+                && scorePrecedent.getScorePerformance() != null;
+        boolean baisse = historiqueComparable
+                ? scoreCourant.getScorePerformance().compareTo(scorePrecedent.getScorePerformance()) < 0
+                : faitsConnus.estDeclare(SignalVigilance.BAISSE_PERFORMANCE);
+        if (baisse) {
             signaux.add(SignalVigilance.BAISSE_PERFORMANCE);
+        }
+
+        for (SignalVigilance signal : SIGNAUX_IMPORTES) {
+            if (faitsConnus.estDeclare(signal)) {
+                signaux.add(signal);
+            }
         }
 
         return signaux;
     }
 
     /**
-     * Signaux d'un employe sur un trimestre, donnees chargees depuis la base.
+     * Signaux d'un collaborateur sur un trimestre, donnees chargees depuis la base.
      */
     @Transactional(readOnly = true)
-    public Set<SignalVigilance> detecterSignaux(Employe employe, Trimestre trimestre) {
-        return detecterSignaux(employe, trimestre,
+    public Set<SignalVigilance> detecterSignaux(Collaborateur collaborateur, Trimestre trimestre) {
+        return detecterSignaux(collaborateur, trimestre,
                 calculService.chargerParametre(trimestre).getSeuilsVigilance());
     }
 
-    private Set<SignalVigilance> detecterSignaux(Employe employe, Trimestre trimestre,
+    private Set<SignalVigilance> detecterSignaux(Collaborateur collaborateur, Trimestre trimestre,
                                                  SeuilsVigilance seuils) {
-        Objects.requireNonNull(employe, "employe");
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
-        Score scoreCourant = scoreRepository.findByEmployeAndTrimestre(employe, trimestre)
+        Score scoreCourant = scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElse(null);
         Score scorePrecedent = trimestrePrecedent(trimestre)
-                .flatMap(precedent -> scoreRepository.findByEmployeAndTrimestre(employe, precedent))
+                .flatMap(precedent -> scoreRepository.findByCollaborateurAndTrimestre(collaborateur, precedent))
                 .orElse(null);
 
         return detecterSignaux(scoreCourant, scorePrecedent,
-                questionnaireRepository.findByEmployeAndTrimestre(employe, trimestre).orElse(null),
+                questionnaireRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null),
+                faitsVigilanceSource.faits(collaborateur.getIdCollaborateur(), trimestre),
                 seuils);
     }
 
     /**
      * Indice et niveau a partir d'un jeu de signaux deja etabli, sans acces
-     * base. C'est par cette methode que passent les signaux que la detection
-     * automatique ne sait pas encore lever.
+     * base. Permet aussi de saisir des signaux a la main, hors import.
      */
-    public ResultatVigilance evaluer(Employe employe, Set<SignalVigilance> signaux,
+    public ResultatVigilance evaluer(Collaborateur collaborateur, Set<SignalVigilance> signaux,
                                      Parametre parametre) {
-        Objects.requireNonNull(employe, "employe");
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(signaux, "signaux");
         Objects.requireNonNull(parametre, "parametre");
 
         BigDecimal indice = calculerIndice(signaux, parametre.getPointsVigilance());
 
         // Copie figee : le resultat ne doit pas bouger si l'appelant reutilise
-        // son EnumSet pour l'employe suivant.
-        return new ResultatVigilance(employe, indice,
+        // son EnumSet pour le collaborateur suivant.
+        return new ResultatVigilance(collaborateur, indice,
                 niveauPour(indice, parametre.getSeuilsVigilance()), Set.copyOf(signaux));
     }
 
     /**
-     * Vigilance d'un employe sur un trimestre.
+     * Vigilance d'un collaborateur sur un trimestre.
      *
      * @throws RessourceIntrouvableException si les reglages du trimestre sont absents
      */
     @Transactional(readOnly = true)
-    public ResultatVigilance evaluer(Employe employe, Trimestre trimestre) {
-        Objects.requireNonNull(employe, "employe");
+    public ResultatVigilance evaluer(Collaborateur collaborateur, Trimestre trimestre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
 
         // Les reglages sont charges une fois et servent a la detection comme au
         // classement : les relire pour chaque etape ferait deux requetes.
-        Parametre parametre = calculService.chargerParametre(trimestre);
-
-        return evaluer(employe,
-                detecterSignaux(employe, trimestre, parametre.getSeuilsVigilance()), parametre);
+        return evaluer(collaborateur, trimestre, calculService.chargerParametre(trimestre));
     }
 
     /**
-     * Vigilance de tous les employes scores du trimestre, du plus a risque au
+     * Comme {@link #evaluer(Collaborateur, Trimestre)}, avec des reglages deja
+     * charges. Sans transaction propre : appelee dans une transaction existante,
+     * une donnee manquante (DonneesIncompletesException) n'y marque pas la
+     * transaction appelante pour annulation, l'appelant peut la rattraper.
+     */
+    public ResultatVigilance evaluer(Collaborateur collaborateur, Trimestre trimestre, Parametre parametre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
+        Objects.requireNonNull(trimestre, "trimestre");
+        Objects.requireNonNull(parametre, "parametre");
+        return evaluer(collaborateur,
+                detecterSignaux(collaborateur, trimestre, parametre.getSeuilsVigilance()), parametre);
+    }
+
+    /**
+     * Vigilance d'un lot de collaborateurs (une equipe), par la meme regle que
+     * {@link #evaluer(Collaborateur, Trimestre)} pour chacun, en un nombre fixe de
+     * requetes quelle que soit la taille du lot : trimestre precedent, scores
+     * precedents du lot, faits du lot. Scores et questionnaires du trimestre sont
+     * fournis par l'appelant, qui les a deja lus.
+     *
+     * <p>Sans transaction propre, comme {@link #evaluer(Collaborateur, Trimestre, Parametre)} :
+     * une donnee manquante ne marque pas la transaction appelante pour annulation.
+     *
+     * @param scoresCourants scores du trimestre, par Employee_ID (absent : pas de score)
+     * @param engagements    questionnaires du trimestre, par Employee_ID (absent : pas de reponse)
+     * @return par Employee_ID, un resultat pour chaque collaborateur du lot
+     * @throws DonneesIncompletesException si les points ou seuils de vigilance ne sont pas configures
+     */
+    public Map<String, ResultatVigilance> evaluerLot(Collection<Collaborateur> collaborateurs, Trimestre trimestre,
+                                                     Parametre parametre, Map<String, Score> scoresCourants,
+                                                     Map<String, QuestionnaireEngagement> engagements) {
+        Objects.requireNonNull(collaborateurs, "collaborateurs");
+        Objects.requireNonNull(trimestre, "trimestre");
+        Objects.requireNonNull(parametre, "parametre");
+        if (collaborateurs.isEmpty()) {
+            return Map.of();
+        }
+        List<String> ids = collaborateurs.stream().map(Collaborateur::getIdCollaborateur).toList();
+
+        Map<String, Score> precedents = new HashMap<>();
+        trimestrePrecedent(trimestre).ifPresent(precedent -> {
+            for (Score score : scoreRepository.findByTrimestreEtCollaborateurs(precedent, ids)) {
+                precedents.put(score.getCollaborateur().getIdCollaborateur(), score);
+            }
+        });
+        Map<String, FaitsVigilance> faits = faitsVigilanceSource.faitsDe(ids, trimestre);
+
+        Map<String, ResultatVigilance> resultats = new HashMap<>();
+        for (Collaborateur collaborateur : collaborateurs) {
+            String id = collaborateur.getIdCollaborateur();
+            resultats.put(id, evaluer(collaborateur,
+                    detecterSignaux(scoresCourants.get(id), precedents.get(id), engagements.get(id),
+                            faits == null ? FaitsVigilance.AUCUN : faits.getOrDefault(id, FaitsVigilance.AUCUN),
+                            parametre.getSeuilsVigilance()),
+                    parametre));
+        }
+        return resultats;
+    }
+
+    /**
+     * Vigilance de tous les collaborateurs scores du trimestre, du plus a risque au
      * moins a risque.
      *
-     * <p>Lecture seule : rien n'est ecrit. Le perimetre est celui des employes
+     * <p>Lecture seule : rien n'est ecrit. Le perimetre est celui des collaborateurs
      * ayant un Score sur le trimestre, comme pour le placement 9-box et la
-     * detection des talents ; les employes hors perimetre de calcul sont
+     * detection des talents ; les collaborateurs hors perimetre de calcul sont
      * comptes et logues plutot qu'ecartes en silence.
      */
     @Transactional(readOnly = true)
@@ -246,41 +361,47 @@ public class VigilanceService {
         Parametre parametre = calculService.chargerParametre(trimestre);
         Map<String, Score> scoresPrecedents = indexerScoresPrecedents(trimestre);
         Map<String, QuestionnaireEngagement> engagements = indexerEngagements(trimestre);
+        Map<String, FaitsVigilance> faits = faitsVigilanceSource.faitsDuTrimestre(trimestre);
+        if (faits == null) {
+            faits = Map.of();
+        }
 
         List<ResultatVigilance> resultats = new ArrayList<>();
         int horsPerimetre = 0;
 
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
-            Employe employe = score.getEmploye();
-            if (!employe.estCalculable()) {
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            Collaborateur collaborateur = score.getCollaborateur();
+            if (!collaborateur.estCalculable()) {
                 horsPerimetre++;
                 continue;
             }
-            String employeeId = employe.getEmployeeId();
-            resultats.add(evaluer(employe,
-                    detecterSignaux(score, scoresPrecedents.get(employeeId),
-                            engagements.get(employeeId), parametre.getSeuilsVigilance()),
+            String idCollaborateur = collaborateur.getIdCollaborateur();
+            resultats.add(evaluer(collaborateur,
+                    detecterSignaux(score, scoresPrecedents.get(idCollaborateur),
+                            engagements.get(idCollaborateur),
+                            faits.getOrDefault(idCollaborateur, FaitsVigilance.AUCUN),
+                            parametre.getSeuilsVigilance()),
                     parametre));
         }
 
-        // A egalite d'indice, l'employeeId departage : sans cela deux appels
+        // A egalite d'indice, l'idCollaborateur departage : sans cela deux appels
         // successifs pourraient rendre la meme liste dans un autre ordre.
         resultats.sort(Comparator
                 .comparing(ResultatVigilance::indice, Comparator.reverseOrder())
-                .thenComparing(resultat -> resultat.employe().getEmployeeId()));
+                .thenComparing(resultat -> resultat.collaborateur().getIdCollaborateur()));
 
         if (horsPerimetre > 0) {
-            log.warn("Vigilance {} : {} employe(s) hors perimetre de calcul ecarte(s)",
+            log.warn("Vigilance {} : {} collaborateur(s) hors perimetre de calcul ecarte(s)",
                     decrire(trimestre), horsPerimetre);
         }
-        log.info("Vigilance {} : {} employe(s) evalue(s), dont {} a risque",
+        log.info("Vigilance {} : {} collaborateur(s) evalue(s), dont {} a risque",
                 decrire(trimestre), resultats.size(),
                 resultats.stream().filter(ResultatVigilance::estARisque).count());
 
         return resultats;
     }
 
-    /** Employes dont la vigilance atteint au moins le niveau demande. */
+    /** Collaborateurs dont la vigilance atteint au moins le niveau demande. */
     @Transactional(readOnly = true)
     public List<ResultatVigilance> evaluerTrimestre(Trimestre trimestre, NiveauVigilance minimum) {
         Objects.requireNonNull(minimum, "minimum");
@@ -306,8 +427,8 @@ public class VigilanceService {
             return Map.of();
         }
         Map<String, Score> index = new HashMap<>();
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(precedent.get())) {
-            index.put(score.getEmploye().getEmployeeId(), score);
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(precedent.get())) {
+            index.put(score.getCollaborateur().getIdCollaborateur(), score);
         }
         return index;
     }
@@ -315,8 +436,8 @@ public class VigilanceService {
     private Map<String, QuestionnaireEngagement> indexerEngagements(Trimestre trimestre) {
         Map<String, QuestionnaireEngagement> index = new HashMap<>();
         for (QuestionnaireEngagement engagement
-                : questionnaireRepository.findByTrimestreAvecEmploye(trimestre)) {
-            index.put(engagement.getEmploye().getEmployeeId(), engagement);
+                : questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            index.put(engagement.getCollaborateur().getIdCollaborateur(), engagement);
         }
         return index;
     }

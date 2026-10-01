@@ -1,14 +1,24 @@
 package com.talent360bank.talent360bank.controller;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.config.SecurityConfig;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
+import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
+import com.talent360bank.talent360bank.entity.AppartenanceVivier;
+import com.talent360bank.talent360bank.entity.CategoriePerformance;
+import com.talent360bank.talent360bank.entity.CategoriePotentiel;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.service.NeufBoxService;
 import com.talent360bank.talent360bank.service.TalentService;
+import com.talent360bank.talent360bank.service.VivierReleveService;
 import com.talent360bank.talent360bank.service.resultat.MembreVivierReleve;
+import com.talent360bank.talent360bank.service.resultat.ResultatConstitutionVivier;
 import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
+import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +35,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
 
+@Import({SecurityConfig.class, VerrouCalculTrimestre.class})
+@WithMockUser(roles = "RH")
 @WebMvcTest({TalentController.class, NeufBoxController.class})
 class TalentEtNeufBoxControllerTest {
 
@@ -37,10 +52,14 @@ class TalentEtNeufBoxControllerTest {
     @MockBean
     private NeufBoxService neufBoxService;
     @MockBean
+    private VivierReleveService vivierReleveService;
+    @MockBean
     private ChargeurRessources chargeur;
+    @Autowired
+    private VerrouCalculTrimestre verrou;
 
     private Trimestre trimestre;
-    private Employe employe;
+    private Collaborateur collaborateur;
 
     @BeforeEach
     void init() {
@@ -48,21 +67,23 @@ class TalentEtNeufBoxControllerTest {
         trimestre.setNumero(1);
         trimestre.setAnnee(2026);
 
-        employe = new Employe();
-        employe.setEmployeeId("E001");
-        employe.setNom("Bennani");
-        employe.setPrenom("Sara");
-        employe.setDateEntree(LocalDate.of(2020, 1, 15));
-        employe.setStatut(StatutEmploye.ACTIF);
+        collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur("E001");
+        collaborateur.setNom("Bennani");
+        collaborateur.setPrenom("Sara");
+        collaborateur.setDateEntree(LocalDate.of(2020, 1, 15));
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
     }
 
     private Score score() {
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(trimestre);
         score.setScorePerformance(new BigDecimal("92.00"));
         score.setScorePotentiel(new BigDecimal("88.00"));
         score.setPositionBox("Talent cle");
+        score.setCategoriePerformance(CategoriePerformance.EXCEPTIONNELLE);
+        score.setCategoriePotentiel(CategoriePotentiel.ELEVE);
         return score;
     }
 
@@ -73,20 +94,49 @@ class TalentEtNeufBoxControllerTest {
 
         mockMvc.perform(get("/api/trimestres/2026/1/talents"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$[0].scorePerformance").value(92.00))
-                .andExpect(jsonPath("$[0].positionBox").value("Talent cle"));
+                .andExpect(jsonPath("$[0].positionBox").value("Talent cle"))
+                .andExpect(jsonPath("$[0].categoriePerformance").value("Exceptionnelle"))
+                .andExpect(jsonPath("$[0].categoriePotentiel").value("Eleve"));
     }
 
     @Test
-    void le_statut_de_talent_d_un_employe_est_un_objet() throws Exception {
+    void des_categories_pas_encore_posees_sont_rendues_nulles() throws Exception {
+        Score sansCategorie = score();
+        sansCategorie.setCategoriePerformance(null);
+        sansCategorie.setCategoriePotentiel(null);
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
-        when(chargeur.exigerEmploye("E001")).thenReturn(employe);
-        when(talentService.estTalent(employe, trimestre)).thenReturn(true);
+        when(talentService.detecterTalents(trimestre)).thenReturn(List.of(sansCategorie));
+
+        mockMvc.perform(get("/api/trimestres/2026/1/talents"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoriePerformance").doesNotExist())
+                .andExpect(jsonPath("$[0].categoriePotentiel").doesNotExist());
+    }
+
+    @Test
+    void l_enregistrement_du_vivier_de_releve_rend_le_bilan() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+        when(vivierReleveService.constituerViviers(trimestre)).thenReturn(new ResultatConstitutionVivier(
+                3, List.of(new AppartenanceVivier(), new AppartenanceVivier()), List.of("E009")));
+
+        mockMvc.perform(post("/api/trimestres/2026/1/vivier-releve").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nbRemplaces").value(3))
+                .andExpect(jsonPath("$.nbEcrits").value(2))
+                .andExpect(jsonPath("$.dejaPresents[0]").value("E009"));
+    }
+
+    @Test
+    void le_statut_de_talent_d_un_collaborateur_est_un_objet() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+        when(chargeur.exigerCollaborateur("E001")).thenReturn(collaborateur);
+        when(talentService.estTalent(collaborateur, trimestre)).thenReturn(true);
 
         mockMvc.perform(get("/api/trimestres/2026/1/talents/E001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.employeeId").value("E001"))
+                .andExpect(jsonPath("$.idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$.estTalent").value(true));
     }
 
@@ -97,19 +147,19 @@ class TalentEtNeufBoxControllerTest {
 
         mockMvc.perform(get("/api/trimestres/2026/1/hauts-potentiels"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$[0].scorePotentiel").value(88.00));
     }
 
     @Test
-    void le_statut_de_haut_potentiel_d_un_employe_est_un_objet() throws Exception {
+    void le_statut_de_haut_potentiel_d_un_collaborateur_est_un_objet() throws Exception {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
-        when(chargeur.exigerEmploye("E001")).thenReturn(employe);
-        when(talentService.estHautPotentiel(employe, trimestre)).thenReturn(true);
+        when(chargeur.exigerCollaborateur("E001")).thenReturn(collaborateur);
+        when(talentService.estHautPotentiel(collaborateur, trimestre)).thenReturn(true);
 
         mockMvc.perform(get("/api/trimestres/2026/1/hauts-potentiels/E001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.employeeId").value("E001"))
+                .andExpect(jsonPath("$.idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$.estHautPotentiel").value(true));
     }
 
@@ -121,7 +171,7 @@ class TalentEtNeufBoxControllerTest {
 
         mockMvc.perform(get("/api/trimestres/2026/1/vivier-releve"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].employeeId").value("E001"))
+                .andExpect(jsonPath("$[0].idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$[0].nomComplet").isNotEmpty())
                 .andExpect(jsonPath("$[0].talent").value(true))
                 .andExpect(jsonPath("$[0].hautPotentiel").value(true));
@@ -144,9 +194,9 @@ class TalentEtNeufBoxControllerTest {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
         when(neufBoxService.placerTrimestre(trimestre)).thenReturn(new ResultatRecalcul(
                 List.of(score()),
-                List.of(new ResultatRecalcul.EmployeIgnore("E002", "Score incomplet"))));
+                List.of(new ResultatRecalcul.CollaborateurIgnore("E002", "Score incomplet"))));
 
-        mockMvc.perform(post("/api/trimestres/2026/1/9box/placement"))
+        mockMvc.perform(post("/api/trimestres/2026/1/9box/placement").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombreCalcules").value(1))
                 .andExpect(jsonPath("$.scores[0].positionBox").value("Talent cle"))
@@ -160,5 +210,33 @@ class TalentEtNeufBoxControllerTest {
         // l'API ne s'y applique pas. Le statut reste juste, c'est l'essentiel.
         mockMvc.perform(get("/api/trimestres/2026/1/9box/placement"))
                 .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    void le_placement_9_box_rend_409_pendant_un_calcul_du_trimestre() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+
+        try (VerrouTenu calculEnCours = VerrouTenu.tenir(verrou, trimestre)) {
+            mockMvc.perform(post("/api/trimestres/2026/1/9box/placement").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.erreur").value("recalcul_en_cours"))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(
+                            "Recalcul déjà en cours pour T1 2026")));
+        }
+        verify(neufBoxService, never()).placerTrimestre(any());
+    }
+
+    @Test
+    void l_enregistrement_du_vivier_de_releve_rend_409_pendant_un_calcul_du_trimestre() throws Exception {
+        when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
+
+        try (VerrouTenu calculEnCours = VerrouTenu.tenir(verrou, trimestre)) {
+            mockMvc.perform(post("/api/trimestres/2026/1/vivier-releve").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.erreur").value("recalcul_en_cours"))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(
+                            "Recalcul déjà en cours pour T1 2026")));
+        }
+        verify(vivierReleveService, never()).constituerViviers(any());
     }
 }

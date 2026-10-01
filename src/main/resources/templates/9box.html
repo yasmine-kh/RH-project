@@ -23,9 +23,9 @@
         <div class="ninebox-grid">
             <div class="ninebox-cell" th:each="cell : ${cells}">
                 <div class="ninebox-cell-title" th:text="${cell.categorie}">Categorie</div>
-                <div class="ninebox-cell-count" th:text="${cell.nombreEmployes} + ' employe(s)'">0</div>
+                <div class="ninebox-cell-count" th:text="${cell.nombreCollaborateurs} + ' collaborateur(s)'">0</div>
                 <ul class="ninebox-cell-list">
-                    <li th:each="nom : ${cell.employes}" th:text="${nom}">Nom</li>
+                    <li th:each="nom : ${cell.collaborateurs}" th:text="${nom}">Nom</li>
                 </ul>
             </div>
         </div>

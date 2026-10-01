@@ -1,9 +1,12 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.CategoriePerformance;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Potentiel;
+import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
+import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -13,6 +16,8 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -39,7 +44,7 @@ class CalculServiceTest {
 
     private CalculService calculService;
 
-    private Employe employe;
+    private Collaborateur collaborateur;
     private Trimestre trimestre;
     private Parametre parametre;
 
@@ -47,11 +52,11 @@ class CalculServiceTest {
     void init() {
         calculService = new CalculService(parametreRepository, performanceRepository, potentielRepository);
 
-        employe = new Employe();
-        employe.setEmployeeId("E001");
-        employe.setNom("Bennani");
-        employe.setPrenom("Sara");
-        employe.setDateEntree(LocalDate.of(2020, 1, 15));
+        collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur("E001");
+        collaborateur.setNom("Bennani");
+        collaborateur.setPrenom("Sara");
+        collaborateur.setDateEntree(LocalDate.of(2020, 1, 15));
 
         trimestre = new Trimestre();
         trimestre.setNumero(1);
@@ -61,7 +66,7 @@ class CalculServiceTest {
     }
 
     private Performance performance() {
-        return new Performance(employe, trimestre,
+        return new Performance(collaborateur, trimestre,
                 new BigDecimal("90"),   // objectifs      x 40%
                 new BigDecimal("80"),   // competences    x 20%
                 new BigDecimal("70"),   // comportement   x 20%
@@ -70,7 +75,7 @@ class CalculServiceTest {
     }
 
     private Potentiel potentiel() {
-        return new Potentiel(employe, trimestre,
+        return new Potentiel(collaborateur, trimestre,
                 new BigDecimal("90"),   // learning       x 20%
                 new BigDecimal("80"),   // leadership     x 20%
                 new BigDecimal("70"),   // adaptabilite   x 15%
@@ -87,6 +92,71 @@ class CalculServiceTest {
 
         assertThat(score).isEqualByComparingTo("77");
         assertThat(score.scale()).isEqualTo(CalculService.PRECISION_SCORE);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "100, EXCEPTIONNELLE",
+            "90.00, EXCEPTIONNELLE",   // borne inclusive
+            "89.99, ELEVEE",
+            "80.00, ELEVEE",
+            "79.99, SOLIDE",
+            "70.00, SOLIDE",
+            "69.99, A_RENFORCER",
+            "60.00, A_RENFORCER",
+            "59.99, INSUFFISANTE",
+            "0, INSUFFISANTE"
+    })
+    void laCategorieDePerformanceSuitLesSeuilsBornesIncluses(String score, CategoriePerformance attendue) {
+        assertThat(calculService.categoriePerformance(new BigDecimal(score),
+                parametre.getSeuilsCategoriePerformance())).isEqualTo(attendue);
+    }
+
+    @Test
+    void desSeuilsDeCategorieModifiesDeplacentLaFrontiere() {
+        parametre.getSeuilsCategoriePerformance().setSeuilExceptionnelle(new BigDecimal("95"));
+
+        assertThat(calculService.categoriePerformance(new BigDecimal("92"),
+                parametre.getSeuilsCategoriePerformance())).isEqualTo(CategoriePerformance.ELEVEE);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            // actuel, cible, seuil, statut attendu
+            "5, 3, 2, MAITRISE",       // gap negatif
+            "3, 3, 2, MAITRISE",       // gap nul
+            "2, 3, 2, A_DEVELOPPER",   // gap 1
+            "2, 3, 4, A_DEVELOPPER",
+            "1, 3, 2, PRIORITAIRE",    // gap 2 au seuil par defaut
+            "1, 3, 3, A_DEVELOPPER",   // gap 2 sous un seuil de 3
+            "1, 4, 3, PRIORITAIRE",    // gap 3 au seuil
+            "1, 4, 4, A_DEVELOPPER",
+            "1, 5, 4, PRIORITAIRE"     // gap 4, le maximum
+    })
+    void leStatutDeGapSuitLaFormuleDuClasseur(int actuel, int cible, int seuil, StatutGapCompetence attendu) {
+        assertThat(calculService.statutGap(actuel, cible, new SeuilsGapCompetence(seuil))).isEqualTo(attendu);
+    }
+
+    @Test
+    void unNiveauInconnuDonneUnStatutInconnu() {
+        assertThat(calculService.statutGap(null, 3, parametre.getSeuilsGapCompetence())).isNull();
+        assertThat(calculService.statutGap(2, null, parametre.getSeuilsGapCompetence())).isNull();
+    }
+
+    @Test
+    void leStatutDeGapExigeUnSeuil() {
+        assertThatThrownBy(() -> calculService.statutGap(1, 3, null))
+                .isInstanceOf(DonneesIncompletesException.class);
+        assertThatThrownBy(() -> calculService.statutGap(1, 3, new SeuilsGapCompetence(null)))
+                .isInstanceOf(DonneesIncompletesException.class);
+    }
+
+    @Test
+    void laCategorieExigeUnScoreEtDesSeuils() {
+        assertThatThrownBy(() -> calculService.categoriePerformance(null, parametre.getSeuilsCategoriePerformance()))
+                .isInstanceOf(DonneesIncompletesException.class);
+        assertThatThrownBy(() -> calculService.categoriePerformance(new BigDecimal("80"), null))
+                .isInstanceOf(DonneesIncompletesException.class);
     }
 
     @Test
@@ -148,10 +218,10 @@ class CalculServiceTest {
 
     @Test
     void desNotesAbsentesDeLaBaseSontSignalees() {
-        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> calculService.calculerScorePerformance(employe, trimestre))
+        assertThatThrownBy(() -> calculService.calculerScorePerformance(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
                 .hasMessageContaining("E001")
                 .hasMessageContaining("T1 2026");
@@ -159,24 +229,24 @@ class CalculServiceTest {
 
     @Test
     void unTrimestreSansParametreEstSignale() {
-        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
                 .thenReturn(Optional.of(performance()));
         when(parametreRepository.findByTrimestre(any()))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> calculService.calculerScorePerformance(employe, trimestre))
+        assertThatThrownBy(() -> calculService.calculerScorePerformance(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
                 .hasMessageContaining("Aucun parametre");
     }
 
     @Test
     void leCalculCompletPasseParLesDeuxDepots() {
-        when(potentielRepository.findByEmployeAndTrimestre(any(), any()))
+        when(potentielRepository.findByCollaborateurAndTrimestre(any(), any()))
                 .thenReturn(Optional.of(potentiel()));
         when(parametreRepository.findByTrimestre(any()))
                 .thenReturn(Optional.of(parametre));
 
-        assertThat(calculService.calculerScorePotentiel(employe, trimestre))
+        assertThat(calculService.calculerScorePotentiel(collaborateur, trimestre))
                 .isEqualByComparingTo("65.50");
     }
 }

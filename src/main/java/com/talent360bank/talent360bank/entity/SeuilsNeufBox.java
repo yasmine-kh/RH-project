@@ -10,9 +10,10 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
- * Seuils de decoupage des axes de la matrice 9-box. Les memes valeurs
- * s'appliquent a la performance et au potentiel : score >= eleve, sinon
- * >= moyen, sinon faible.
+ * Seuils de decoupage d'un axe de la matrice 9-box : score >= eleve, sinon
+ * >= moyen, sinon faible. Parametre en porte deux, un par axe
+ * (seuilsNeufBox pour la performance, seuilsNeufBoxPotentiel pour le
+ * potentiel), avec la meme forme JSON.
  */
 @Embeddable
 public class SeuilsNeufBox {

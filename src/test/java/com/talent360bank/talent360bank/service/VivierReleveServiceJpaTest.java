@@ -1,26 +1,28 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.AppartenanceVivier;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.entity.Vivier;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.AppartenanceVivierRepository;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.repository.VivierRepository;
 import com.talent360bank.talent360bank.service.resultat.ResultatConstitutionVivier;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,7 +35,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Constitution du vivier de releve sur une vraie base : idempotence, lignes
- * d'une autre origine et autres trimestres preserves.
+ * d'une autre origine et autres trimestres preserves, unicite de
+ * (collaborateur, vivier, trimestre) garantie par la base.
  */
 @DataJpaTest
 @Import({VivierReleveService.class, TalentService.class, CalculService.class})
@@ -46,7 +49,7 @@ class VivierReleveServiceJpaTest {
     @Autowired
     private AppartenanceVivierRepository appartenanceRepository;
     @Autowired
-    private EmployeRepository employeRepository;
+    private CollaborateurRepository collaborateurRepository;
     @Autowired
     private ScoreRepository scoreRepository;
     @Autowired
@@ -58,17 +61,17 @@ class VivierReleveServiceJpaTest {
 
     private Trimestre t2;
     private Trimestre t3;
-    private Employe talent;
-    private Employe hautPotentiel;
-    private Employe horsVivier;
+    private Collaborateur talent;
+    private Collaborateur hautPotentiel;
+    private Collaborateur horsVivier;
 
     @BeforeEach
     void init() {
         t2 = trimestre(2);
         t3 = trimestre(3);
-        talent = employe("BP001");
-        hautPotentiel = employe("BP002");
-        horsVivier = employe("BP003");
+        talent = collaborateur("BP001");
+        hautPotentiel = collaborateur("BP002");
+        horsVivier = collaborateur("BP003");
 
         // Seuils par defaut : talent = perf >= 85 et pot >= 85 ; HP = pot >= 85 et perf >= 75.
         for (Trimestre trimestre : List.of(t2, t3)) {
@@ -102,7 +105,7 @@ class VivierReleveServiceJpaTest {
         service.constituerViviers(t3);
         synchroniser();
 
-        Score score = scoreRepository.findByEmployeAndTrimestre(hautPotentiel, t3).orElseThrow();
+        Score score = scoreRepository.findByCollaborateurAndTrimestre(hautPotentiel, t3).orElseThrow();
         score.setScorePotentiel(new BigDecimal("70"));
         synchroniser();
 
@@ -185,13 +188,39 @@ class VivierReleveServiceJpaTest {
         assertThat(membresMoteur(t3)).containsExactlyInAnyOrder("BP001", "BP002");
     }
 
+    @Test
+    void la_base_refuse_une_seconde_ligne_pour_le_meme_collaborateur_vivier_et_trimestre() {
+        Vivier releve = service.vivierReleve();
+        appartenance(talent, releve, t3, "IMPORT");
+        synchroniser();
+
+        // Cle IDENTITY : l'insertion part des le save, la violation aussi.
+        assertThatThrownBy(() -> {
+            appartenance(talent, releve, t3, "SAISIE_RH");
+            synchroniser();
+        }).isInstanceOfAny(DataIntegrityViolationException.class, PersistenceException.class);
+    }
+
+    @Test
+    void le_meme_collaborateur_reste_admis_dans_un_autre_vivier_ou_un_autre_trimestre() {
+        Vivier releve = service.vivierReleve();
+        Vivier commercial = vivier("Vivier Commercial");
+        appartenance(talent, releve, t3, "IMPORT");
+        appartenance(talent, commercial, t3, "IMPORT");
+        appartenance(talent, releve, t2, "IMPORT");
+
+        synchroniser();
+
+        assertThat(appartenanceRepository.count()).isEqualTo(3);
+    }
+
     // --- outils --------------------------------------------------------------
 
     private List<String> membresMoteur(Trimestre trimestre) {
         Vivier releve = vivierRepository.findByCode(CODE_VIVIER_RELEVE).orElseThrow();
         return appartenanceRepository.findByTrimestreEtVivier(trimestre, releve).stream()
                 .filter(ligne -> ORIGINE_MOTEUR.equals(ligne.getOrigine()))
-                .map(ligne -> ligne.getEmploye().getEmployeeId())
+                .map(ligne -> ligne.getCollaborateur().getIdCollaborateur())
                 .sorted()
                 .toList();
     }
@@ -210,19 +239,19 @@ class VivierReleveServiceJpaTest {
         return trimestre;
     }
 
-    private Employe employe(String employeeId) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setDateEntree(LocalDate.of(2015, 1, 1));
-        employe.setStatut(StatutEmploye.ACTIF);
-        return employeRepository.save(employe);
+    private Collaborateur collaborateur(String idCollaborateur) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setDateEntree(LocalDate.of(2015, 1, 1));
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
+        return collaborateurRepository.save(collaborateur);
     }
 
-    private void score(Employe employe, Trimestre trimestre, String performance, String potentiel) {
+    private void score(Collaborateur collaborateur, Trimestre trimestre, String performance, String potentiel) {
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(trimestre);
         score.setScorePerformance(new BigDecimal(performance));
         score.setScorePotentiel(new BigDecimal(potentiel));
@@ -235,9 +264,10 @@ class VivierReleveServiceJpaTest {
         return vivierRepository.save(vivier);
     }
 
-    private AppartenanceVivier appartenance(Employe employe, Vivier vivier, Trimestre trimestre, String origine) {
+    private AppartenanceVivier appartenance(Collaborateur collaborateur, Vivier vivier, Trimestre trimestre,
+                                            String origine) {
         AppartenanceVivier appartenance = new AppartenanceVivier();
-        appartenance.setEmploye(employe);
+        appartenance.setCollaborateur(collaborateur);
         appartenance.setVivier(vivier);
         appartenance.setTrimestre(trimestre);
         appartenance.setOrigine(origine);

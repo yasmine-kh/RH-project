@@ -1,18 +1,18 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.Competence;
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.EmployeeSkill;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
-import com.talent360bank.talent360bank.repository.EmployeeSkillRepository;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
+import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
 import com.talent360bank.talent360bank.repository.PosteRepository;
@@ -30,7 +30,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,13 +46,13 @@ class PosteCritiqueServiceTest {
     @Mock
     private PosteRepository posteRepository;
     @Mock
-    private EmployeRepository employeRepository;
+    private CollaborateurRepository collaborateurRepository;
     @Mock
     private ScoreRepository scoreRepository;
     @Mock
     private PotentielRepository potentielRepository;
     @Mock
-    private EmployeeSkillRepository employeeSkillRepository;
+    private CompetenceCollaborateurRepository competenceCollaborateurRepository;
     @Mock
     private ParametreRepository parametreRepository;
     @Mock
@@ -72,10 +71,10 @@ class PosteCritiqueServiceTest {
     void init() {
         calculService = new CalculService(parametreRepository, performanceRepository, potentielRepository);
         successionService = new SuccessionService(posteRepository, scoreRepository,
-                potentielRepository, employeeSkillRepository, calculService);
+                potentielRepository, competenceCollaborateurRepository, calculService);
         successeurs = new SuccesseursIdentifiesEnMemoire();
-        service = new PosteCritiqueService(posteRepository, employeRepository, scoreRepository,
-                potentielRepository, employeeSkillRepository, successionService, calculService, successeurs);
+        service = new PosteCritiqueService(posteRepository, collaborateurRepository, scoreRepository,
+                potentielRepository, competenceCollaborateurRepository, successionService, calculService, successeurs);
 
         trimestre = new Trimestre();
         trimestre.setNumero(3);
@@ -134,17 +133,18 @@ class PosteCritiqueServiceTest {
 
     @Test
     void le_meilleur_successeur_fixe_la_couverture_et_le_classement_est_decroissant() {
-        Employe fort = employe("BP010", StatutEmploye.ACTIF);
-        Employe faible = employe("BP020", StatutEmploye.ACTIF);
+        Collaborateur fort = collaborateur("BP010", StatutCollaborateur.ACTIF);
+        Collaborateur faible = collaborateur("BP020", StatutCollaborateur.ACTIF);
 
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"),
                 List.of("BP020", "BP010"), index(fort, faible),
                 scores(score(fort, "95"), score(faible, "60")),
                 potentiels(potentiel(fort, "95"), potentiel(faible, "60")),
-                Map.of("BP010", List.of(skill(fort, 5)), "BP020", List.of(skill(faible, 3))), parametre);
+                Map.of("BP010", List.of(skill(fort, 5)), "BP020", List.of(skill(faible, 3))), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isEqualTo(2);
-        assertThat(couverture.successeurs()).extracting(r -> r.candidat().getEmployeeId())
+        assertThat(couverture.successeurs()).extracting(r -> r.candidat().getIdCollaborateur())
                 .containsExactly("BP010", "BP020");
         assertThat(couverture.meilleurMatching())
                 .isEqualByComparingTo(couverture.successeurs().get(0).scoreMatching());
@@ -155,7 +155,8 @@ class PosteCritiqueServiceTest {
     @Test
     void sans_successeur_identifie_le_poste_est_en_alerte() {
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"), List.of(),
-                Map.of(), Map.of(), Map.of(), Map.of(), parametre);
+                Map.of(), Map.of(), Map.of(), Map.of(), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isZero();
         assertThat(couverture.estEnAlerte()).isTrue();
@@ -165,25 +166,27 @@ class PosteCritiqueServiceTest {
 
     @Test
     void titulaire_inconnu_et_hors_perimetre_ne_couvrent_pas_le_poste() {
-        Employe titulaire = employe("BP075", StatutEmploye.ACTIF);
-        Employe parti = employe("BP030", StatutEmploye.ARCHIVE);
+        Collaborateur titulaire = collaborateur("BP075", StatutCollaborateur.ACTIF);
+        Collaborateur parti = collaborateur("BP030", StatutCollaborateur.ARCHIVE);
 
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"),
                 List.of("BP075", "BP999", "BP030"), index(titulaire, parti),
-                scores(score(titulaire, "95"), score(parti, "95")), Map.of(), Map.of(), parametre);
+                scores(score(titulaire, "95"), score(parti, "95")), Map.of(), Map.of(), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isZero();
         assertThat(couverture.estEnAlerte()).isTrue();
-        assertThat(couverture.ignores()).extracting(CouverturePoste.SuccesseurIgnore::employeeId)
+        assertThat(couverture.ignores()).extracting(CouverturePoste.SuccesseurIgnore::idCollaborateur)
                 .containsExactly("BP075", "BP999", "BP030");
     }
 
     @Test
     void un_successeur_sans_score_compte_mais_ne_fixe_pas_le_matching() {
-        Employe nouveau = employe("BP040", StatutEmploye.ACTIF);
+        Collaborateur nouveau = collaborateur("BP040", StatutCollaborateur.ACTIF);
 
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"),
-                List.of("BP040"), index(nouveau), Map.of(), Map.of(), Map.of(), parametre);
+                List.of("BP040"), index(nouveau), Map.of(), Map.of(), Map.of(), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isEqualTo(1);
         assertThat(couverture.successeurs()).isEmpty();
@@ -194,11 +197,12 @@ class PosteCritiqueServiceTest {
 
     @Test
     void un_successeur_identifie_deux_fois_ne_compte_qu_une_fois() {
-        Employe candidat = employe("BP010", StatutEmploye.ACTIF);
+        Collaborateur candidat = collaborateur("BP010", StatutCollaborateur.ACTIF);
 
         CouverturePoste couverture = service.evaluerCouverture(poste("PST13", "Oui", "BP075"),
                 List.of("BP010", "BP010"), index(candidat), scores(score(candidat, "95")),
-                Map.of(), Map.of(), parametre);
+                Map.of(), Map.of(), parametre,
+                trimestre.getDateReference());
 
         assertThat(couverture.nbSuccesseurs()).isEqualTo(1);
         assertThat(couverture.successeurs()).hasSize(1);
@@ -221,15 +225,16 @@ class PosteCritiqueServiceTest {
 
     @Test
     void seuls_les_postes_indiques_critiques_sont_suivis_et_les_alertes_detectees() {
-        Employe candidat = employe("BP010", StatutEmploye.ACTIF);
+        Collaborateur candidat = collaborateur("BP010", StatutCollaborateur.ACTIF);
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(posteRepository.findAll()).thenReturn(List.of(
                 poste("PST02", "oui ", "BP001"), poste("PST01", "Oui", "BP002"), poste("PST04", "Non", "BP003")));
         successeurs.identifier("PST01", "BP010");
-        when(employeRepository.findAllById(any())).thenReturn(List.of(candidat));
-        when(employeeSkillRepository.findByEmployeIdsAvecCompetence(any())).thenReturn(List.of(skill(candidat, 5)));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of(score(candidat, "95")));
-        when(potentielRepository.findByTrimestreAvecEmploye(trimestre))
+        when(collaborateurRepository.findAllById(any())).thenReturn(List.of(candidat));
+        when(competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(any()))
+                .thenReturn(List.of(skill(candidat, 5)));
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of(score(candidat, "95")));
+        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .thenReturn(List.of(potentiel(candidat, "95")));
 
         List<CouverturePoste> couvertures = service.listerPostesCritiques(trimestre);
@@ -253,9 +258,9 @@ class PosteCritiqueServiceTest {
 
     @Test
     void sans_source_declaree_aucun_successeur_n_est_identifie() {
-        PosteCritiqueService sansSource = new PosteCritiqueService(posteRepository, employeRepository,
-                scoreRepository, potentielRepository, employeeSkillRepository, successionService, calculService,
-                new StaticListableBeanFactory().getBeanProvider(SuccesseurIdentifieSource.class));
+        PosteCritiqueService sansSource = new PosteCritiqueService(posteRepository, collaborateurRepository,
+                scoreRepository, potentielRepository, competenceCollaborateurRepository, successionService,
+                calculService, new StaticListableBeanFactory().getBeanProvider(SuccesseurIdentifieSource.class));
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(posteRepository.findAll()).thenReturn(List.of(poste("PST01", "Oui", "BP002")));
 
@@ -275,37 +280,37 @@ class PosteCritiqueServiceTest {
         return poste;
     }
 
-    private Employe employe(String employeeId, StatutEmploye statut) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setDateEntree(LocalDate.now().minusYears(15));
-        employe.setStatut(statut);
-        return employe;
+    private Collaborateur collaborateur(String idCollaborateur, StatutCollaborateur statut) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setDateEntree(trimestre.getDateReference().minusYears(15));
+        collaborateur.setStatut(statut);
+        return collaborateur;
     }
 
-    private Score score(Employe employe, String valeur) {
+    private Score score(Collaborateur collaborateur, String valeur) {
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(trimestre);
         score.setScorePerformance(new BigDecimal(valeur));
         score.setScorePotentiel(new BigDecimal(valeur));
         return score;
     }
 
-    private Potentiel potentiel(Employe employe, String valeur) {
+    private Potentiel potentiel(Collaborateur collaborateur, String valeur) {
         Potentiel potentiel = new Potentiel();
-        potentiel.setEmploye(employe);
+        potentiel.setCollaborateur(collaborateur);
         potentiel.setTrimestre(trimestre);
         potentiel.setNoteLeadership(new BigDecimal(valeur));
         potentiel.setNoteMobilite(new BigDecimal(valeur));
         return potentiel;
     }
 
-    private EmployeeSkill skill(Employe employe, int niveau) {
-        EmployeeSkill skill = new EmployeeSkill();
-        skill.setEmploye(employe);
+    private CompetenceCollaborateur skill(Collaborateur collaborateur, int niveau) {
+        CompetenceCollaborateur skill = new CompetenceCollaborateur();
+        skill.setCollaborateur(collaborateur);
         skill.setCompetence(competence);
         skill.setNiveauActuel(niveau);
         return skill;
@@ -315,10 +320,10 @@ class PosteCritiqueServiceTest {
         return new CouverturePoste(poste("PST01", "Oui", "BP001"), 0, List.of(), List.of(), niveau);
     }
 
-    private static Map<String, Employe> index(Employe... employes) {
-        Map<String, Employe> index = new HashMap<>();
-        for (Employe employe : employes) {
-            index.put(employe.getEmployeeId(), employe);
+    private static Map<String, Collaborateur> index(Collaborateur... collaborateurs) {
+        Map<String, Collaborateur> index = new HashMap<>();
+        for (Collaborateur collaborateur : collaborateurs) {
+            index.put(collaborateur.getIdCollaborateur(), collaborateur);
         }
         return index;
     }
@@ -326,7 +331,7 @@ class PosteCritiqueServiceTest {
     private static Map<String, Score> scores(Score... scores) {
         Map<String, Score> index = new HashMap<>();
         for (Score score : scores) {
-            index.put(score.getEmploye().getEmployeeId(), score);
+            index.put(score.getCollaborateur().getIdCollaborateur(), score);
         }
         return index;
     }
@@ -334,7 +339,7 @@ class PosteCritiqueServiceTest {
     private static Map<String, Potentiel> potentiels(Potentiel... potentiels) {
         Map<String, Potentiel> index = new HashMap<>();
         for (Potentiel potentiel : potentiels) {
-            index.put(potentiel.getEmploye().getEmployeeId(), potentiel);
+            index.put(potentiel.getCollaborateur().getIdCollaborateur(), potentiel);
         }
         return index;
     }

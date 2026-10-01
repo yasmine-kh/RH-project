@@ -1,10 +1,10 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -25,6 +25,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,6 +57,7 @@ class VigilanceServiceTest {
     private PotentielRepository potentielRepository;
 
     private VigilanceService vigilanceService;
+    private FaitsVigilanceEnMemoire faits;
 
     private Trimestre trimestre;
     private Trimestre trimestrePrecedent;
@@ -65,8 +67,9 @@ class VigilanceServiceTest {
     void init() {
         CalculService calculService = new CalculService(
                 parametreRepository, performanceRepository, potentielRepository);
+        faits = new FaitsVigilanceEnMemoire();
         vigilanceService = new VigilanceService(scoreRepository, questionnaireRepository,
-                trimestreRepository, calculService);
+                trimestreRepository, calculService, faits);
 
         trimestre = trimestre(2, 2026);
         trimestrePrecedent = trimestre(1, 2026);
@@ -81,28 +84,28 @@ class VigilanceServiceTest {
         return cree;
     }
 
-    private Employe employe(String employeeId, StatutEmploye statut) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setDateEntree(LocalDate.of(2020, 1, 15));
-        employe.setStatut(statut);
-        return employe;
+    private Collaborateur collaborateur(String idCollaborateur, StatutCollaborateur statut) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setDateEntree(LocalDate.of(2020, 1, 15));
+        collaborateur.setStatut(statut);
+        return collaborateur;
     }
 
-    private Score score(Employe employe, Trimestre trimestreDuScore, String performance) {
+    private Score score(Collaborateur collaborateur, Trimestre trimestreDuScore, String performance) {
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(trimestreDuScore);
         score.setScorePerformance(performance == null ? null : new BigDecimal(performance));
         score.setScorePotentiel(new BigDecimal("70.00"));
         return score;
     }
 
-    private QuestionnaireEngagement engagement(Employe employe, String scoreEngagement) {
+    private QuestionnaireEngagement engagement(Collaborateur collaborateur, String scoreEngagement) {
         QuestionnaireEngagement questionnaire = new QuestionnaireEngagement();
-        questionnaire.setEmploye(employe);
+        questionnaire.setCollaborateur(collaborateur);
         questionnaire.setTrimestre(trimestre);
         questionnaire.setScoreEngagement(scoreEngagement == null ? null : new BigDecimal(scoreEngagement));
         return questionnaire;
@@ -212,26 +215,26 @@ class VigilanceServiceTest {
 
     @Test
     void un_engagement_sous_le_seuil_leve_le_signal() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         assertThat(vigilanceService.detecterSignaux(null, null,
-                engagement(employe, "59.99"), parametre.getSeuilsVigilance()))
+                engagement(collaborateur, "59.99"), parametre.getSeuilsVigilance()))
                 .containsExactly(SignalVigilance.ENGAGEMENT_FAIBLE);
     }
 
     @Test
     void un_engagement_au_seuil_ne_leve_pas_le_signal() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         assertThat(vigilanceService.detecterSignaux(null, null,
-                engagement(employe, "60.00"), parametre.getSeuilsVigilance()))
+                engagement(collaborateur, "60.00"), parametre.getSeuilsVigilance()))
                 .isEmpty();
     }
 
     @Test
     void le_seuil_d_engagement_vient_du_parametre_pas_du_code() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
-        QuestionnaireEngagement questionnaire = engagement(employe, "55.00");
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+        QuestionnaireEngagement questionnaire = engagement(collaborateur, "55.00");
 
         // 55 est sous le seuil par defaut de 60 : le signal se leve.
         assertThat(vigilanceService.detecterSignaux(null, null, questionnaire,
@@ -247,11 +250,11 @@ class VigilanceServiceTest {
 
     @Test
     void un_seuil_d_engagement_non_configure_est_refuse() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
         parametre.getSeuilsVigilance().setSeuilEngagementFaible(null);
 
         assertThatThrownBy(() -> vigilanceService.detecterSignaux(null, null,
-                engagement(employe, "10.00"), parametre.getSeuilsVigilance()))
+                engagement(collaborateur, "10.00"), parametre.getSeuilsVigilance()))
                 .isInstanceOf(DonneesIncompletesException.class)
                 .hasMessageContaining("engagement");
     }
@@ -273,62 +276,63 @@ class VigilanceServiceTest {
 
     @Test
     void un_questionnaire_sans_score_ne_leve_pas_le_signal() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
-        assertThat(vigilanceService.detecterSignaux(null, null, engagement(employe, null), parametre.getSeuilsVigilance())).isEmpty();
+        assertThat(vigilanceService.detecterSignaux(null, null, engagement(collaborateur, null),
+                parametre.getSeuilsVigilance())).isEmpty();
     }
 
     @Test
     void un_recul_de_performance_leve_le_signal() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         assertThat(vigilanceService.detecterSignaux(
-                score(employe, trimestre, "69.99"),
-                score(employe, trimestrePrecedent, "70.00"),
+                score(collaborateur, trimestre, "69.99"),
+                score(collaborateur, trimestrePrecedent, "70.00"),
                 null, parametre.getSeuilsVigilance()))
                 .containsExactly(SignalVigilance.BAISSE_PERFORMANCE);
     }
 
     @Test
     void une_performance_stable_ou_en_hausse_ne_leve_pas_le_signal() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         assertThat(vigilanceService.detecterSignaux(
-                score(employe, trimestre, "70.00"),
-                score(employe, trimestrePrecedent, "70.00"), null, parametre.getSeuilsVigilance())).isEmpty();
+                score(collaborateur, trimestre, "70.00"),
+                score(collaborateur, trimestrePrecedent, "70.00"), null, parametre.getSeuilsVigilance())).isEmpty();
         assertThat(vigilanceService.detecterSignaux(
-                score(employe, trimestre, "80.00"),
-                score(employe, trimestrePrecedent, "70.00"), null, parametre.getSeuilsVigilance())).isEmpty();
+                score(collaborateur, trimestre, "80.00"),
+                score(collaborateur, trimestrePrecedent, "70.00"), null, parametre.getSeuilsVigilance())).isEmpty();
     }
 
     @Test
     void sans_trimestre_precedent_la_baisse_est_indetectable() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         assertThat(vigilanceService.detecterSignaux(
-                score(employe, trimestre, "10.00"), null, null, parametre.getSeuilsVigilance())).isEmpty();
+                score(collaborateur, trimestre, "10.00"), null, null, parametre.getSeuilsVigilance())).isEmpty();
     }
 
     @Test
     void les_deux_signaux_detectables_peuvent_se_cumuler() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         assertThat(vigilanceService.detecterSignaux(
-                score(employe, trimestre, "60.00"),
-                score(employe, trimestrePrecedent, "70.00"),
-                engagement(employe, "30.00"), parametre.getSeuilsVigilance()))
+                score(collaborateur, trimestre, "60.00"),
+                score(collaborateur, trimestrePrecedent, "70.00"),
+                engagement(collaborateur, "30.00"), parametre.getSeuilsVigilance()))
                 .containsExactlyInAnyOrder(SignalVigilance.ENGAGEMENT_FAIBLE,
                         SignalVigilance.BAISSE_PERFORMANCE);
     }
 
     @Test
     void la_detection_automatique_ne_leve_que_les_signaux_declares_detectables() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         Set<SignalVigilance> signaux = vigilanceService.detecterSignaux(
-                score(employe, trimestre, "60.00"),
-                score(employe, trimestrePrecedent, "70.00"),
-                engagement(employe, "10.00"), parametre.getSeuilsVigilance());
+                score(collaborateur, trimestre, "60.00"),
+                score(collaborateur, trimestrePrecedent, "70.00"),
+                engagement(collaborateur, "10.00"), parametre.getSeuilsVigilance());
 
         assertThat(signaux).allMatch(SignalVigilance::estDetectable);
     }
@@ -340,13 +344,137 @@ class VigilanceServiceTest {
         assertThat(signal.getLibelle()).isNotBlank();
     }
 
+    // --- faits importes --------------------------------------------------------
+
+    @ParameterizedTest
+    @EnumSource(value = SignalVigilance.class, names = {"SANS_MOBILITE_4_ANS", "MOBILITE_NON_TRAITEE",
+            "SANS_DEVELOPPEMENT_RECENT", "FAIBLE_RECONNAISSANCE", "FORMATION_NON_FAITE"})
+    void chaque_fait_importe_a_oui_leve_son_signal(SignalVigilance signal) {
+        FaitsVigilance declares = FaitsVigilance.builder().declarer(signal, true).build();
+
+        assertThat(vigilanceService.detecterSignaux(null, null, null, declares, parametre.getSeuilsVigilance()))
+                .containsExactly(signal);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SignalVigilance.class, names = "ENGAGEMENT_FAIBLE", mode = EnumSource.Mode.EXCLUDE)
+    void un_fait_importe_a_non_ou_inconnu_ne_leve_rien(SignalVigilance signal) {
+        FaitsVigilance aNon = FaitsVigilance.builder().declarer(signal, false).build();
+        FaitsVigilance inconnu = FaitsVigilance.builder().declarer(signal, null).build();
+
+        assertThat(vigilanceService.detecterSignaux(null, null, null, aNon, parametre.getSeuilsVigilance()))
+                .isEmpty();
+        assertThat(vigilanceService.detecterSignaux(null, null, null, inconnu, parametre.getSeuilsVigilance()))
+                .isEmpty();
+    }
+
+    @Test
+    void des_faits_absents_valent_aucun_fait() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+
+        assertThat(vigilanceService.detecterSignaux(score(collaborateur, trimestre, "70.00"), null,
+                null, null, parametre.getSeuilsVigilance())).isEmpty();
+    }
+
+    @Test
+    void sans_score_precedent_la_baisse_importee_decide() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+        FaitsVigilance baisse = FaitsVigilance.builder().baissePerformance(true).build();
+
+        assertThat(vigilanceService.detecterSignaux(score(collaborateur, trimestre, "70.00"), null,
+                null, baisse, parametre.getSeuilsVigilance()))
+                .containsExactly(SignalVigilance.BAISSE_PERFORMANCE);
+        // Un score precedent sans performance ne permet pas non plus de mesurer.
+        assertThat(vigilanceService.detecterSignaux(score(collaborateur, trimestre, "70.00"),
+                score(collaborateur, trimestrePrecedent, null), null, baisse, parametre.getSeuilsVigilance()))
+                .containsExactly(SignalVigilance.BAISSE_PERFORMANCE);
+    }
+
+    @Test
+    void avec_un_score_precedent_l_historique_prime_sur_la_baisse_importee() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+
+        assertThat(vigilanceService.detecterSignaux(
+                score(collaborateur, trimestre, "70.00"), score(collaborateur, trimestrePrecedent, "70.00"), null,
+                FaitsVigilance.builder().baissePerformance(true).build(), parametre.getSeuilsVigilance()))
+                .isEmpty();
+        assertThat(vigilanceService.detecterSignaux(
+                score(collaborateur, trimestre, "60.00"), score(collaborateur, trimestrePrecedent, "70.00"), null,
+                FaitsVigilance.builder().baissePerformance(false).build(), parametre.getSeuilsVigilance()))
+                .containsExactly(SignalVigilance.BAISSE_PERFORMANCE);
+    }
+
+    @Test
+    void les_faits_importes_permettent_d_atteindre_le_niveau_eleve() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+        faits.declarer("E001", FaitsVigilance.builder()
+                .sansMobilite4Ans(true).mobiliteNonTraitee(true)
+                .sansDeveloppementRecent(true).faibleReconnaissance(true).build());
+
+        when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
+        when(trimestreRepository.findPrecedents(eq(2026), eq(2), any())).thenReturn(List.of());
+
+        ResultatVigilance resultat = vigilanceService.evaluer(collaborateur, trimestre);
+
+        // 20 + 15 + 15 + 10 = 60 : au seuil eleve.
+        assertThat(resultat.indice()).isEqualByComparingTo("60.00");
+        assertThat(resultat.niveau()).isEqualTo(NiveauVigilance.ELEVEE);
+    }
+
+    @Test
+    void le_lot_applique_a_chaque_collaborateur_ses_propres_faits() {
+        Collaborateur declare = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur inconnu = collaborateur("E002", StatutCollaborateur.ACTIF);
+        faits.declarer("E001", FaitsVigilance.builder().formationNonFaite(true).baissePerformance(true).build());
+
+        preparerLotSansPrecedent(List.of(score(inconnu, trimestre, "70.00"), score(declare, trimestre, "70.00")));
+
+        List<ResultatVigilance> lot = vigilanceService.evaluerTrimestre(trimestre);
+
+        assertThat(lot.get(0).collaborateur().getIdCollaborateur()).isEqualTo("E001");
+        assertThat(lot.get(0).signaux()).containsExactlyInAnyOrder(
+                SignalVigilance.FORMATION_NON_FAITE, SignalVigilance.BAISSE_PERFORMANCE);
+        assertThat(lot.get(0).indice()).isEqualByComparingTo("15.00");
+        assertThat(lot.get(1).signaux()).isEmpty();
+    }
+
+    @Test
+    void sans_source_declaree_les_faits_importes_ne_levent_rien() {
+        VigilanceService sansSource = new VigilanceService(scoreRepository, questionnaireRepository,
+                trimestreRepository, new CalculService(parametreRepository, performanceRepository, potentielRepository),
+                new DefaultListableBeanFactory().getBeanProvider(FaitsVigilanceSource.class));
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+
+        preparerLotSansPrecedent(List.of(score(collaborateur, trimestre, "70.00")));
+
+        assertThat(sansSource.evaluerTrimestre(trimestre).get(0).signaux()).isEmpty();
+    }
+
+    @Test
+    void une_source_qui_rend_null_vaut_aucun_fait() {
+        VigilanceService sourceMuette = new VigilanceService(scoreRepository, questionnaireRepository,
+                trimestreRepository, new CalculService(parametreRepository, performanceRepository, potentielRepository),
+                trimestreDemande -> null);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+
+        preparerLotSansPrecedent(List.of(score(collaborateur, trimestre, "70.00")));
+
+        assertThat(sourceMuette.evaluerTrimestre(trimestre).get(0).signaux()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(SignalVigilance.class)
+    void chaque_signal_a_desormais_une_source(SignalVigilance signal) {
+        assertThat(signal.estDetectable()).isTrue();
+    }
+
     // --- evaluation ----------------------------------------------------------
 
     @Test
     void l_evaluation_rend_l_indice_le_niveau_et_les_signaux() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
-        ResultatVigilance resultat = vigilanceService.evaluer(employe,
+        ResultatVigilance resultat = vigilanceService.evaluer(collaborateur,
                 EnumSet.of(SignalVigilance.ENGAGEMENT_FAIBLE, SignalVigilance.SANS_MOBILITE_4_ANS),
                 parametre);
 
@@ -355,15 +483,15 @@ class VigilanceServiceTest {
         assertThat(resultat.signaux()).containsExactlyInAnyOrder(
                 SignalVigilance.ENGAGEMENT_FAIBLE, SignalVigilance.SANS_MOBILITE_4_ANS);
         assertThat(resultat.estARisque()).isTrue();
-        assertThat(resultat.employe()).isSameAs(employe);
+        assertThat(resultat.collaborateur()).isSameAs(collaborateur);
     }
 
     @Test
     void le_resultat_ne_bouge_pas_si_l_appelant_reutilise_son_ensemble_de_signaux() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
         Set<SignalVigilance> signaux = EnumSet.of(SignalVigilance.ENGAGEMENT_FAIBLE);
 
-        ResultatVigilance resultat = vigilanceService.evaluer(employe, signaux, parametre);
+        ResultatVigilance resultat = vigilanceService.evaluer(collaborateur, signaux, parametre);
         signaux.add(SignalVigilance.SANS_MOBILITE_4_ANS);
 
         assertThat(resultat.signaux()).containsExactly(SignalVigilance.ENGAGEMENT_FAIBLE);
@@ -371,11 +499,11 @@ class VigilanceServiceTest {
     }
 
     @Test
-    void un_employe_sans_signal_est_a_vigilance_faible() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+    void un_collaborateur_sans_signal_est_a_vigilance_faible() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         ResultatVigilance resultat = vigilanceService.evaluer(
-                employe, EnumSet.noneOf(SignalVigilance.class), parametre);
+                collaborateur, EnumSet.noneOf(SignalVigilance.class), parametre);
 
         assertThat(resultat.indice()).isEqualByComparingTo("0.00");
         assertThat(resultat.niveau()).isEqualTo(NiveauVigilance.FAIBLE);
@@ -383,12 +511,11 @@ class VigilanceServiceTest {
     }
 
     @Test
-    void les_signaux_non_detectables_peuvent_etre_fournis_a_la_main() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+    void des_signaux_peuvent_etre_fournis_a_la_main() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
-        // 25 + 20 + 15 = 60 : le niveau ELEVEE n'est atteignable qu'ainsi
-        // tant que mobilite et developpement ne sont pas modelises.
-        ResultatVigilance resultat = vigilanceService.evaluer(employe,
+        // 25 + 20 + 15 = 60 : au seuil eleve.
+        ResultatVigilance resultat = vigilanceService.evaluer(collaborateur,
                 EnumSet.of(SignalVigilance.ENGAGEMENT_FAIBLE,
                         SignalVigilance.SANS_MOBILITE_4_ANS,
                         SignalVigilance.MOBILITE_NON_TRAITEE),
@@ -398,34 +525,35 @@ class VigilanceServiceTest {
     }
 
     @Test
-    void la_detection_automatique_seule_ne_peut_pas_atteindre_le_niveau_eleve() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+    void sans_faits_importes_la_detection_plafonne_a_l_engagement_et_la_baisse() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
-        // Les deux seuls signaux detectables valent 25 + 10 = 35, sous le seuil de 60.
-        Set<SignalVigilance> detectables = EnumSet.of(
-                SignalVigilance.ENGAGEMENT_FAIBLE, SignalVigilance.BAISSE_PERFORMANCE);
+        // Engagement et baisse mesuree valent 25 + 10 = 35, sous le seuil de 60.
+        Set<SignalVigilance> signaux = vigilanceService.detecterSignaux(
+                score(collaborateur, trimestre, "60.00"), score(collaborateur, trimestrePrecedent, "70.00"),
+                engagement(collaborateur, "10.00"), parametre.getSeuilsVigilance());
 
-        ResultatVigilance resultat = vigilanceService.evaluer(employe, detectables, parametre);
+        ResultatVigilance resultat = vigilanceService.evaluer(collaborateur, signaux, parametre);
 
         assertThat(resultat.indice()).isEqualByComparingTo("35.00");
         assertThat(resultat.niveau()).isEqualTo(NiveauVigilance.MODEREE);
     }
 
     @Test
-    void l_evaluation_d_un_employe_charge_les_donnees_du_trimestre() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+    void l_evaluation_d_un_collaborateur_charge_les_donnees_du_trimestre() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(trimestreRepository.findPrecedents(eq(2026), eq(2), any()))
                 .thenReturn(List.of(trimestrePrecedent));
-        when(scoreRepository.findByEmployeAndTrimestre(employe, trimestre))
-                .thenReturn(Optional.of(score(employe, trimestre, "60.00")));
-        when(scoreRepository.findByEmployeAndTrimestre(employe, trimestrePrecedent))
-                .thenReturn(Optional.of(score(employe, trimestrePrecedent, "70.00")));
-        when(questionnaireRepository.findByEmployeAndTrimestre(employe, trimestre))
-                .thenReturn(Optional.of(engagement(employe, "20.00")));
+        when(scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre))
+                .thenReturn(Optional.of(score(collaborateur, trimestre, "60.00")));
+        when(scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestrePrecedent))
+                .thenReturn(Optional.of(score(collaborateur, trimestrePrecedent, "70.00")));
+        when(questionnaireRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre))
+                .thenReturn(Optional.of(engagement(collaborateur, "20.00")));
 
-        ResultatVigilance resultat = vigilanceService.evaluer(employe, trimestre);
+        ResultatVigilance resultat = vigilanceService.evaluer(collaborateur, trimestre);
 
         assertThat(resultat.signaux()).containsExactlyInAnyOrder(
                 SignalVigilance.ENGAGEMENT_FAIBLE, SignalVigilance.BAISSE_PERFORMANCE);
@@ -435,10 +563,10 @@ class VigilanceServiceTest {
 
     @Test
     void un_trimestre_sans_parametre_est_signale() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> vigilanceService.evaluer(employe, trimestre))
+        assertThatThrownBy(() -> vigilanceService.evaluer(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class);
     }
 
@@ -446,113 +574,113 @@ class VigilanceServiceTest {
 
     @Test
     void le_lot_va_du_plus_a_risque_au_moins_a_risque() {
-        Employe aRisque = employe("E001", StatutEmploye.ACTIF);
-        Employe serein = employe("E002", StatutEmploye.ACTIF);
+        Collaborateur aRisque = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur serein = collaborateur("E002", StatutCollaborateur.ACTIF);
 
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(trimestreRepository.findPrecedents(eq(2026), eq(2), any()))
                 .thenReturn(List.of(trimestrePrecedent));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestrePrecedent)).thenReturn(
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestrePrecedent)).thenReturn(
                 List.of(score(aRisque, trimestrePrecedent, "80.00"),
                         score(serein, trimestrePrecedent, "60.00")));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(
                 List.of(score(serein, trimestre, "70.00"), score(aRisque, trimestre, "50.00")));
-        when(questionnaireRepository.findByTrimestreAvecEmploye(trimestre))
+        when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .thenReturn(List.of(engagement(aRisque, "20.00")));
 
         List<ResultatVigilance> lot = vigilanceService.evaluerTrimestre(trimestre);
 
-        assertThat(lot).extracting(resultat -> resultat.employe().getEmployeeId())
+        assertThat(lot).extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
                 .containsExactly("E001", "E002");
         assertThat(lot.get(0).indice()).isEqualByComparingTo("35.00");
         assertThat(lot.get(1).indice()).isEqualByComparingTo("0.00");
     }
 
     @Test
-    void le_lot_ecarte_les_employes_hors_perimetre() {
-        Employe actif = employe("E001", StatutEmploye.ACTIF);
-        Employe inactif = employe("E002", StatutEmploye.INACTIF);
-        Employe archive = employe("E003", StatutEmploye.ARCHIVE);
+    void le_lot_ecarte_les_collaborateurs_hors_perimetre() {
+        Collaborateur actif = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur inactif = collaborateur("E002", StatutCollaborateur.INACTIF);
+        Collaborateur archive = collaborateur("E003", StatutCollaborateur.ARCHIVE);
 
         preparerLotSansPrecedent(List.of(score(actif, trimestre, "70.00"),
                 score(inactif, trimestre, "70.00"), score(archive, trimestre, "70.00")));
 
         assertThat(vigilanceService.evaluerTrimestre(trimestre))
-                .extracting(resultat -> resultat.employe().getEmployeeId())
+                .extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
                 .containsExactly("E001");
     }
 
     @Test
     void sans_trimestre_precedent_le_lot_ne_leve_aucune_baisse() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
 
-        preparerLotSansPrecedent(List.of(score(employe, trimestre, "10.00")));
+        preparerLotSansPrecedent(List.of(score(collaborateur, trimestre, "10.00")));
 
         assertThat(vigilanceService.evaluerTrimestre(trimestre).get(0).signaux()).isEmpty();
     }
 
     @Test
-    void a_egalite_d_indice_l_employee_id_departage() {
-        Employe premier = employe("E001", StatutEmploye.ACTIF);
-        Employe second = employe("E002", StatutEmploye.ACTIF);
+    void a_egalite_d_indice_l_id_collaborateur_departage() {
+        Collaborateur premier = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur second = collaborateur("E002", StatutCollaborateur.ACTIF);
 
         preparerLotSansPrecedent(List.of(score(second, trimestre, "70.00"),
                 score(premier, trimestre, "70.00")));
 
         List<ResultatVigilance> lot = vigilanceService.evaluerTrimestre(trimestre);
 
-        assertThat(lot).extracting(resultat -> resultat.employe().getEmployeeId())
+        assertThat(lot).extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
                 .containsExactly("E001", "E002");
         assertThat(lot.get(0).indice()).isEqualByComparingTo(lot.get(1).indice());
     }
 
     @Test
-    void l_engagement_d_un_employe_ne_profite_pas_a_un_autre() {
-        Employe repondant = employe("E001", StatutEmploye.ACTIF);
-        Employe muet = employe("E002", StatutEmploye.ACTIF);
+    void l_engagement_d_un_collaborateur_ne_profite_pas_a_un_autre() {
+        Collaborateur repondant = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur muet = collaborateur("E002", StatutCollaborateur.ACTIF);
 
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(trimestreRepository.findPrecedents(eq(2026), eq(2), any())).thenReturn(List.of());
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(
                 List.of(score(repondant, trimestre, "70.00"), score(muet, trimestre, "70.00")));
-        when(questionnaireRepository.findByTrimestreAvecEmploye(trimestre))
+        when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .thenReturn(List.of(engagement(repondant, "10.00")));
 
         List<ResultatVigilance> lot = vigilanceService.evaluerTrimestre(trimestre);
 
-        assertThat(lot.get(0).employe().getEmployeeId()).isEqualTo("E001");
+        assertThat(lot.get(0).collaborateur().getIdCollaborateur()).isEqualTo("E001");
         assertThat(lot.get(0).signaux()).containsExactly(SignalVigilance.ENGAGEMENT_FAIBLE);
         assertThat(lot.get(1).signaux()).isEmpty();
     }
 
     @Test
     void le_lot_filtre_sur_un_niveau_minimum() {
-        Employe aRisque = employe("E001", StatutEmploye.ACTIF);
-        Employe serein = employe("E002", StatutEmploye.ACTIF);
+        Collaborateur aRisque = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur serein = collaborateur("E002", StatutCollaborateur.ACTIF);
 
         // Engagement faible (25) + baisse de performance (10) = 35, soit MODEREE.
         // L'engagement seul resterait a 25, sous le seuil de 30.
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(trimestreRepository.findPrecedents(eq(2026), eq(2), any()))
                 .thenReturn(List.of(trimestrePrecedent));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestrePrecedent))
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestrePrecedent))
                 .thenReturn(List.of(score(aRisque, trimestrePrecedent, "80.00")));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(
                 List.of(score(aRisque, trimestre, "70.00"), score(serein, trimestre, "70.00")));
-        when(questionnaireRepository.findByTrimestreAvecEmploye(trimestre))
+        when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .thenReturn(List.of(engagement(aRisque, "10.00")));
 
         assertThat(vigilanceService.evaluerTrimestre(trimestre, NiveauVigilance.MODEREE))
-                .extracting(resultat -> resultat.employe().getEmployeeId())
+                .extracting(resultat -> resultat.collaborateur().getIdCollaborateur())
                 .containsExactly("E001");
-        // Plafond de la detection automatique : ELEVEE reste hors d'atteinte.
+        // Sans faits importes, ELEVEE reste hors d'atteinte.
         assertThat(vigilanceService.evaluerTrimestre(trimestre, NiveauVigilance.ELEVEE)).isEmpty();
     }
 
     private void preparerLotSansPrecedent(List<Score> scores) {
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(trimestreRepository.findPrecedents(eq(2026), eq(2), any())).thenReturn(List.of());
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(scores);
-        when(questionnaireRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of());
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(scores);
+        when(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of());
     }
 }

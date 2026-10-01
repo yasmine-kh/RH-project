@@ -1,15 +1,16 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.enums.NiveauCouverture;
+import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
 import com.talent360bank.talent360bank.service.resultat.MembreVivierReleve;
@@ -43,13 +44,16 @@ class TableauDeBordServiceTest {
     @Mock
     private Matrice9BoxRepository matrice9BoxRepository;
 
+    private ValidationsComiteEnMemoire decisionsComite;
     private TableauDeBordService service;
     private Trimestre trimestre;
 
     @BeforeEach
     void init() {
-        service = new TableauDeBordService(talentService, vigilanceService, posteCritiqueService,
-                scoreRepository, matrice9BoxRepository);
+        decisionsComite = new ValidationsComiteEnMemoire();
+        service = new TableauDeBordService(talentService,
+                new ValidationComiteService(talentService, decisionsComite),
+                vigilanceService, posteCritiqueService, scoreRepository, matrice9BoxRepository);
         trimestre = new Trimestre();
         trimestre.setNumero(3);
         trimestre.setAnnee(2026);
@@ -62,6 +66,10 @@ class TableauDeBordServiceTest {
                 new MembreVivierReleve(score("BP001", null), true, true),
                 new MembreVivierReleve(score("BP002", null), true, false),
                 new MembreVivierReleve(score("BP003", null), false, true)));
+        // Comite : BP001 retenu, BP002 en attente ; le Oui de BP003, HP sans
+        // etre talent, ne compte pas.
+        decisionsComite.decider("BP001", StatutValidationComite.OUI)
+                .decider("BP003", StatutValidationComite.OUI);
         when(vigilanceService.evaluerTrimestre(trimestre)).thenReturn(List.of(
                 vigilance("BP001", NiveauVigilance.ELEVEE),
                 vigilance("BP002", NiveauVigilance.MODEREE),
@@ -72,13 +80,14 @@ class TableauDeBordServiceTest {
         when(posteCritiqueService.tauxCouverture(couvertures)).thenReturn(new BigDecimal("50.00"));
         when(matrice9BoxRepository.findAll()).thenReturn(List.of(
                 case9Box(1, 1, "A surveiller"), case9Box(3, 3, "Talent cle"), case9Box(3, 2, "Performant")));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of(
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of(
                 score("BP001", "Talent cle"), score("BP002", "Talent cle"),
                 score("BP003", "A surveiller"), score("BP004", null)));
 
         SyntheseTableauDeBord synthese = service.synthese(trimestre);
 
         assertThat(synthese.nbTalents()).isEqualTo(2);
+        assertThat(synthese.nbTalentsValides()).isEqualTo(1);
         assertThat(synthese.nbHautsPotentiels()).isEqualTo(2);
 
         // Chaque niveau est present, meme a zero, dans l'ordre de l'enum.
@@ -105,11 +114,12 @@ class TableauDeBordServiceTest {
         when(vigilanceService.evaluerTrimestre(trimestre)).thenReturn(List.of());
         when(posteCritiqueService.listerPostesCritiques(trimestre)).thenReturn(List.of());
         when(matrice9BoxRepository.findAll()).thenReturn(List.of(case9Box(3, 3, "Talent cle")));
-        when(scoreRepository.findByTrimestreAvecEmploye(trimestre)).thenReturn(List.of());
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of());
 
         SyntheseTableauDeBord synthese = service.synthese(trimestre);
 
         assertThat(synthese.nbTalents()).isZero();
+        assertThat(synthese.nbTalentsValides()).isZero();
         assertThat(synthese.nbARisque()).isZero();
         assertThat(synthese.vigilanceParNiveau()).hasSize(3).allSatisfy((niveau, nb) -> assertThat(nb).isZero());
         assertThat(synthese.tauxCouverture()).isNull();
@@ -130,25 +140,25 @@ class TableauDeBordServiceTest {
         return java.util.Map.entry(cle, valeur);
     }
 
-    private Employe employe(String employeeId) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(employeeId);
-        employe.setNom("Nom" + employeeId);
-        employe.setPrenom("Prenom" + employeeId);
-        employe.setStatut(StatutEmploye.ACTIF);
-        return employe;
+    private Collaborateur collaborateur(String idCollaborateur) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(idCollaborateur);
+        collaborateur.setNom("Nom" + idCollaborateur);
+        collaborateur.setPrenom("Prenom" + idCollaborateur);
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
+        return collaborateur;
     }
 
-    private Score score(String employeeId, String positionBox) {
+    private Score score(String idCollaborateur, String positionBox) {
         Score score = new Score();
-        score.setEmploye(employe(employeeId));
+        score.setCollaborateur(collaborateur(idCollaborateur));
         score.setTrimestre(trimestre);
         score.setPositionBox(positionBox);
         return score;
     }
 
-    private ResultatVigilance vigilance(String employeeId, NiveauVigilance niveau) {
-        return new ResultatVigilance(employe(employeeId), new BigDecimal("40"), niveau, Set.of());
+    private ResultatVigilance vigilance(String idCollaborateur, NiveauVigilance niveau) {
+        return new ResultatVigilance(collaborateur(idCollaborateur), new BigDecimal("40"), niveau, Set.of());
     }
 
     private CouverturePoste couverture(String posteId, NiveauCouverture niveau) {

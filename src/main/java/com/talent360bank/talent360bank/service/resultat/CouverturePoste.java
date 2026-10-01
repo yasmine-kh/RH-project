@@ -19,7 +19,7 @@ import java.util.List;
 public record CouverturePoste(Poste poste, int nbSuccesseurs, List<ResultatMatching> successeurs,
                               List<SuccesseurIgnore> ignores, NiveauCouverture niveau) {
 
-    public record SuccesseurIgnore(String employeeId, String motif) {
+    public record SuccesseurIgnore(String idCollaborateur, String motif) {
     }
 
     /** Meilleur successeur evalue, null si aucun ne l'a ete. */

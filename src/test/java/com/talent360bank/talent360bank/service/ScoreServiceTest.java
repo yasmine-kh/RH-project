@@ -1,11 +1,12 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.CategoriePerformance;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
@@ -62,24 +63,24 @@ class ScoreServiceTest {
         parametre = Parametre.parDefaut(trimestre);
     }
 
-    private Employe employe(String matricule, StatutEmploye statut) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(matricule);
-        employe.setNom("Nom" + matricule);
-        employe.setPrenom("Prenom" + matricule);
-        employe.setDateEntree(LocalDate.of(2020, 1, 15));
-        employe.setStatut(statut);
-        return employe;
+    private Collaborateur collaborateur(String matricule, StatutCollaborateur statut) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(matricule);
+        collaborateur.setNom("Nom" + matricule);
+        collaborateur.setPrenom("Prenom" + matricule);
+        collaborateur.setDateEntree(LocalDate.of(2020, 1, 15));
+        collaborateur.setStatut(statut);
+        return collaborateur;
     }
 
-    private Performance performance(Employe employe) {
-        return new Performance(employe, trimestre,
+    private Performance performance(Collaborateur collaborateur) {
+        return new Performance(collaborateur, trimestre,
                 new BigDecimal("90"), new BigDecimal("80"), new BigDecimal("70"),
                 new BigDecimal("60"), new BigDecimal("50"));
     }
 
-    private Potentiel potentiel(Employe employe) {
-        return new Potentiel(employe, trimestre,
+    private Potentiel potentiel(Collaborateur collaborateur) {
+        return new Potentiel(collaborateur, trimestre,
                 new BigDecimal("90"), new BigDecimal("80"), new BigDecimal("70"),
                 new BigDecimal("60"), new BigDecimal("50"), new BigDecimal("40"),
                 new BigDecimal("30"));
@@ -91,57 +92,92 @@ class ScoreServiceTest {
 
     @Test
     void enregistreLesDeuxScoresEtLaDateDuJour() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
-        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
-                .thenReturn(Optional.of(performance(employe)));
-        when(potentielRepository.findByEmployeAndTrimestre(any(), any()))
-                .thenReturn(Optional.of(potentiel(employe)));
-        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(performance(collaborateur)));
+        when(potentielRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(potentiel(collaborateur)));
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
         renvoieCeQuOnLuiDonne();
 
-        Score score = scoreService.calculerEtEnregistrer(employe, trimestre);
+        Score score = scoreService.calculerEtEnregistrer(collaborateur, trimestre);
 
         assertThat(score.getScorePerformance()).isEqualByComparingTo("77");
         assertThat(score.getScorePotentiel()).isEqualByComparingTo("65.50");
         assertThat(score.getDateCalcul()).isEqualTo(LocalDate.now());
-        assertThat(score.getEmploye()).isEqualTo(employe);
+        assertThat(score.getCollaborateur()).isEqualTo(collaborateur);
         assertThat(score.getTrimestre()).isEqualTo(trimestre);
     }
 
     @Test
     void laPositionBoxResteIntacteCarElleRelevedeNeufBoxService() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
-        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
-                .thenReturn(Optional.of(performance(employe)));
-        when(potentielRepository.findByEmployeAndTrimestre(any(), any()))
-                .thenReturn(Optional.of(potentiel(employe)));
-        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(performance(collaborateur)));
+        when(potentielRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(potentiel(collaborateur)));
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
         renvoieCeQuOnLuiDonne();
 
-        assertThat(scoreService.calculerEtEnregistrer(employe, trimestre).getPositionBox()).isNull();
+        assertThat(scoreService.calculerEtEnregistrer(collaborateur, trimestre).getPositionBox()).isNull();
+    }
+
+    @Test
+    void leRecalculPoseLaCategorieDePerformanceMaisPasCelleDePotentiel() {
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(performance(collaborateur)));
+        when(potentielRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(potentiel(collaborateur)));
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        renvoieCeQuOnLuiDonne();
+
+        Score score = scoreService.calculerEtEnregistrer(collaborateur, trimestre);
+
+        // 77 : entre 70 et 80.
+        assertThat(score.getCategoriePerformance()).isEqualTo(CategoriePerformance.SOLIDE);
+        // Pose par le placement 9-box, qui porte les seuils de l'axe potentiel.
+        assertThat(score.getCategoriePotentiel()).isNull();
+    }
+
+    @Test
+    void desSeuilsDeCategorieModifiesChangentLaCategorieAuRecalcul() {
+        parametre.getSeuilsCategoriePerformance().setSeuilSolide(new BigDecimal("78"));
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(performance(collaborateur)));
+        when(potentielRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(potentiel(collaborateur)));
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        renvoieCeQuOnLuiDonne();
+
+        assertThat(scoreService.calculerEtEnregistrer(collaborateur, trimestre).getCategoriePerformance())
+                .isEqualTo(CategoriePerformance.A_RENFORCER);
     }
 
     @Test
     void unRecalculMetAJourLaLigneExistanteSansEnCreerUneSeconde() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
         Score existant = new Score();
         existant.setIdScore(42);
-        existant.setEmploye(employe);
+        existant.setCollaborateur(collaborateur);
         existant.setTrimestre(trimestre);
         existant.setScorePerformance(new BigDecimal("10.00"));
 
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
-        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
-                .thenReturn(Optional.of(performance(employe)));
-        when(potentielRepository.findByEmployeAndTrimestre(any(), any()))
-                .thenReturn(Optional.of(potentiel(employe)));
-        when(scoreRepository.findByEmployeAndTrimestre(any(), any()))
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(performance(collaborateur)));
+        when(potentielRepository.findByCollaborateurAndTrimestre(any(), any()))
+                .thenReturn(Optional.of(potentiel(collaborateur)));
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any()))
                 .thenReturn(Optional.of(existant));
         renvoieCeQuOnLuiDonne();
 
-        Score score = scoreService.calculerEtEnregistrer(employe, trimestre);
+        Score score = scoreService.calculerEtEnregistrer(collaborateur, trimestre);
 
         assertThat(score.getIdScore()).isEqualTo(42);
         assertThat(score.getScorePerformance()).isEqualByComparingTo("77");
@@ -149,28 +185,28 @@ class ScoreServiceTest {
 
     @Test
     void desNotesAbsentesEmpechentLEnregistrement() {
-        Employe employe = employe("E001", StatutEmploye.ACTIF);
+        Collaborateur collaborateur = collaborateur("E001", StatutCollaborateur.ACTIF);
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
-        when(performanceRepository.findByEmployeAndTrimestre(any(), any()))
+        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> scoreService.calculerEtEnregistrer(employe, trimestre))
+        assertThatThrownBy(() -> scoreService.calculerEtEnregistrer(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class);
 
         verify(scoreRepository, never()).save(any());
     }
 
     @Test
-    void leRecalculDeTrimestreScoreLesEmployesComplets() {
-        Employe premier = employe("E001", StatutEmploye.ACTIF);
-        Employe second = employe("E002", StatutEmploye.ACTIF);
+    void leRecalculDeTrimestreScoreLesCollaborateursComplets() {
+        Collaborateur premier = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur second = collaborateur("E002", StatutCollaborateur.ACTIF);
 
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
-        when(performanceRepository.findByTrimestreAvecEmploye(any()))
+        when(performanceRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(performance(premier), performance(second)));
-        when(potentielRepository.findByTrimestreAvecEmploye(any()))
+        when(potentielRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(potentiel(premier), potentiel(second)));
-        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
         renvoieCeQuOnLuiDonne();
 
         ResultatRecalcul resultat = scoreService.recalculerTrimestre(trimestre);
@@ -180,62 +216,64 @@ class ScoreServiceTest {
     }
 
     @Test
-    void unEmployeSansNotesDePotentielEstIgnoreAvecSonMotif() {
-        Employe complet = employe("E001", StatutEmploye.ACTIF);
-        Employe incomplet = employe("E002", StatutEmploye.ACTIF);
+    void unCollaborateurSansNotesDePotentielEstIgnoreAvecSonMotif() {
+        Collaborateur complet = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur incomplet = collaborateur("E002", StatutCollaborateur.ACTIF);
 
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
-        when(performanceRepository.findByTrimestreAvecEmploye(any()))
+        when(performanceRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(performance(complet), performance(incomplet)));
-        when(potentielRepository.findByTrimestreAvecEmploye(any()))
+        when(potentielRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(potentiel(complet)));
-        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
         renvoieCeQuOnLuiDonne();
 
         ResultatRecalcul resultat = scoreService.recalculerTrimestre(trimestre);
 
         assertThat(resultat.nombreCalcules()).isEqualTo(1);
         assertThat(resultat.ignores())
-                .extracting(ResultatRecalcul.EmployeIgnore::matricule, ResultatRecalcul.EmployeIgnore::motif)
+                .extracting(ResultatRecalcul.CollaborateurIgnore::matricule,
+                        ResultatRecalcul.CollaborateurIgnore::motif)
                 .containsExactly(org.assertj.core.api.Assertions.tuple("E002", "Notes de potentiel absentes"));
     }
 
     @Test
-    void unEmployeSansNotesDePerformanceEstIgnoreAvecSonMotif() {
-        Employe complet = employe("E001", StatutEmploye.ACTIF);
-        Employe sansPerf = employe("E002", StatutEmploye.ACTIF);
+    void unCollaborateurSansNotesDePerformanceEstIgnoreAvecSonMotif() {
+        Collaborateur complet = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur sansPerf = collaborateur("E002", StatutCollaborateur.ACTIF);
 
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
-        when(performanceRepository.findByTrimestreAvecEmploye(any()))
+        when(performanceRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(performance(complet)));
-        when(potentielRepository.findByTrimestreAvecEmploye(any()))
+        when(potentielRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(potentiel(complet), potentiel(sansPerf)));
-        when(scoreRepository.findByEmployeAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
         renvoieCeQuOnLuiDonne();
 
         ResultatRecalcul resultat = scoreService.recalculerTrimestre(trimestre);
 
         assertThat(resultat.nombreCalcules()).isEqualTo(1);
         assertThat(resultat.ignores())
-                .extracting(ResultatRecalcul.EmployeIgnore::matricule, ResultatRecalcul.EmployeIgnore::motif)
+                .extracting(ResultatRecalcul.CollaborateurIgnore::matricule,
+                        ResultatRecalcul.CollaborateurIgnore::motif)
                 .containsExactly(org.assertj.core.api.Assertions.tuple("E002", "Notes de performance absentes"));
     }
 
     @Test
-    void unEmployeArchiveEstEcarteDuRecalcul() {
-        Employe archive = employe("E003", StatutEmploye.ARCHIVE);
+    void unCollaborateurArchiveEstEcarteDuRecalcul() {
+        Collaborateur archive = collaborateur("E003", StatutCollaborateur.ARCHIVE);
 
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
-        when(performanceRepository.findByTrimestreAvecEmploye(any()))
+        when(performanceRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(performance(archive)));
-        when(potentielRepository.findByTrimestreAvecEmploye(any()))
+        when(potentielRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(potentiel(archive)));
 
         ResultatRecalcul resultat = scoreService.recalculerTrimestre(trimestre);
 
         assertThat(resultat.nombreCalcules()).isZero();
         assertThat(resultat.ignores()).singleElement()
-                .extracting(ResultatRecalcul.EmployeIgnore::motif)
+                .extracting(ResultatRecalcul.CollaborateurIgnore::motif)
                 .asString().contains("ARCHIVE");
         verify(scoreRepository, never()).save(any());
     }

@@ -3,20 +3,23 @@ package com.talent360bank.talent360bank.controller;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.talent360bank.talent360bank.controller.dto.ParametreForm;
+import com.talent360bank.talent360bank.entity.Entite;
+import com.talent360bank.talent360bank.entity.TypeEntite;
 import com.talent360bank.talent360bank.entity.Competence;
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.EmployeeSkill;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Score;
-import com.talent360bank.talent360bank.entity.StatutEmploye;
+import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.CompetenceRepository;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
-import com.talent360bank.talent360bank.repository.EmployeeSkillRepository;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
+import com.talent360bank.talent360bank.repository.EntiteRepository;
+import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
 import com.talent360bank.talent360bank.repository.PosteRepository;
@@ -24,6 +27,10 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
+import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
+import com.talent360bank.talent360bank.repository.UtilisateurRepository;
+import com.talent360bank.talent360bank.securite.ConnexionHttpDeTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -33,7 +40,10 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -70,7 +80,9 @@ class ApiIntegrationTest {
     @Autowired
     private ParametreRepository parametreRepository;
     @Autowired
-    private EmployeRepository employeRepository;
+    private CollaborateurRepository collaborateurRepository;
+    @Autowired
+    private EntiteRepository entiteRepository;
     @Autowired
     private PerformanceRepository performanceRepository;
     @Autowired
@@ -80,30 +92,54 @@ class ApiIntegrationTest {
     @Autowired
     private CompetenceRepository competenceRepository;
     @Autowired
-    private EmployeeSkillRepository employeeSkillRepository;
+    private CompetenceCollaborateurRepository competenceCollaborateurRepository;
     @Autowired
     private PosteRepository posteRepository;
     @Autowired
     private QuestionnaireEngagementRepository questionnaireRepository;
+    @Autowired
+    private UtilisateurRepository utilisateurRepository;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     private Trimestre courant;
     private Trimestre precedent;
+    private Entite reseau;
+
+    /**
+     * Le client de test ecrit comme un ecran : avec l'en-tete exige sur les
+     * ecritures (voir ProtectionRequetesFilter).
+     */
+    private static final ClientHttpRequestInterceptor EN_TETE_ECRITURE = (requete, corps, execution) -> {
+        requete.getHeaders().add(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1");
+        return execution.execute(requete, corps);
+    };
+
+    @LocalServerPort
+    private int port;
+
+    /** Cookie de la session RH ouverte au debut, par le vrai formulaire de connexion. */
+    private String sessionRh;
 
     @BeforeAll
     void poserLesDonnees() {
+        restTemplate.getRestTemplate().getInterceptors().add(EN_TETE_ECRITURE);
+        sessionRh = ConnexionHttpDeTest.connecterRh(restTemplate, utilisateurRepository, passwordEncoder);
         precedent = trimestre(4, 2025);
         courant = trimestre(1, 2026);
         parametreRepository.save(Parametre.parDefaut(courant));
+        reseau = entiteRepository.findByCode(Entite.code(null, TypeEntite.DIRECTION, "Reseau"))
+                .orElseGet(() -> entiteRepository.save(new Entite("Reseau", TypeEntite.DIRECTION, null)));
 
         Competence analyse = competence("C001", "Analyse de risque");
         Competence management = competence("C002", "Management d'equipe");
 
         // Anciennete 12 ans : au plafond du critere experience.
-        Employe forte = employe("E001", "Bennani", "Sara", LocalDate.of(2014, 3, 1));
+        Collaborateur forte = collaborateur("E001", "Bennani", "Sara", LocalDate.of(2014, 3, 1));
         // Anciennete 2 ans, engagement bas : deux signaux de vigilance.
-        Employe fragile = employe("E002", "Alaoui", "Karim", LocalDate.of(2024, 1, 15));
+        Collaborateur fragile = collaborateur("E002", "Alaoui", "Karim", LocalDate.of(2024, 1, 15));
         // Titulaire du poste cible : score mais exclu du classement succession.
-        Employe titulaire = employe("E003", "Tazi", "Nadia", LocalDate.of(2018, 9, 1));
+        Collaborateur titulaire = collaborateur("E003", "Tazi", "Nadia", LocalDate.of(2018, 9, 1));
 
         notes(forte, "90", "90");
         notes(fragile, "50", "50");
@@ -115,9 +151,9 @@ class ApiIntegrationTest {
 
         questionnaire(fragile, "20.00");
 
-        employeeSkillRepository.save(skill(forte, analyse, 4, 4));
-        employeeSkillRepository.save(skill(forte, management, 3, 3));
-        employeeSkillRepository.save(skill(fragile, analyse, 1, 4));
+        competenceCollaborateurRepository.save(skill(forte, analyse, 4, 4));
+        competenceCollaborateurRepository.save(skill(forte, management, 3, 3));
+        competenceCollaborateurRepository.save(skill(fragile, analyse, 1, 4));
 
         Poste poste = new Poste();
         poste.setPosteId("P001");
@@ -144,45 +180,45 @@ class ApiIntegrationTest {
         return competenceRepository.save(competence);
     }
 
-    private Employe employe(String id, String nom, String prenom, LocalDate entree) {
-        Employe employe = new Employe();
-        employe.setEmployeeId(id);
-        employe.setNom(nom);
-        employe.setPrenom(prenom);
-        employe.setDateEntree(entree);
-        employe.setDirection("Reseau");
-        employe.setStatut(StatutEmploye.ACTIF);
-        return employeRepository.save(employe);
+    private Collaborateur collaborateur(String id, String nom, String prenom, LocalDate entree) {
+        Collaborateur collaborateur = new Collaborateur();
+        collaborateur.setIdCollaborateur(id);
+        collaborateur.setNom(nom);
+        collaborateur.setPrenom(prenom);
+        collaborateur.setDateEntree(entree);
+        collaborateur.setEntite(reseau);
+        collaborateur.setStatut(StatutCollaborateur.ACTIF);
+        return collaborateurRepository.save(collaborateur);
     }
 
-    private void notes(Employe employe, String performance, String potentiel) {
+    private void notes(Collaborateur collaborateur, String performance, String potentiel) {
         BigDecimal p = new BigDecimal(performance);
         BigDecimal q = new BigDecimal(potentiel);
-        performanceRepository.save(new Performance(employe, courant, p, p, p, p, p));
-        potentielRepository.save(new Potentiel(employe, courant, q, q, q, q, q, q, q));
+        performanceRepository.save(new Performance(collaborateur, courant, p, p, p, p, p));
+        potentielRepository.save(new Potentiel(collaborateur, courant, q, q, q, q, q, q, q));
     }
 
-    private void scorePrecedent(Employe employe, String performance, String potentiel) {
+    private void scorePrecedent(Collaborateur collaborateur, String performance, String potentiel) {
         Score score = new Score();
-        score.setEmploye(employe);
+        score.setCollaborateur(collaborateur);
         score.setTrimestre(precedent);
         score.setScorePerformance(new BigDecimal(performance));
         score.setScorePotentiel(new BigDecimal(potentiel));
         scoreRepository.save(score);
     }
 
-    private void questionnaire(Employe employe, String scoreEngagement) {
+    private void questionnaire(Collaborateur collaborateur, String scoreEngagement) {
         QuestionnaireEngagement reponse = new QuestionnaireEngagement();
-        reponse.setEmploye(employe);
+        reponse.setCollaborateur(collaborateur);
         reponse.setTrimestre(courant);
         reponse.setScoreEngagement(new BigDecimal(scoreEngagement));
         reponse.setDateReponse(LocalDate.of(2026, 2, 1));
         questionnaireRepository.save(reponse);
     }
 
-    private EmployeeSkill skill(Employe employe, Competence competence, int actuel, int cible) {
-        EmployeeSkill skill = new EmployeeSkill();
-        skill.setEmploye(employe);
+    private CompetenceCollaborateur skill(Collaborateur collaborateur, Competence competence, int actuel, int cible) {
+        CompetenceCollaborateur skill = new CompetenceCollaborateur();
+        skill.setCollaborateur(collaborateur);
         skill.setCompetence(competence);
         skill.setNiveauActuel(actuel);
         skill.setNiveauCible(cible);
@@ -206,21 +242,21 @@ class ApiIntegrationTest {
 
         assertThat(corps.read("$.nombreCalcules", Integer.class)).isEqualTo(3);
         assertThat(corps.read("$.nombreIgnores", Integer.class)).isZero();
-        assertThat(corps.read("$.scores[*].employeeId", List.class))
+        assertThat(corps.read("$.scores[*].idCollaborateur", List.class))
                 .containsExactlyInAnyOrder("E001", "E002", "E003");
     }
 
     @Test
     @Order(2)
-    void les_scores_sortent_avec_le_nom_complet_de_l_employe() {
-        // Traverse la relation Score -> Employe apres serialisation : c'est
+    void les_scores_sortent_avec_le_nom_complet_de_l_collaborateur() {
+        // Traverse la relation Score -> Collaborateur apres serialisation : c'est
         // ici qu'une LazyInitializationException se manifesterait.
         DocumentContext corps = json(get("/api/trimestres/2026/1/scores"));
 
         assertThat(corps.read("$.length()", Integer.class)).isEqualTo(3);
-        assertThat(corps.read("$[?(@.employeeId == 'E001')].nomComplet", List.class))
+        assertThat(corps.read("$[?(@.idCollaborateur == 'E001')].nomComplet", List.class))
                 .containsExactly("Sara Bennani");
-        assertThat(corps.read("$[?(@.employeeId == 'E001')].scorePerformance", List.class))
+        assertThat(corps.read("$[?(@.idCollaborateur == 'E001')].scorePerformance", List.class))
                 .containsExactly(90.00);
     }
 
@@ -246,14 +282,14 @@ class ApiIntegrationTest {
 
         // Seuils par defaut a 85/85 : seul E003 (95/95) passe, E001 est a 90
         // en performance mais 90 en potentiel, donc talent aussi.
-        assertThat(corps.read("$[*].employeeId", List.class))
+        assertThat(corps.read("$[*].idCollaborateur", List.class))
                 .containsExactlyInAnyOrder("E001", "E003");
     }
 
     @Test
     @Order(5)
-    void l_historique_d_un_employe_couvre_les_deux_trimestres() {
-        DocumentContext corps = json(get("/api/employes/E001/scores"));
+    void l_historique_d_un_collaborateur_couvre_les_deux_trimestres() {
+        DocumentContext corps = json(get("/api/collaborateurs/E001/scores"));
 
         assertThat(corps.read("$.length()", Integer.class)).isEqualTo(2);
     }
@@ -266,11 +302,11 @@ class ApiIntegrationTest {
         assertThat(corps.read("$.length()", Integer.class)).isEqualTo(3);
 
         // E002 : engagement 20 sous le seuil de 60, aucun score precedent.
-        assertThat(corps.read("$[?(@.employe.employeeId == 'E002')].signaux[*].code", List.class))
+        assertThat(corps.read("$[?(@.collaborateur.idCollaborateur == 'E002')].signaux[*].code", List.class))
                 .containsExactly("ENGAGEMENT_FAIBLE");
 
         // E001 : 90 au trimestre courant contre 95 au precedent.
-        assertThat(corps.read("$[?(@.employe.employeeId == 'E001')].signaux[*].code", List.class))
+        assertThat(corps.read("$[?(@.collaborateur.idCollaborateur == 'E001')].signaux[*].code", List.class))
                 .containsExactly("BAISSE_PERFORMANCE");
     }
 
@@ -290,7 +326,7 @@ class ApiIntegrationTest {
         DocumentContext corps = json(get("/api/postes/P001/candidats?annee=2026&numero=1"));
 
         // E003 est titulaire du poste : exclu du classement.
-        assertThat(corps.read("$[*].candidat.employeeId", List.class))
+        assertThat(corps.read("$[*].candidat.idCollaborateur", List.class))
                 .containsExactly("E001", "E002");
         assertThat(corps.read("$[0].detail.competences", Double.class)).isEqualTo(100.00);
         assertThat(corps.read("$[0].readiness", String.class)).isNotBlank();
@@ -308,7 +344,7 @@ class ApiIntegrationTest {
     void le_matching_d_un_candidat_seul_repond() {
         DocumentContext corps = json(get("/api/postes/P001/candidats/E001?annee=2026&numero=1"));
 
-        assertThat(corps.read("$.candidat.employeeId", String.class)).isEqualTo("E001");
+        assertThat(corps.read("$.candidat.idCollaborateur", String.class)).isEqualTo("E001");
         assertThat(corps.read("$.detail.competences", Double.class)).isEqualTo(100.00);
     }
 
@@ -331,9 +367,10 @@ class ApiIntegrationTest {
         voulu.getSeuilsTalent().setSeuilPerformance(new BigDecimal("80"));
 
         ParametreForm form = new ParametreForm("Revu au comite",
-                voulu.getPoidsSources(), voulu.getPoidsPerformance(), voulu.getPoidsPotentiel(),
+                voulu.getPoidsPerformance(), voulu.getPoidsPotentiel(),
                 voulu.getPoidsSuccession(), voulu.getBaremeExperience(), voulu.getBaremeCompetences(),
-                voulu.getSeuilsNeufBox(),
+                voulu.getSeuilsNeufBox(), voulu.getSeuilsNeufBoxPotentiel(),
+                voulu.getSeuilsCategoriePerformance(), voulu.getSeuilsGapCompetence(),
                 voulu.getSeuilsReadiness(), voulu.getSeuilsCouverture(),
                 voulu.getSeuilsTalent(), voulu.getPointsVigilance(), voulu.getSeuilsVigilance());
 
@@ -385,5 +422,43 @@ class ApiIntegrationTest {
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(JsonPath.parse(reponse.getBody()).read("$.erreur", String.class))
                 .isEqualTo("ressource_introuvable");
+    }
+
+    @Test
+    @Order(16)
+    void une_ecriture_sans_l_en_tete_est_refusee_sans_rien_executer() {
+        // Client sans l'intercepteur : ce qu'enverrait un formulaire d'un autre site.
+        TestRestTemplate sansEnTete = new TestRestTemplate();
+
+        ResponseEntity<String> reponse = sansEnTete.postForEntity(
+                "http://localhost:" + port + "/api/trimestres/2026/1/9box/placement", null, String.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(JsonPath.parse(reponse.getBody()).read("$.erreur", String.class))
+                .isEqualTo("en_tete_manquant");
+    }
+
+    @Test
+    @Order(17)
+    void une_lecture_sans_l_en_tete_reste_permise() {
+        // Client sans l'intercepteur d'en-tete, avec seulement le cookie de session.
+        HttpHeaders entetes = new HttpHeaders();
+        entetes.add(HttpHeaders.COOKIE, sessionRh);
+        ResponseEntity<String> reponse = new TestRestTemplate().exchange(
+                "http://localhost:" + port + "/api/trimestres/2026/1/scores", HttpMethod.GET,
+                new HttpEntity<>(entetes), String.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @Order(18)
+    void une_lecture_sans_session_rend_401() {
+        ResponseEntity<String> reponse = new TestRestTemplate().getForEntity(
+                "http://localhost:" + port + "/api/trimestres/2026/1/scores", String.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(JsonPath.parse(reponse.getBody()).read("$.erreur", String.class))
+                .isEqualTo("non_authentifie");
     }
 }

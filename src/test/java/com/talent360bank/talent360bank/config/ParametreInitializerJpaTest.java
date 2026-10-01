@@ -27,7 +27,9 @@ class ParametreInitializerJpaTest {
 
     private static final List<String> COLONNES_AJOUTEES = List.of(
             "exp_points_par_annee", "exp_plafond", "comp_points_par_niveau_manquant", "comp_niveau_par_defaut",
-            "seuil_hp_pot", "seuil_hp_perf", "couv_nb_min_successeurs");
+            "seuil_hp_pot", "seuil_hp_perf", "couv_nb_min_successeurs",
+            "cat_perf_exceptionnelle", "cat_perf_elevee", "cat_perf_solide", "cat_perf_a_renforcer",
+            "seuil_box_pot_eleve", "seuil_box_pot_moyen", "comp_seuil_gap_prioritaire");
 
     /** Un trimestre distinct par ligne creee, voir {@link #ligneExistante}. */
     private static final AtomicInteger ANNEES = new AtomicInteger(2026);
@@ -59,6 +61,54 @@ class ParametreInitializerJpaTest {
         assertThat(defauts.get("seuil_hp_pot")).isEqualByComparingTo("85");
         assertThat(defauts.get("seuil_hp_perf")).isEqualByComparingTo("75");
         assertThat(defauts.get("couv_nb_min_successeurs")).isEqualByComparingTo("1");
+        assertThat(defauts.get("cat_perf_exceptionnelle")).isEqualByComparingTo("90");
+        assertThat(defauts.get("cat_perf_elevee")).isEqualByComparingTo("80");
+        assertThat(defauts.get("cat_perf_solide")).isEqualByComparingTo("70");
+        assertThat(defauts.get("cat_perf_a_renforcer")).isEqualByComparingTo("60");
+        assertThat(defauts.get("comp_seuil_gap_prioritaire")).isEqualByComparingTo("2");
+        // Sans defaut en base : repris de l'axe performance de chaque ligne.
+        assertThat(defauts).doesNotContainKeys("seuil_box_pot_eleve", "seuil_box_pot_moyen");
+    }
+
+    @Test
+    void uneLigneAnterieureALAxePotentielReprendLesSeuilsDeSonAxePerformance() {
+        Integer id = ligneExistante("seuil_box_eleve = 80, seuil_box_moyen = 65, "
+                + "seuil_box_pot_eleve = NULL, seuil_box_pot_moyen = NULL");
+
+        assertThat(relire(id).getSeuilsNeufBoxPotentiel()).isNull();
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        Parametre complete = relire(id);
+        assertThat(complete.getSeuilsNeufBoxPotentiel().getSeuilEleve()).isEqualByComparingTo("80");
+        assertThat(complete.getSeuilsNeufBoxPotentiel().getSeuilMoyen()).isEqualByComparingTo("65");
+        assertThat(complete.getSeuilsNeufBox().getSeuilEleve()).isEqualByComparingTo("80");
+    }
+
+    @Test
+    void uneLigneAnterieureAuSeuilDeGapEstCompletee() {
+        Integer id = ligneExistante("comp_seuil_gap_prioritaire = NULL");
+
+        // Seule colonne du bloc a NULL : Hibernate rend le bloc a null.
+        assertThat(relire(id).getSeuilsGapCompetence()).isNull();
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        assertThat(relire(id).getSeuilsGapCompetence().getSeuilPrioritaire()).isEqualTo(2);
+    }
+
+    @Test
+    void uneLigneAnterieureAuxCategoriesDePerformanceEstCompletee() {
+        Integer id = ligneExistante("cat_perf_exceptionnelle = NULL, cat_perf_elevee = NULL, "
+                + "cat_perf_solide = NULL, cat_perf_a_renforcer = NULL");
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        Parametre complete = relire(id);
+        assertThat(complete.getSeuilsCategoriePerformance().getSeuilExceptionnelle()).isEqualByComparingTo("90");
+        assertThat(complete.getSeuilsCategoriePerformance().getSeuilElevee()).isEqualByComparingTo("80");
+        assertThat(complete.getSeuilsCategoriePerformance().getSeuilSolide()).isEqualByComparingTo("70");
+        assertThat(complete.getSeuilsCategoriePerformance().getSeuilARenforcer()).isEqualByComparingTo("60");
     }
 
     @Test

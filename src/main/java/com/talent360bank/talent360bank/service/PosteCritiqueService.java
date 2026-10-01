@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
-import com.talent360bank.talent360bank.entity.EmployeeSkill;
+import com.talent360bank.talent360bank.entity.Collaborateur;
+import com.talent360bank.talent360bank.entity.CompetenceCollaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
@@ -11,8 +11,8 @@ import com.talent360bank.talent360bank.entity.SeuilsReadiness;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
-import com.talent360bank.talent360bank.repository.EmployeRepository;
-import com.talent360bank.talent360bank.repository.EmployeeSkillRepository;
+import com.talent360bank.talent360bank.repository.CollaborateurRepository;
+import com.talent360bank.talent360bank.repository.CompetenceCollaborateurRepository;
 import com.talent360bank.talent360bank.repository.PosteRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -46,7 +47,7 @@ import java.util.Set;
  * criticite (Tres elevee, Elevee...) n'entre pas dans le calcul, le classeur
  * ne l'utilise pas non plus. La couverture se juge sur les successeurs que le
  * RH a identifies ({@link SuccesseurIdentifieSource}), pas sur le classement de
- * tous les employes : ce classement propose toujours quelqu'un et ne
+ * tous les collaborateurs : ce classement propose toujours quelqu'un et ne
  * declencherait jamais d'alerte.
  *
  * <p>Les seuils viennent du {@link Parametre} du trimestre : le minimum de
@@ -65,10 +66,10 @@ public class PosteCritiqueService {
     private static final BigDecimal CENT = new BigDecimal("100");
 
     private final PosteRepository posteRepository;
-    private final EmployeRepository employeRepository;
+    private final CollaborateurRepository collaborateurRepository;
     private final ScoreRepository scoreRepository;
     private final PotentielRepository potentielRepository;
-    private final EmployeeSkillRepository employeeSkillRepository;
+    private final CompetenceCollaborateurRepository competenceCollaborateurRepository;
     private final SuccessionService successionService;
     private final CalculService calculService;
     private final SuccesseurIdentifieSource successeurIdentifieSource;
@@ -79,15 +80,15 @@ public class PosteCritiqueService {
      */
     @Autowired
     public PosteCritiqueService(PosteRepository posteRepository,
-                                EmployeRepository employeRepository,
+                                CollaborateurRepository collaborateurRepository,
                                 ScoreRepository scoreRepository,
                                 PotentielRepository potentielRepository,
-                                EmployeeSkillRepository employeeSkillRepository,
+                                CompetenceCollaborateurRepository competenceCollaborateurRepository,
                                 SuccessionService successionService,
                                 CalculService calculService,
                                 ObjectProvider<SuccesseurIdentifieSource> successeurIdentifieSource) {
-        this(posteRepository, employeRepository, scoreRepository, potentielRepository,
-                employeeSkillRepository, successionService, calculService,
+        this(posteRepository, collaborateurRepository, scoreRepository, potentielRepository,
+                competenceCollaborateurRepository, successionService, calculService,
                 successeurIdentifieSource.getIfAvailable(() -> {
                     log.warn("Aucune source de successeurs identifies : tous les postes critiques "
                             + "seront en alerte tant que l'import ne les fournit pas");
@@ -96,18 +97,18 @@ public class PosteCritiqueService {
     }
 
     public PosteCritiqueService(PosteRepository posteRepository,
-                                EmployeRepository employeRepository,
+                                CollaborateurRepository collaborateurRepository,
                                 ScoreRepository scoreRepository,
                                 PotentielRepository potentielRepository,
-                                EmployeeSkillRepository employeeSkillRepository,
+                                CompetenceCollaborateurRepository competenceCollaborateurRepository,
                                 SuccessionService successionService,
                                 CalculService calculService,
                                 SuccesseurIdentifieSource successeurIdentifieSource) {
         this.posteRepository = posteRepository;
-        this.employeRepository = employeRepository;
+        this.collaborateurRepository = collaborateurRepository;
         this.scoreRepository = scoreRepository;
         this.potentielRepository = potentielRepository;
-        this.employeeSkillRepository = employeeSkillRepository;
+        this.competenceCollaborateurRepository = competenceCollaborateurRepository;
         this.successionService = successionService;
         this.calculService = calculService;
         this.successeurIdentifieSource = Objects.requireNonNull(successeurIdentifieSource,
@@ -158,16 +159,17 @@ public class PosteCritiqueService {
      * successeurs, comme une ligne de 09_SUCCESSION, mais pas dans le
      * meilleur matching.
      *
-     * @param employes     employes connus, par Employee_ID
+     * @param collaborateurs     collaborateurs connus, par Employee_ID
      * @param scores       scores du trimestre, par Employee_ID
      * @param potentiels   notes de potentiel du trimestre, par Employee_ID
-     * @param competences  competences des employes, par Employee_ID
+     * @param competences  competences des collaborateurs, par Employee_ID
+     * @param dateReference date de reference du trimestre, pour l'experience du matching
      */
     public CouverturePoste evaluerCouverture(Poste poste, List<String> successeursIdentifies,
-                                             Map<String, Employe> employes, Map<String, Score> scores,
+                                             Map<String, Collaborateur> collaborateurs, Map<String, Score> scores,
                                              Map<String, Potentiel> potentiels,
-                                             Map<String, List<EmployeeSkill>> competences,
-                                             Parametre parametre) {
+                                             Map<String, List<CompetenceCollaborateur>> competences,
+                                             Parametre parametre, LocalDate dateReference) {
         Objects.requireNonNull(poste, "poste");
         Objects.requireNonNull(successeursIdentifies, "successeursIdentifies");
         Objects.requireNonNull(parametre, "parametre");
@@ -176,37 +178,38 @@ public class PosteCritiqueService {
         List<CouverturePoste.SuccesseurIgnore> ignores = new ArrayList<>();
         int nbSuccesseurs = 0;
 
-        for (String employeeId : new LinkedHashSet<>(successeursIdentifies)) {
-            Employe employe = employes.get(employeeId);
-            if (employeeId.equals(poste.getTitulaireId())) {
-                ignores.add(new CouverturePoste.SuccesseurIgnore(employeeId, "Titulaire du poste"));
+        for (String idCollaborateur : new LinkedHashSet<>(successeursIdentifies)) {
+            Collaborateur collaborateur = collaborateurs.get(idCollaborateur);
+            if (idCollaborateur.equals(poste.getTitulaireId())) {
+                ignores.add(new CouverturePoste.SuccesseurIgnore(idCollaborateur, "Titulaire du poste"));
                 continue;
             }
-            if (employe == null) {
-                ignores.add(new CouverturePoste.SuccesseurIgnore(employeeId, "Employe inconnu"));
+            if (collaborateur == null) {
+                ignores.add(new CouverturePoste.SuccesseurIgnore(idCollaborateur, "Collaborateur inconnu"));
                 continue;
             }
-            if (!employe.estCalculable()) {
-                ignores.add(new CouverturePoste.SuccesseurIgnore(employeeId,
-                        "Hors perimetre (statut " + employe.getStatut() + ")"));
+            if (!collaborateur.estCalculable()) {
+                ignores.add(new CouverturePoste.SuccesseurIgnore(idCollaborateur,
+                        "Hors perimetre (statut " + collaborateur.getStatut() + ")"));
                 continue;
             }
 
             nbSuccesseurs++;
-            Score score = scores.get(employeeId);
+            Score score = scores.get(idCollaborateur);
             if (score == null || score.getScorePerformance() == null || score.getScorePotentiel() == null) {
-                ignores.add(new CouverturePoste.SuccesseurIgnore(employeeId,
+                ignores.add(new CouverturePoste.SuccesseurIgnore(idCollaborateur,
                         "Score absent ou incomplet sur le trimestre"));
                 continue;
             }
-            successeurs.add(successionService.evaluer(employe, poste, score,
-                    potentiels.get(employeeId), competences.getOrDefault(employeeId, List.of()), parametre));
+            successeurs.add(successionService.evaluer(collaborateur, poste, score,
+                    potentiels.get(idCollaborateur), competences.getOrDefault(idCollaborateur, List.of()), parametre,
+                    dateReference));
         }
 
-        // Meme ordre que le classement des candidats : l'employeeId departage.
+        // Meme ordre que le classement des candidats : l'idCollaborateur departage.
         successeurs.sort(Comparator
                 .comparing(ResultatMatching::scoreMatching, Comparator.reverseOrder())
-                .thenComparing(resultat -> resultat.candidat().getEmployeeId()));
+                .thenComparing(resultat -> resultat.candidat().getIdCollaborateur()));
 
         BigDecimal meilleur = successeurs.isEmpty() ? null : successeurs.get(0).scoreMatching();
         return new CouverturePoste(poste, nbSuccesseurs, List.copyOf(successeurs), List.copyOf(ignores),
@@ -280,31 +283,32 @@ public class PosteCritiqueService {
             tousSuccesseurs.addAll(identifies);
         }
 
-        Map<String, Employe> employes = new HashMap<>();
-        Map<String, List<EmployeeSkill>> competences = new HashMap<>();
+        Map<String, Collaborateur> collaborateurs = new HashMap<>();
+        Map<String, List<CompetenceCollaborateur>> competences = new HashMap<>();
         if (!tousSuccesseurs.isEmpty()) {
-            for (Employe employe : employeRepository.findAllById(tousSuccesseurs)) {
-                employes.put(employe.getEmployeeId(), employe);
+            for (Collaborateur collaborateur : collaborateurRepository.findAllById(tousSuccesseurs)) {
+                collaborateurs.put(collaborateur.getIdCollaborateur(), collaborateur);
             }
-            for (EmployeeSkill skill : employeeSkillRepository.findByEmployeIdsAvecCompetence(tousSuccesseurs)) {
-                competences.computeIfAbsent(skill.getEmploye().getEmployeeId(), cle -> new ArrayList<>())
+            for (CompetenceCollaborateur skill
+                    : competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(tousSuccesseurs)) {
+                competences.computeIfAbsent(skill.getCollaborateur().getIdCollaborateur(), cle -> new ArrayList<>())
                         .add(skill);
             }
         }
 
         Map<String, Score> scores = new HashMap<>();
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
-            scores.put(score.getEmploye().getEmployeeId(), score);
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            scores.put(score.getCollaborateur().getIdCollaborateur(), score);
         }
         Map<String, Potentiel> potentiels = new HashMap<>();
-        for (Potentiel potentiel : potentielRepository.findByTrimestreAvecEmploye(trimestre)) {
-            potentiels.put(potentiel.getEmploye().getEmployeeId(), potentiel);
+        for (Potentiel potentiel : potentielRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            potentiels.put(potentiel.getCollaborateur().getIdCollaborateur(), potentiel);
         }
 
         List<CouverturePoste> couvertures = new ArrayList<>();
         for (Poste poste : postes) {
             CouverturePoste couverture = evaluerCouverture(poste, successeursParPoste.get(poste.getPosteId()),
-                    employes, scores, potentiels, competences, parametre);
+                    collaborateurs, scores, potentiels, competences, parametre, trimestre.getDateReference());
             if (!couverture.ignores().isEmpty()) {
                 log.warn("Poste critique {} {} : {} successeur(s) identifie(s) hors matching {}",
                         poste.getPosteId(), decrire(trimestre), couverture.ignores().size(), couverture.ignores());

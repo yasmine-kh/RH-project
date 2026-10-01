@@ -15,10 +15,9 @@ import java.util.List;
 /**
  * Indice de vigilance : risque de depart, du plus a risque au moins a risque.
  *
- * <p>Attention en lisant ces reponses : la detection automatique ne couvre
- * aujourd'hui que deux des sept signaux, son plafond est de 35 points et le
- * niveau ELEVEE est donc hors d'atteinte. Le champ {@code detectable} de
- * chaque signal le rappelle cote client.
+ * <p>Les signaux de mobilite, developpement, reconnaissance et formation
+ * viennent des faits importes : sans source d'import declaree, ils ne sont
+ * jamais leves et l'indice est sous-estime.
  */
 @RestController
 @RequestMapping("/api")
@@ -33,7 +32,7 @@ public class VigilanceController {
     }
 
     /**
-     * Vigilance de tous les employes scores du trimestre.
+     * Vigilance de tous les collaborateurs scores du trimestre.
      *
      * @param minimum niveau plancher facultatif (FAIBLE, MODEREE, ELEVEE)
      */
@@ -47,15 +46,18 @@ public class VigilanceController {
                         ? vigilanceService.evaluerTrimestre(trimestre)
                         : vigilanceService.evaluerTrimestre(trimestre, minimum);
 
-        return resultats.stream().map(VigilanceResponse::de).toList();
+        return resultats.stream()
+                .map(resultat -> VigilanceResponse.de(resultat, trimestre.getDateReference()))
+                .toList();
     }
 
-    /** Vigilance d'un employe, avec le detail des signaux leves. */
-    @GetMapping("/trimestres/{annee}/{numero}/vigilance/{employeeId}")
-    public VigilanceResponse pourEmploye(@PathVariable int annee, @PathVariable int numero,
-                                         @PathVariable String employeeId) {
+    /** Vigilance d'un collaborateur, avec le detail des signaux leves. */
+    @GetMapping("/trimestres/{annee}/{numero}/vigilance/{idCollaborateur}")
+    public VigilanceResponse pourCollaborateur(@PathVariable int annee, @PathVariable int numero,
+                                               @PathVariable String idCollaborateur) {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return VigilanceResponse.de(
-                vigilanceService.evaluer(chargeur.exigerEmploye(employeeId), trimestre));
+                vigilanceService.evaluer(chargeur.exigerCollaborateur(idCollaborateur), trimestre),
+                trimestre.getDateReference());
     }
 }

@@ -1,5 +1,8 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.config.SecurityConfig;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -25,6 +28,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Import(SecurityConfig.class)
+@WithMockUser(roles = "RH")
 @WebMvcTest(TableauDeBordController.class)
 class TableauDeBordControllerTest {
 
@@ -54,7 +59,7 @@ class TableauDeBordControllerTest {
         pst13.setPosteId("PST13");
         pst13.setNomPoste("Responsable Cybersecurite");
 
-        when(tableauDeBordService.synthese(trimestre)).thenReturn(new SyntheseTableauDeBord(10, 21, vigilance,
+        when(tableauDeBordService.synthese(trimestre)).thenReturn(new SyntheseTableauDeBord(10, 8, 21, vigilance,
                 15, new BigDecimal("93.33"),
                 List.of(new CouverturePoste(pst13, 0, List.of(), List.of(), NiveauCouverture.ALERTE)),
                 repartition, 0));
@@ -62,6 +67,7 @@ class TableauDeBordControllerTest {
         mockMvc.perform(get("/api/dashboard/synthese?annee=2026&numero=3"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nbTalents").value(10))
+                .andExpect(jsonPath("$.nbTalentsValides").value(8))
                 .andExpect(jsonPath("$.nbHautsPotentiels").value(21))
                 .andExpect(jsonPath("$.vigilanceParNiveau.ELEVEE").value(10))
                 .andExpect(jsonPath("$.nbARisque").value(45))

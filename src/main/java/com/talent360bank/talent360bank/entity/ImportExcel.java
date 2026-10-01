@@ -5,6 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
+/**
+ * Journal des imports de classeur : un enregistrement par appel, reussi ou
+ * non. Le detail des erreurs de ligne est rendu a l'appel, seul leur nombre
+ * est conserve ici.
+ */
 @Entity
 @Table(name = "import_excel")
 public class ImportExcel {
@@ -29,10 +34,31 @@ public class ImportExcel {
     @Column(nullable = false)
     private String statut;
 
-    @NotNull(message = "L'utilisateur est obligatoire")
+    /**
+     * Compte RH qui a lance l'import. Encore nul : l'import ne le renseigne
+     * pas encore. Colonne creee NOT NULL a l'origine : ImportExcelInitializer
+     * la libere.
+     */
     @ManyToOne
-    @JoinColumn(name = "id_utilisateur", nullable = false)
-    private UtilisateurRH utilisateur;
+    @JoinColumn(name = "id_utilisateur")
+    private Utilisateur utilisateur;
+
+    /** Trimestre des notes importees ; nul si l'import a echoue avant de le connaitre. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_trimestre")
+    private Trimestre trimestre;
+
+    /** Lignes ecrites en base, toutes feuilles confondues. */
+    @Column(name = "nb_lignes")
+    private Integer nbLignes;
+
+    /** Lignes ou feuilles ecartees, detaillees dans la reponse de l'import. */
+    @Column(name = "nb_erreurs")
+    private Integer nbErreurs;
+
+    /** Cause d'un echec complet (fichier illisible, erreur inattendue). */
+    @Column(length = 1000)
+    private String message;
 
     public ImportExcel() {
     }
@@ -77,11 +103,43 @@ public class ImportExcel {
         this.statut = statut;
     }
 
-    public UtilisateurRH getUtilisateur() {
+    public Utilisateur getUtilisateur() {
         return utilisateur;
     }
 
-    public void setUtilisateur(UtilisateurRH utilisateur) {
+    public void setUtilisateur(Utilisateur utilisateur) {
         this.utilisateur = utilisateur;
+    }
+
+    public Trimestre getTrimestre() {
+        return trimestre;
+    }
+
+    public void setTrimestre(Trimestre trimestre) {
+        this.trimestre = trimestre;
+    }
+
+    public Integer getNbLignes() {
+        return nbLignes;
+    }
+
+    public void setNbLignes(Integer nbLignes) {
+        this.nbLignes = nbLignes;
+    }
+
+    public Integer getNbErreurs() {
+        return nbErreurs;
+    }
+
+    public void setNbErreurs(Integer nbErreurs) {
+        this.nbErreurs = nbErreurs;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
 }

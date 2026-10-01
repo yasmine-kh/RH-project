@@ -6,6 +6,8 @@ import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
 import java.util.Set;
@@ -54,6 +56,66 @@ class ParametreValidationTest {
         assertThat(validator.validate(parametre))
                 .extracting(v -> v.getPropertyPath().toString())
                 .contains("seuilsNeufBox.ordreValide");
+    }
+
+    @Test
+    void desSeuils9BoxDePotentielInversesSontRejetes() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("90"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsNeufBoxPotentiel.ordreValide")
+                .doesNotContain("seuilsNeufBox.ordreValide");
+    }
+
+    @Test
+    void desAxesAuxSeuilsDifferentsSontValides() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("80"));
+        parametre.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("60"));
+
+        assertThat(validator.validate(parametre)).isEmpty();
+    }
+
+    @Test
+    void desCategoriesDePerformanceNonDecroissantesSontRejetees() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsCategoriePerformance().setSeuilARenforcer(new BigDecimal("70"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsCategoriePerformance.ordreValide");
+    }
+
+    @Test
+    void unSeuilDeCategorieAuDelaDeCentEstRejete() {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsCategoriePerformance().setSeuilExceptionnelle(new BigDecimal("101"));
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsCategoriePerformance.seuilExceptionnelle");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 5})
+    void unSeuilDeGapHorsDe2A4EstRejete(int seuil) {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsGapCompetence().setSeuilPrioritaire(seuil);
+
+        assertThat(validator.validate(parametre))
+                .extracting(v -> v.getPropertyPath().toString())
+                .contains("seuilsGapCompetence.seuilPrioritaire");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {2, 3, 4})
+    void unSeuilDeGapDe2A4EstValide(int seuil) {
+        Parametre parametre = parametreValide();
+        parametre.getSeuilsGapCompetence().setSeuilPrioritaire(seuil);
+
+        assertThat(validator.validate(parametre)).isEmpty();
     }
 
     @Test

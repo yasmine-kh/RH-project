@@ -2,13 +2,14 @@ package com.talent360bank.talent360bank.controller.dto;
 
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 
+import java.time.LocalDate;
 import java.math.BigDecimal;
 
 /**
  * Candidat classe sur un poste. Le detail des six criteres est expose avec le
  * score : un classement sans le detail ne se defend pas devant un comite.
  */
-public record MatchingResponse(EmployeResume candidat, BigDecimal scoreMatching,
+public record MatchingResponse(CollaborateurResume candidat, BigDecimal scoreMatching,
                                String readiness, String readinessLibelle, DetailResponse detail) {
 
     /** Sous-scores sur 100. null = critere non applicable, ecarte de la moyenne. */
@@ -17,10 +18,10 @@ public record MatchingResponse(EmployeResume candidat, BigDecimal scoreMatching,
                                  BigDecimal leadership, BigDecimal mobilite) {
     }
 
-    public static MatchingResponse de(ResultatMatching resultat) {
+    public static MatchingResponse de(ResultatMatching resultat, LocalDate dateReference) {
         ResultatMatching.DetailMatching detail = resultat.detail();
         return new MatchingResponse(
-                EmployeResume.de(resultat.candidat()),
+                CollaborateurResume.de(resultat.candidat(), dateReference),
                 resultat.scoreMatching(),
                 resultat.readiness().name(),
                 resultat.readiness().getLibelle(),

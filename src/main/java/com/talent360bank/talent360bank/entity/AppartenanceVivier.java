@@ -4,8 +4,15 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+/**
+ * Presence d'un collaborateur dans un vivier pour un trimestre. Une seule ligne par
+ * (collaborateur, vivier, trimestre), quelle que soit l'origine : un collaborateur deja
+ * present par un import ou une saisie RH n'est pas double par le moteur.
+ */
 @Entity
-@Table(name = "appartenance_vivier")
+@Table(name = "appartenance_vivier", uniqueConstraints = @UniqueConstraint(
+        name = "uk_appartenance_collaborateur_vivier_trimestre",
+        columnNames = {"id_collaborateur", "id_vivier", "id_trimestre"}))
 public class AppartenanceVivier {
 
     @Id
@@ -16,10 +23,10 @@ public class AppartenanceVivier {
     @Column(nullable = false)
     private String origine;
 
-    @NotNull(message = "L'employé est obligatoire")
+    @NotNull(message = "Le collaborateur est obligatoire")
     @ManyToOne
-    @JoinColumn(name = "id_employe", nullable = false)
-    private Employe employe;
+    @JoinColumn(name = "id_collaborateur", nullable = false)
+    private Collaborateur collaborateur;
 
     @NotNull(message = "Le vivier est obligatoire")
     @ManyToOne
@@ -50,12 +57,12 @@ public class AppartenanceVivier {
         this.origine = origine;
     }
 
-    public Employe getEmploye() {
-        return employe;
+    public Collaborateur getCollaborateur() {
+        return collaborateur;
     }
 
-    public void setEmploye(Employe employe) {
-        this.employe = employe;
+    public void setCollaborateur(Collaborateur collaborateur) {
+        this.collaborateur = collaborateur;
     }
 
     public Vivier getVivier() {

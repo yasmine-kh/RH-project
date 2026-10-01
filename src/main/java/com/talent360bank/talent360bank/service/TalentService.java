@@ -1,6 +1,6 @@
 package com.talent360bank.talent360bank.service;
 
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.SeuilsTalent;
@@ -27,7 +27,7 @@ import java.util.Objects;
  *
  * <p>Chaque regle est un ET, pas une moyenne : un score exceptionnel ne
  * rattrape pas l'autre. Talent et haut potentiel sont independants, un
- * employe peut cumuler les deux.
+ * collaborateur peut cumuler les deux.
  */
 @Service
 public class TalentService {
@@ -68,19 +68,19 @@ public class TalentService {
     }
 
     /**
-     * Statut de talent d'un employe sur un trimestre.
+     * Statut de talent d'un collaborateur sur un trimestre.
      *
      * @throws RessourceIntrouvableException si le score ou les reglages sont absents
      */
     @Transactional(readOnly = true)
-    public boolean estTalent(Employe employe, Trimestre trimestre) {
-        return estTalent(chargerScore(employe, trimestre), calculService.chargerParametre(trimestre));
+    public boolean estTalent(Collaborateur collaborateur, Trimestre trimestre) {
+        return estTalent(chargerScore(collaborateur, trimestre), calculService.chargerParametre(trimestre));
     }
 
     /**
      * Scores des talents du trimestre, du meilleur au moins bon en performance.
      *
-     * <p>Lecture seule : rien n'est ecrit. Les employes hors perimetre et les
+     * <p>Lecture seule : rien n'est ecrit. Les collaborateurs hors perimetre et les
      * scores incomplets sont comptes et logues plutot que de faire echouer la
      * detection pour tout le monde.
      */
@@ -131,13 +131,13 @@ public class TalentService {
     }
 
     /**
-     * Statut de haut potentiel d'un employe sur un trimestre.
+     * Statut de haut potentiel d'un collaborateur sur un trimestre.
      *
      * @throws RessourceIntrouvableException si le score ou les reglages sont absents
      */
     @Transactional(readOnly = true)
-    public boolean estHautPotentiel(Employe employe, Trimestre trimestre) {
-        return estHautPotentiel(chargerScore(employe, trimestre), calculService.chargerParametre(trimestre));
+    public boolean estHautPotentiel(Collaborateur collaborateur, Trimestre trimestre) {
+        return estHautPotentiel(chargerScore(collaborateur, trimestre), calculService.chargerParametre(trimestre));
     }
 
     /** Scores des hauts potentiels du trimestre, du meilleur au moins bon en performance. */
@@ -204,17 +204,17 @@ public class TalentService {
                 && scorePotentiel.compareTo(seuilPotentiel) >= 0;
     }
 
-    private Score chargerScore(Employe employe, Trimestre trimestre) {
-        Objects.requireNonNull(employe, "employe");
+    private Score chargerScore(Collaborateur collaborateur, Trimestre trimestre) {
+        Objects.requireNonNull(collaborateur, "collaborateur");
         Objects.requireNonNull(trimestre, "trimestre");
-        return scoreRepository.findByEmployeAndTrimestre(employe, trimestre)
+        return scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun score calcule pour " + employe.getEmployeeId()
+                        "Aucun score calcule pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
     }
 
     /**
-     * Scores du trimestre sur lesquels on peut statuer : employes dans le
+     * Scores du trimestre sur lesquels on peut statuer : collaborateurs dans le
      * perimetre de calcul, les deux scores presents. Les incomplets sont
      * comptes et logues.
      */
@@ -222,8 +222,8 @@ public class TalentService {
         List<Score> evaluables = new ArrayList<>();
         int incomplets = 0;
 
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
-            if (!score.getEmploye().estCalculable()) {
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+            if (!score.getCollaborateur().estCalculable()) {
                 continue;
             }
             if (score.getScorePerformance() == null || score.getScorePotentiel() == null) {

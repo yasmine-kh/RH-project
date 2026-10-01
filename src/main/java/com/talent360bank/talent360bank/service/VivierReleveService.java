@@ -1,7 +1,7 @@
 package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.AppartenanceVivier;
-import com.talent360bank.talent360bank.entity.Employe;
+import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.entity.Vivier;
 import com.talent360bank.talent360bank.repository.AppartenanceVivierRepository;
@@ -78,7 +78,7 @@ public class VivierReleveService {
      * <p>Idempotent : les lignes du moteur de ce trimestre sont remplacees en
      * une transaction, un second passage rend les memes appartenances. Les
      * autres trimestres, les autres viviers et les lignes d'une autre origine
-     * ne sont pas touches ; un employe deja present par une autre origine
+     * ne sont pas touches ; un collaborateur deja present par une autre origine
      * n'est pas double.
      */
     @Transactional
@@ -93,19 +93,19 @@ public class VivierReleveService {
 
         Set<String> dejaPresents = new HashSet<>();
         for (AppartenanceVivier restante : appartenanceVivierRepository.findByTrimestreEtVivier(trimestre, vivier)) {
-            dejaPresents.add(restante.getEmploye().getEmployeeId());
+            dejaPresents.add(restante.getCollaborateur().getIdCollaborateur());
         }
 
         List<AppartenanceVivier> crees = new ArrayList<>();
         List<String> ignores = new ArrayList<>();
         for (MembreVivierReleve membre : membres) {
-            Employe employe = membre.score().getEmploye();
-            if (dejaPresents.contains(employe.getEmployeeId())) {
-                ignores.add(employe.getEmployeeId());
+            Collaborateur collaborateur = membre.score().getCollaborateur();
+            if (dejaPresents.contains(collaborateur.getIdCollaborateur())) {
+                ignores.add(collaborateur.getIdCollaborateur());
                 continue;
             }
             AppartenanceVivier appartenance = new AppartenanceVivier();
-            appartenance.setEmploye(employe);
+            appartenance.setCollaborateur(collaborateur);
             appartenance.setVivier(vivier);
             appartenance.setTrimestre(trimestre);
             appartenance.setOrigine(ORIGINE_MOTEUR);

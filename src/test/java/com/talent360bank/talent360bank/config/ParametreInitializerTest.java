@@ -99,6 +99,91 @@ class ParametreInitializerTest {
     }
 
     @Test
+    void unAxePotentielAbsentReprendLesSeuilsDeLAxePerformanceDeLaLigne() {
+        // Trimestre dont le RH avait deplace les seuils communs aux deux axes.
+        Parametre ancien = Parametre.parDefaut(trimestre);
+        ancien.getSeuilsNeufBox().setSeuilEleve(new BigDecimal("80"));
+        ancien.getSeuilsNeufBox().setSeuilMoyen(new BigDecimal("65"));
+        ancien.setSeuilsNeufBoxPotentiel(null);
+        when(parametreRepository.findAll()).thenReturn(List.of(ancien));
+
+        initializer.run(null);
+
+        verify(parametreRepository).save(ancien);
+        assertThat(ancien.getSeuilsNeufBoxPotentiel().getSeuilEleve()).isEqualByComparingTo("80");
+        assertThat(ancien.getSeuilsNeufBoxPotentiel().getSeuilMoyen()).isEqualByComparingTo("65");
+        assertThat(ancien.getSeuilsNeufBoxPotentiel()).isNotSameAs(ancien.getSeuilsNeufBox());
+    }
+
+    @Test
+    void unAxePotentielAZeroPoseParMySqlReprendLesSeuilsDeLAxePerformance() {
+        // Colonnes ajoutees NOT NULL sans defaut : MySQL a mis 0 dans les lignes existantes.
+        Parametre ancien = Parametre.parDefaut(trimestre);
+        ancien.getSeuilsNeufBox().setSeuilEleve(new BigDecimal("80"));
+        ancien.getSeuilsNeufBox().setSeuilMoyen(new BigDecimal("65"));
+        ancien.getSeuilsNeufBoxPotentiel().setSeuilEleve(BigDecimal.ZERO);
+        ancien.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("0.00"));
+        when(parametreRepository.findAll()).thenReturn(List.of(ancien));
+
+        initializer.run(null);
+
+        verify(parametreRepository).save(ancien);
+        assertThat(ancien.getSeuilsNeufBoxPotentiel().getSeuilEleve()).isEqualByComparingTo("80");
+        assertThat(ancien.getSeuilsNeufBoxPotentiel().getSeuilMoyen()).isEqualByComparingTo("65");
+    }
+
+    @Test
+    void unAxePotentielRegleParLeRhNestPasEcrase() {
+        Parametre regle = Parametre.parDefaut(trimestre);
+        regle.getSeuilsNeufBoxPotentiel().setSeuilEleve(new BigDecimal("80"));
+        regle.getSeuilsNeufBoxPotentiel().setSeuilMoyen(new BigDecimal("0"));
+        when(parametreRepository.findAll()).thenReturn(List.of(regle));
+
+        initializer.run(null);
+
+        verify(parametreRepository, never()).save(any());
+        assertThat(regle.getSeuilsNeufBoxPotentiel().getSeuilEleve()).isEqualByComparingTo("80");
+        assertThat(regle.getSeuilsNeufBoxPotentiel().getSeuilMoyen()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void desCategoriesDePerformanceAbsentesRecoiventLesValeursDuClasseur() {
+        Parametre ancien = Parametre.parDefaut(trimestre);
+        ancien.setSeuilsCategoriePerformance(null);
+        when(parametreRepository.findAll()).thenReturn(List.of(ancien));
+
+        initializer.run(null);
+
+        verify(parametreRepository).save(ancien);
+        assertThat(ancien.getSeuilsCategoriePerformance().getSeuilExceptionnelle()).isEqualByComparingTo("90");
+        assertThat(ancien.getSeuilsCategoriePerformance().getSeuilARenforcer()).isEqualByComparingTo("60");
+    }
+
+    @Test
+    void unSeuilDeGapAbsentRecoitLaValeurDuClasseur() {
+        Parametre ancien = Parametre.parDefaut(trimestre);
+        ancien.setSeuilsGapCompetence(null);
+        when(parametreRepository.findAll()).thenReturn(List.of(ancien));
+
+        initializer.run(null);
+
+        verify(parametreRepository).save(ancien);
+        assertThat(ancien.getSeuilsGapCompetence().getSeuilPrioritaire()).isEqualTo(2);
+    }
+
+    @Test
+    void unSeuilDeGapSaisiNestPasEcrase() {
+        Parametre regle = Parametre.parDefaut(trimestre);
+        regle.getSeuilsGapCompetence().setSeuilPrioritaire(3);
+        when(parametreRepository.findAll()).thenReturn(List.of(regle));
+
+        initializer.run(null);
+
+        verify(parametreRepository, never()).save(any());
+        assertThat(regle.getSeuilsGapCompetence().getSeuilPrioritaire()).isEqualTo(3);
+    }
+
+    @Test
     void unSeuilDeCouvertureSaisiNestPasEcrase() {
         Parametre regle = Parametre.parDefaut(trimestre);
         regle.getSeuilsCouverture().setNbMinSuccesseurs(2);

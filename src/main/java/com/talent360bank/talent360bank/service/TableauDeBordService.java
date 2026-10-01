@@ -7,6 +7,7 @@ import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
+import com.talent360bank.talent360bank.service.resultat.DecisionComite;
 import com.talent360bank.talent360bank.service.resultat.MembreVivierReleve;
 import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord;
@@ -27,7 +28,7 @@ import java.util.Objects;
  * couverture des postes critiques, repartition 9-box).
  *
  * <p>Ne calcule rien lui-meme : il assemble ce que rendent {@link TalentService},
- * {@link VigilanceService} et {@link PosteCritiqueService}, et compte les cases
+ * {@link ValidationComiteService}, {@link VigilanceService} et {@link PosteCritiqueService}, et compte les cases
  * 9-box deja posees par {@link NeufBoxService}. Lecture seule.
  *
  * <p>Nomme TableauDeBordService et non DashboardService : ce nom est deja
@@ -38,17 +39,20 @@ import java.util.Objects;
 public class TableauDeBordService {
 
     private final TalentService talentService;
+    private final ValidationComiteService validationComiteService;
     private final VigilanceService vigilanceService;
     private final PosteCritiqueService posteCritiqueService;
     private final ScoreRepository scoreRepository;
     private final Matrice9BoxRepository matrice9BoxRepository;
 
     public TableauDeBordService(TalentService talentService,
+                                ValidationComiteService validationComiteService,
                                 VigilanceService vigilanceService,
                                 PosteCritiqueService posteCritiqueService,
                                 ScoreRepository scoreRepository,
                                 Matrice9BoxRepository matrice9BoxRepository) {
         this.talentService = talentService;
+        this.validationComiteService = validationComiteService;
         this.vigilanceService = vigilanceService;
         this.posteCritiqueService = posteCritiqueService;
         this.scoreRepository = scoreRepository;
@@ -70,6 +74,10 @@ public class TableauDeBordService {
         List<MembreVivierReleve> vivier = talentService.getVivierReleve(trimestre);
         int nbTalents = (int) vivier.stream().filter(MembreVivierReleve::talent).count();
         int nbHautsPotentiels = (int) vivier.stream().filter(MembreVivierReleve::hautPotentiel).count();
+        List<Score> talents = vivier.stream().filter(MembreVivierReleve::talent)
+                .map(MembreVivierReleve::score).toList();
+        int nbTalentsValides = (int) validationComiteService.deciderPour(talents, trimestre).stream()
+                .filter(DecisionComite::talentValide).count();
 
         Map<NiveauVigilance, Integer> vigilance = new EnumMap<>(NiveauVigilance.class);
         for (NiveauVigilance niveau : NiveauVigilance.values()) {
@@ -88,7 +96,7 @@ public class TableauDeBordService {
                         .thenComparing(Matrice9Box::getNiveauPotentiel, Comparator.reverseOrder()))
                 .forEach(case9Box -> repartition.put(case9Box.getCategorie(), 0));
         int nonPlaces = 0;
-        for (Score score : scoreRepository.findByTrimestreAvecEmploye(trimestre)) {
+        for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
             if (score.getPositionBox() == null) {
                 nonPlaces++;
             } else {
@@ -96,7 +104,7 @@ public class TableauDeBordService {
             }
         }
 
-        return new SyntheseTableauDeBord(nbTalents, nbHautsPotentiels,
+        return new SyntheseTableauDeBord(nbTalents, nbTalentsValides, nbHautsPotentiels,
                 Collections.unmodifiableMap(vigilance),
                 couvertures.size(), posteCritiqueService.tauxCouverture(couvertures), alertes,
                 Collections.unmodifiableMap(repartition), nonPlaces);
