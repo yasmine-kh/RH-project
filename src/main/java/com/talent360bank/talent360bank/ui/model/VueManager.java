@@ -18,7 +18,8 @@ import java.util.List;
  *
  * @param membres           equipe directe, triee par nom puis prenom
  * @param alertes           vigilance elevee et evaluations manquantes, dans l'ordre des membres
- * @param autoVsManager     toujours null pour l'instant (voir la TODO)
+ * @param autoVsManager     auto-evaluation et evaluation du manager des membres ; null si
+ *                          aucun membre n'a d'auto-evaluation ce trimestre (ou sans reglages)
  * @param donneesManquantes une phrase par manque qui touche toute la vue (reglages absents...)
  */
 public record VueManager(
@@ -27,9 +28,7 @@ public record VueManager(
         Synthese synthese,
         List<Membre> membres,
         List<Alerte> alertes,
-        // TODO auto-evaluation : ecart auto-evaluation / evaluation du manager par membre, a remplir
-        // quand le modele AUTO / MANAGER de Dou sera en place. Le type pourra changer avec ce modele.
-        List<EcartAutoManager> autoVsManager,
+        AutoVsManager autoVsManager,
         List<String> donneesManquantes) {
 
     /** Le manager lui-meme ; neufBox est sa propre case sur le trimestre, null s'il n'est pas place. */
@@ -77,8 +76,32 @@ public record VueManager(
     public record Alerte(String matricule, String nom, String type, String message) {
     }
 
-    /** Placeholder du futur ecart auto-evaluation / evaluation manager (voir la TODO). */
-    public record EcartAutoManager(String matricule, BigDecimal ecartPerformance, BigDecimal ecartPotentiel) {
+    /**
+     * Auto-evaluations de l'equipe face aux evaluations du manager. Les scores
+     * de chaque source sont calcules par la formule du moteur sur ses notes ;
+     * les ecarts sont auto - manager (positif : le membre se note plus haut).
+     *
+     * @param membres                  membres qui ont une auto-evaluation, dans l'ordre de l'equipe
+     * @param ecartMoyenPerformance    moyenne des ecarts connus, 2 decimales ; null si aucun
+     * @param ecartMoyenPotentiel      idem pour le potentiel
+     * @param seuilEcartImportant      ecart, en valeur absolue, a partir duquel un membre est signale
+     *                                 (reglages du trimestre, seuilsAutoEvaluation)
+     * @param ecartsImportants         membres dont un ecart atteint le seuil, en plus ou en moins
+     */
+    public record AutoVsManager(List<EcartAutoManager> membres, BigDecimal ecartMoyenPerformance,
+                                BigDecimal ecartMoyenPotentiel, BigDecimal seuilEcartImportant,
+                                List<EcartAutoManager> ecartsImportants) {
+    }
+
+    /**
+     * Un membre : score de chaque source et ecart, par axe. Un score est null
+     * sans l'evaluation correspondante, un ecart null si l'un des deux manque.
+     */
+    public record EcartAutoManager(String matricule, String nom, String prenom,
+                                   BigDecimal performanceAuto, BigDecimal performanceManager,
+                                   BigDecimal ecartPerformance,
+                                   BigDecimal potentielAuto, BigDecimal potentielManager,
+                                   BigDecimal ecartPotentiel) {
     }
 
     /** Un manager dans la liste de choix : son equipe directe hors collaborateurs archives. */

@@ -12,6 +12,7 @@ import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.RattachementVivier;
 import com.talent360bank.talent360bank.entity.Sexe;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.SuccesseurIdentifie;
 import com.talent360bank.talent360bank.entity.Trimestre;
@@ -493,7 +494,8 @@ public class ImportClasseurService {
         if (lignes.isEmpty()) {
             return;
         }
-        Map<String, Performance> existantes = indexer(performanceRepository.findByTrimestreAvecCollaborateur(trimestre),
+        Map<String, Performance> existantes = indexer(
+                performanceRepository.findByTrimestreAvecCollaborateur(trimestre, SourceEvaluation.MANAGER),
                 performance -> performance.getCollaborateur().getIdCollaborateur());
         Set<String> presents = new HashSet<>();
 
@@ -503,6 +505,7 @@ public class ImportClasseurService {
             Performance notes = new Performance(collaborateur, trimestre,
                     Cellules.nombre(ligne, 3), Cellules.nombre(ligne, 4), Cellules.nombre(ligne, 5),
                     Cellules.nombre(ligne, 6), Cellules.nombre(ligne, 7));
+            notes.setSource(SourceEvaluation.MANAGER);
             valider(notes, COLONNES_PERFORMANCE);
 
             // 02_PERFORMANCE ne nomme pas l'evaluateur : c'est le manager du collaborateur.
@@ -529,7 +532,8 @@ public class ImportClasseurService {
         if (lignes.isEmpty()) {
             return;
         }
-        Map<String, Potentiel> existants = indexer(potentielRepository.findByTrimestreAvecCollaborateur(trimestre),
+        Map<String, Potentiel> existants = indexer(
+                potentielRepository.findByTrimestreAvecCollaborateur(trimestre, SourceEvaluation.MANAGER),
                 potentiel -> potentiel.getCollaborateur().getIdCollaborateur());
         Set<String> presents = new HashSet<>();
 
@@ -540,6 +544,7 @@ public class ImportClasseurService {
                     Cellules.nombre(ligne, 3), Cellules.nombre(ligne, 4), Cellules.nombre(ligne, 5),
                     Cellules.nombre(ligne, 6), Cellules.nombre(ligne, 7), Cellules.nombre(ligne, 8),
                     Cellules.nombre(ligne, 9));
+            notes.setSource(SourceEvaluation.MANAGER);
             valider(notes, COLONNES_POTENTIEL);
 
             Potentiel potentiel = existants.get(collaborateur.getIdCollaborateur());

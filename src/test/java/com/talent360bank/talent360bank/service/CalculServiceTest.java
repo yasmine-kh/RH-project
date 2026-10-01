@@ -4,8 +4,10 @@ import com.talent360bank.talent360bank.entity.CategoriePerformance;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Parametre;
 import com.talent360bank.talent360bank.entity.Performance;
+import com.talent360bank.talent360bank.entity.PonderationSources;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.SeuilsGapCompetence;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.service.enums.StatutGapCompetence;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
@@ -28,6 +30,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -218,7 +221,7 @@ class CalculServiceTest {
 
     @Test
     void desNotesAbsentesDeLaBaseSontSignalees() {
-        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
+        when(performanceRepository.findByCollaborateurAndTrimestreAndSource(any(), any(), eq(SourceEvaluation.MANAGER)))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> calculService.calculerScorePerformance(collaborateur, trimestre))
@@ -229,7 +232,7 @@ class CalculServiceTest {
 
     @Test
     void unTrimestreSansParametreEstSignale() {
-        when(performanceRepository.findByCollaborateurAndTrimestre(any(), any()))
+        when(performanceRepository.findByCollaborateurAndTrimestreAndSource(any(), any(), eq(SourceEvaluation.MANAGER)))
                 .thenReturn(Optional.of(performance()));
         when(parametreRepository.findByTrimestre(any()))
                 .thenReturn(Optional.empty());
@@ -241,12 +244,52 @@ class CalculServiceTest {
 
     @Test
     void leCalculCompletPasseParLesDeuxDepots() {
-        when(potentielRepository.findByCollaborateurAndTrimestre(any(), any()))
+        when(potentielRepository.findByCollaborateurAndTrimestreAndSource(any(), any(), eq(SourceEvaluation.MANAGER)))
                 .thenReturn(Optional.of(potentiel()));
         when(parametreRepository.findByTrimestre(any()))
                 .thenReturn(Optional.of(parametre));
 
         assertThat(calculService.calculerScorePotentiel(collaborateur, trimestre))
                 .isEqualByComparingTo("65.50");
+    }
+
+    // --- score officiel : manager et auto-evaluation ----------------------------
+
+    private static PonderationSources ponderation(String manager, String auto) {
+        return new PonderationSources(new BigDecimal(manager), new BigDecimal(auto));
+    }
+
+    @Test
+    void leScoreOfficielMelangeLesDeuxSourcesSelonLeurPoids() {
+        assertThat(calculService.scoreOfficiel(new BigDecimal("77.00"), new BigDecimal("100.00"),
+                ponderation("70", "30"))).isEqualTo(new BigDecimal("83.90"));
+        // Arrondi a 2 decimales, comme les autres scores : 70,33 x 0,7 + 60 x 0,3 = 67,231.
+        assertThat(calculService.scoreOfficiel(new BigDecimal("70.33"), new BigDecimal("60.00"),
+                ponderation("70", "30"))).isEqualTo(new BigDecimal("67.23"));
+    }
+
+    @Test
+    void sansAutoEvaluationOuAvecUnPoidsAutoNulLeScoreOfficielEstCeluiDuManager() {
+        BigDecimal manager = new BigDecimal("77.00");
+        assertThat(calculService.scoreOfficiel(manager, null, ponderation("70", "30"))).isSameAs(manager);
+        assertThat(calculService.scoreOfficiel(manager, new BigDecimal("12.00"), ponderation("100", "0")))
+                .isSameAs(manager);
+        // Sans auto-evaluation, la ponderation n'est meme pas lue : le resultat d'avant.
+        assertThat(calculService.scoreOfficiel(manager, null, null)).isSameAs(manager);
+    }
+
+    @Test
+    void sansEvaluationDuManagerIlNYAPasDeScoreOfficielSaufAPoidsManagerNul() {
+        assertThat(calculService.scoreOfficiel(null, new BigDecimal("80.00"), ponderation("70", "30"))).isNull();
+        assertThat(calculService.scoreOfficiel(null, new BigDecimal("80.00"), ponderation("0", "100")))
+                .isEqualByComparingTo("80");
+        assertThat(calculService.scoreOfficiel(null, null, ponderation("70", "30"))).isNull();
+    }
+
+    @Test
+    void uneAutoEvaluationAMelangerExigeLaPonderationDesSources() {
+        assertThatThrownBy(() -> calculService.scoreOfficiel(new BigDecimal("77"), new BigDecimal("90"), null))
+                .isInstanceOf(DonneesIncompletesException.class)
+                .hasMessageContaining("ponderation des sources");
     }
 }

@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static com.talent360bank.talent360bank.entity.SourceEvaluation.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -583,7 +584,7 @@ class SuccessionServiceTest {
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(
                 List.of(score(titulaire, "95.00", "90.00"), score(autre, "70.00", "70.00")));
-        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of());
+        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre, MANAGER)).thenReturn(List.of());
         when(competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(anyCollection()))
                 .thenReturn(List.of());
 
@@ -711,7 +712,7 @@ class SuccessionServiceTest {
         when(posteRepository.findByIdAvecCompetences("P001")).thenReturn(Optional.of(poste("P001")));
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
         when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(new ArrayList<>(scores));
-        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(potentiels);
+        when(potentielRepository.findByTrimestreAvecCollaborateur(trimestre, MANAGER)).thenReturn(potentiels);
         when(competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(anyCollection()))
                 .thenReturn(competences);
     }

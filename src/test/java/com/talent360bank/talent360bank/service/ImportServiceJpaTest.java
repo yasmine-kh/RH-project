@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import static com.talent360bank.talent360bank.entity.SourceEvaluation.MANAGER;
 import static com.talent360bank.talent360bank.service.ClasseurDeTest.*;
 import static com.talent360bank.talent360bank.service.ImportClasseurService.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -246,11 +247,12 @@ class ImportServiceJpaTest {
             assertThat(directeur.getTitulaireNom()).isEqualTo("Mounir Tahiri");
 
             Performance performance = performanceRepository
-                    .findByCollaborateurIdCollaborateurAndTrimestre(E3, trimestre).orElseThrow();
+                    .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E3, trimestre, MANAGER).orElseThrow();
             assertThat(performance.getNoteObjectifs()).isEqualByComparingTo("70.5");
             assertThat(performance.getNoteDeveloppement()).isEqualByComparingTo("69");
 
-            Potentiel potentiel = potentielRepository.findByCollaborateurIdCollaborateurAndTrimestre(E1, trimestre)
+            Potentiel potentiel = potentielRepository
+                    .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E1, trimestre, MANAGER)
                     .orElseThrow();
             assertThat(potentiel.getNoteLearning()).isEqualByComparingTo("90");
             assertThat(potentiel.getNoteAutonomie()).isEqualByComparingTo("83");
@@ -453,10 +455,12 @@ class ImportServiceJpaTest {
 
         enTransaction(() -> {
             Manager evaluateur = performanceRepository
-                    .findByCollaborateurIdCollaborateurAndTrimestre(E1, trimestre).orElseThrow().getEvaluateur();
+                    .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E1, trimestre, MANAGER)
+                    .orElseThrow().getEvaluateur();
             assertThat(evaluateur.getIdCollaborateur()).isEqualTo(E3);
             // Sans manager (E3), pas d'evaluateur connu.
-            assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E3, trimestre)
+            assertThat(performanceRepository
+                    .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E3, trimestre, MANAGER)
                     .orElseThrow().getEvaluateur()).isNull();
             return null;
         });
@@ -528,8 +532,10 @@ class ImportServiceJpaTest {
         assertThat(bilan(resultat, FEUILLE_PERFORMANCE).nbErreurs()).isEqualTo(1);
         // La ligne rejetee n'a rien ecrit ; les autres sont en base.
         Trimestre trimestre = trimestre();
-        assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E2, trimestre)).isEmpty();
-        assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E1, trimestre)).isPresent();
+        assertThat(performanceRepository
+                .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E2, trimestre, MANAGER)).isEmpty();
+        assertThat(performanceRepository
+                .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E1, trimestre, MANAGER)).isPresent();
         assertThat(declarationRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .extracting(d -> d.getCollaborateur().getIdCollaborateur()).containsExactlyInAnyOrder(E1, E3);
         assertThat(importExcelRepository.findAllRecentsDabord().get(0).getStatut()).isEqualTo("PARTIEL");
@@ -662,7 +668,8 @@ class ImportServiceJpaTest {
         Collaborateur siham = collaborateurRepository.findById(E1).orElseThrow();
         assertThat(siham.getStatut()).isEqualTo(StatutCollaborateur.INACTIF);
         // Ses saisies du trimestre suivent le fichier : retirees.
-        assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E1, trimestre())).isEmpty();
+        assertThat(performanceRepository
+                .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E1, trimestre(), MANAGER)).isEmpty();
         assertThat(bilan(sansSiham, FEUILLE_PERFORMANCE).nbRetirees()).isEqualTo(1);
         assertThat(bilan(sansSiham, FEUILLE_POTENTIEL).nbRetirees()).isEqualTo(1);
 
@@ -695,7 +702,7 @@ class ImportServiceJpaTest {
 
         Trimestre trimestre = trimestre();
         assertThat(corrige.desactives()).isEmpty();
-        assertThat(performanceRepository.findByTrimestreAvecCollaborateur(trimestre))
+        assertThat(performanceRepository.findByTrimestreAvecCollaborateur(trimestre, MANAGER))
                 .extracting(p -> p.getCollaborateur().getIdCollaborateur()).containsExactlyInAnyOrder(E1, E3);
         assertThat(questionnaireRepository.findByTrimestreAvecCollaborateur(trimestre))
                 .extracting(q -> q.getCollaborateur().getIdCollaborateur()).containsExactly(E1);
@@ -712,7 +719,8 @@ class ImportServiceJpaTest {
         ResultatImport corrige = importer(ClasseurDeTest.complet()
                 .retirerLigne(FEUILLE_PERFORMANCE, 1).cellule(FEUILLE_PERFORMANCE, 0, 3, 150));
 
-        assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E2, trimestre()))
+        assertThat(performanceRepository
+                .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E2, trimestre(), MANAGER))
                 .isPresent();
         assertThat(corrige.erreurs()).filteredOn(e -> e.feuille().equals(FEUILLE_PERFORMANCE))
                 .extracting(ErreurImport::message)
@@ -745,7 +753,8 @@ class ImportServiceJpaTest {
         assertThat(resultat.desactives()).containsExactly(E1);
         assertThat(collaborateurRepository.findById(E1).orElseThrow().getStatut())
                 .isEqualTo(StatutCollaborateur.ACTIF);
-        assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E1, trimestre()))
+        assertThat(performanceRepository
+                .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E1, trimestre(), MANAGER))
                 .isPresent();
         assertThat(importExcelRepository.findAllRecentsDabord()).hasSize(1);
     }
@@ -824,8 +833,8 @@ class ImportServiceJpaTest {
         assertThat(collaborateurRepository.findAllById(List.of(E1, E2, E3))).hasSize(3);
         assertThat(skillRepository.findByCollaborateurIdsAvecCompetence(List.of(E1, E2, E3))).hasSize(3);
         assertThat(posteRepository.findAllById(List.of(P1, P2))).hasSize(2);
-        assertThat(performanceRepository.findByTrimestreAvecCollaborateur(trimestre)).hasSize(3);
-        assertThat(potentielRepository.findByTrimestreAvecCollaborateur(trimestre)).hasSize(3);
+        assertThat(performanceRepository.findByTrimestreAvecCollaborateur(trimestre, MANAGER)).hasSize(3);
+        assertThat(potentielRepository.findByTrimestreAvecCollaborateur(trimestre, MANAGER)).hasSize(3);
         assertThat(successeurRepository.findAllAvecPosteEtCollaborateur()).hasSize(2);
         assertThat(validationRepository.findByTrimestreAvecCollaborateur(trimestre)).hasSize(3);
         assertThat(rattachementRepository.findAll()).hasSize(2);
@@ -835,7 +844,8 @@ class ImportServiceJpaTest {
 
         // Valeurs mises a jour.
         assertThat(collaborateurRepository.findById(E1).orElseThrow().getNom()).isEqualTo("Alaoui-Bennani");
-        assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E1, trimestre).orElseThrow()
+        assertThat(performanceRepository
+                .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E1, trimestre, MANAGER).orElseThrow()
                 .getNoteObjectifs()).isEqualByComparingTo("60");
         assertThat(skillRepository.findByCollaborateurIdsAvecCompetence(List.of(E1))).filteredOn(
                 s -> s.getCompetence().getCompetenceId().equals(C1)).singleElement()
@@ -885,10 +895,12 @@ class ImportServiceJpaTest {
         importService.importer(ClasseurDeTest.complet().cellule(FEUILLE_PERFORMANCE, 0, 3, 55).fichier(),
                 ANNEE, 4);
 
-        assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E1, trimestre()).orElseThrow()
+        assertThat(performanceRepository
+                .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E1, trimestre(), MANAGER).orElseThrow()
                 .getNoteObjectifs()).isEqualByComparingTo("85");
         Trimestre t4 = trimestreRepository.findByNumeroAndAnnee(4, ANNEE).orElseThrow();
-        assertThat(performanceRepository.findByCollaborateurIdCollaborateurAndTrimestre(E1, t4).orElseThrow()
+        assertThat(performanceRepository
+                .findByCollaborateurIdCollaborateurAndTrimestreAndSource(E1, t4, MANAGER).orElseThrow()
                 .getNoteObjectifs()).isEqualByComparingTo("55");
     }
 

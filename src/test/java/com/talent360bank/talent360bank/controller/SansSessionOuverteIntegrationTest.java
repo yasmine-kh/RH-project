@@ -12,6 +12,7 @@ import com.talent360bank.talent360bank.entity.Performance;
 import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.SuccesseurIdentifie;
 import com.talent360bank.talent360bank.entity.Trimestre;
@@ -244,6 +245,8 @@ class SansSessionOuverteIntegrationTest {
                 + " recalcul=" + recalculPetit + "/" + recalculGrand);
         assertThat(grande).isEqualTo(petite);
         assertThat(recalculGrand).isEqualTo(recalculPetit);
+        // Vue manager, auto-evaluations comprises : l'equipe de B01 (14) se lit comme celle de A01 (5).
+        assertThat(requetes(T + "/managers/B01/vue")).isEqualTo(requetes(T + "/managers/A01/vue"));
     }
 
     // ------------------------------------------------------------ outils
@@ -273,7 +276,7 @@ class SansSessionOuverteIntegrationTest {
      * {@code parAgence} personnes : le premier manage les autres et tient un
      * poste critique dont le second est successeur. Notes en escalier (des
      * talents et des profils faibles), questionnaire et faits pour chacun,
-     * comite Oui pour un sur deux. Plus deux actifs sans notes : prefixe+"Q"
+     * comite Oui pour un sur deux, auto-evaluation pour un sur trois. Plus deux actifs sans notes : prefixe+"Q"
      * avec un questionnaire seul (engagement faible), prefixe+"M" sans rien.
      */
     private void population(String prefixe, int agences, int parAgence) {
@@ -302,6 +305,17 @@ class SansSessionOuverteIntegrationTest {
             BigDecimal note = BigDecimal.valueOf(95 - (i % 5) * 10L);
             performanceRepository.save(new Performance(collaborateur, trimestre, note, note, note, note, note));
             potentielRepository.save(new Potentiel(collaborateur, trimestre, note, note, note, note, note, note, note));
+            if (i % 3 == 0) {
+                // Auto-evaluation pour un sur trois : lue avec l'evaluation du manager, sans requete de plus.
+                BigDecimal auto = note.add(BigDecimal.TEN).min(BigDecimal.valueOf(100));
+                Performance performanceAuto = new Performance(collaborateur, trimestre, auto, auto, auto, auto, auto);
+                performanceAuto.setSource(SourceEvaluation.AUTO);
+                performanceRepository.save(performanceAuto);
+                Potentiel potentielAuto = new Potentiel(collaborateur, trimestre, auto, auto, auto, auto, auto, auto,
+                        auto);
+                potentielAuto.setSource(SourceEvaluation.AUTO);
+                potentielRepository.save(potentielAuto);
+            }
             questionnaire(collaborateur, i % 2 == 0 ? "80.00" : "40.00");
             DeclarationVigilance declaration = new DeclarationVigilance(collaborateur, trimestre);
             declaration.setSansMobilite4Ans(i % 3 == 0);

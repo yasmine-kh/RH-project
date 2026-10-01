@@ -29,7 +29,8 @@ class ParametreInitializerJpaTest {
             "exp_points_par_annee", "exp_plafond", "comp_points_par_niveau_manquant", "comp_niveau_par_defaut",
             "seuil_hp_pot", "seuil_hp_perf", "couv_nb_min_successeurs",
             "cat_perf_exceptionnelle", "cat_perf_elevee", "cat_perf_solide", "cat_perf_a_renforcer",
-            "seuil_box_pot_eleve", "seuil_box_pot_moyen", "comp_seuil_gap_prioritaire");
+            "seuil_box_pot_eleve", "seuil_box_pot_moyen", "comp_seuil_gap_prioritaire",
+            "pond_src_manager", "pond_src_auto", "seuil_ecart_auto");
 
     /** Un trimestre distinct par ligne creee, voir {@link #ligneExistante}. */
     private static final AtomicInteger ANNEES = new AtomicInteger(2026);
@@ -66,6 +67,10 @@ class ParametreInitializerJpaTest {
         assertThat(defauts.get("cat_perf_solide")).isEqualByComparingTo("70");
         assertThat(defauts.get("cat_perf_a_renforcer")).isEqualByComparingTo("60");
         assertThat(defauts.get("comp_seuil_gap_prioritaire")).isEqualByComparingTo("2");
+        // Manager seul : les reglages existants gardent le score officiel d'avant l'auto-evaluation.
+        assertThat(defauts.get("pond_src_manager")).isEqualByComparingTo("100");
+        assertThat(defauts.get("pond_src_auto")).isEqualByComparingTo("0");
+        assertThat(defauts.get("seuil_ecart_auto")).isEqualByComparingTo("15");
         // Sans defaut en base : repris de l'axe performance de chaque ligne.
         assertThat(defauts).doesNotContainKeys("seuil_box_pot_eleve", "seuil_box_pot_moyen");
     }
@@ -83,6 +88,51 @@ class ParametreInitializerJpaTest {
         assertThat(complete.getSeuilsNeufBoxPotentiel().getSeuilEleve()).isEqualByComparingTo("80");
         assertThat(complete.getSeuilsNeufBoxPotentiel().getSeuilMoyen()).isEqualByComparingTo("65");
         assertThat(complete.getSeuilsNeufBox().getSeuilEleve()).isEqualByComparingTo("80");
+    }
+
+    @Test
+    void uneLigneAnterieureALaPonderationDesSourcesPasseAuManagerSeul() {
+        Integer id = ligneExistante("pond_src_manager = NULL, pond_src_auto = NULL");
+
+        assertThat(relire(id).getPonderationSources()).isNull();
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        assertThat(relire(id).getPonderationSources().getPoidsManager()).isEqualByComparingTo("100");
+        assertThat(relire(id).getPonderationSources().getPoidsAuto()).isEqualByComparingTo("0");
+    }
+
+    /** 0 / 0 : le zero implicite de MySQL pour une colonne NOT NULL sans defaut, pas un reglage. */
+    @Test
+    void unePonderationDesSourcesAZeroZeroPasseAuManagerSeul() {
+        Integer id = ligneExistante("pond_src_manager = 0, pond_src_auto = 0");
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        assertThat(relire(id).getPonderationSources().getPoidsManager()).isEqualByComparingTo("100");
+        assertThat(relire(id).getPonderationSources().getPoidsAuto()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void unMelangeSaisiParLeRhNEstPasTouche() {
+        Integer id = ligneExistante("pond_src_manager = 70, pond_src_auto = 30");
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        assertThat(relire(id).getPonderationSources().getPoidsManager()).isEqualByComparingTo("70");
+        assertThat(relire(id).getPonderationSources().getPoidsAuto()).isEqualByComparingTo("30");
+    }
+
+    @Test
+    void uneLigneAnterieureAuSeuilDEcartAutoManagerEstCompletee() {
+        Integer id = ligneExistante("seuil_ecart_auto = NULL");
+
+        // Seule colonne du bloc a NULL : Hibernate rend le bloc a null.
+        assertThat(relire(id).getSeuilsAutoEvaluation()).isNull();
+
+        new ParametreInitializer(parametreRepository).run(null);
+
+        assertThat(relire(id).getSeuilsAutoEvaluation().getSeuilEcartImportant()).isEqualByComparingTo("15");
     }
 
     @Test

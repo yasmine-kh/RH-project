@@ -16,13 +16,14 @@ import java.util.List;
  * FicheCollaborateurViewService). Un bloc sans donnees est null (ou une liste
  * vide) et la raison est dans {@link #donneesManquantes()}.
  *
- * @param performance       null sans notes de performance ce trimestre
- * @param potentiel         null sans notes de potentiel ce trimestre
+ * @param performance       score officiel et notes de l'evaluation du manager ; null sans
+ *                          evaluation du manager en performance ce trimestre
+ * @param potentiel         idem pour le potentiel
  * @param neufBox           null si le collaborateur n'est pas place dans la matrice
  * @param engagement        score du questionnaire sur 100, null sans questionnaire
  * @param vigilance         null si l'indice n'est pas calculable (reglages absents)
  * @param historique        trimestres precedents, du plus recent au plus ancien
- * @param autoEvaluation    toujours null pour l'instant (voir la TODO)
+ * @param autoEvaluation    auto-evaluation face a l'evaluation du manager ; null sans auto-evaluation
  * @param donneesManquantes une phrase par donnee absente, pour l'afficher telle quelle
  */
 public record FicheCollaborateur(
@@ -37,9 +38,7 @@ public record FicheCollaborateur(
         Vigilance vigilance,
         List<Succession> successions,
         List<HistoriqueTrimestre> historique,
-        // TODO auto-evaluation : a remplir quand le modele AUTO / MANAGER de Dou sera en place
-        // (deux evaluations par collaborateur et trimestre). Le type pourra changer avec ce modele.
-        Evaluation autoEvaluation,
+        AutoEvaluation autoEvaluation,
         List<String> donneesManquantes) {
 
     /** Trimestre de la fiche ; l'anciennete est mesuree a sa date de reference. */
@@ -91,6 +90,41 @@ public record FicheCollaborateur(
 
     /** Une note sur 100 et son poids dans le score (reglages du trimestre). */
     public record Critere(String code, String libelle, BigDecimal note, BigDecimal poids) {
+    }
+
+    /**
+     * Auto-evaluation du trimestre (le fichier rempli par le collaborateur),
+     * comparee a l'evaluation de son manager, axe par axe.
+     *
+     * @param performance null sans auto-evaluation de performance
+     * @param potentiel   null sans auto-evaluation de potentiel
+     */
+    public record AutoEvaluation(EvaluationAuto performance, EvaluationAuto potentiel) {
+    }
+
+    /**
+     * Un axe de l'auto-evaluation. Chaque score est calcule par la formule du
+     * moteur (poids des criteres) sur les notes de sa source ; les ecarts sont
+     * auto - manager (positif : le collaborateur se note plus haut que son manager).
+     *
+     * @param score        score de l'auto-evaluation sur 100, null sans reglages
+     * @param categorie    categorie de ce score (memes seuils que le score officiel)
+     * @param scoreManager score de l'evaluation du manager, meme calcul ; null sans elle
+     * @param ecart        score - scoreManager, null si l'un manque
+     */
+    public record EvaluationAuto(BigDecimal score, String categorie, String categorieLibelle,
+                                 BigDecimal scoreManager, BigDecimal ecart, List<CritereAuto> criteres) {
+    }
+
+    /**
+     * Un critere des deux evaluations.
+     *
+     * @param note        note de l'auto-evaluation sur 100
+     * @param noteManager note du manager, null sans evaluation du manager
+     * @param ecart       note - noteManager, null sans evaluation du manager
+     */
+    public record CritereAuto(String code, String libelle, BigDecimal note, BigDecimal noteManager,
+                              BigDecimal ecart, BigDecimal poids) {
     }
 
     /**

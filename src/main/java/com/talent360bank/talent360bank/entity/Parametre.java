@@ -45,6 +45,22 @@ public class Parametre {
     @Embedded
     private PoidsSuccession poidsSuccession;
 
+    /**
+     * Part du manager et de l'auto-evaluation dans les scores officiels
+     * (100 / 0 par defaut : manager seul). Ajoute apres la mise en service,
+     * voir {@link #completerBlocsAjoutes()}.
+     */
+    @Valid
+    @NotNull
+    @Embedded
+    private PonderationSources ponderationSources;
+
+    /** Ecart auto / manager signale dans la vue manager (15 points par defaut). */
+    @Valid
+    @NotNull
+    @Embedded
+    private SeuilsAutoEvaluation seuilsAutoEvaluation;
+
     @Valid
     @NotNull
     @Embedded
@@ -134,6 +150,9 @@ public class Parametre {
         parametre.setPoidsSuccession(new PoidsSuccession(
                 new BigDecimal("25"), new BigDecimal("20"), new BigDecimal("20"),
                 new BigDecimal("15"), new BigDecimal("10"), new BigDecimal("10")));
+        // Manager seul, comme le classeur, tant que le client n'a pas choisi de melange.
+        parametre.setPonderationSources(new PonderationSources(new BigDecimal("100"), new BigDecimal("0")));
+        parametre.setSeuilsAutoEvaluation(new SeuilsAutoEvaluation(new BigDecimal("15")));
         parametre.setBaremeExperience(new BaremeExperience(
                 new BigDecimal("8"), new BigDecimal("100")));
         parametre.setBaremeCompetences(new BaremeCompetences(new BigDecimal("20"), 3));
@@ -172,6 +191,8 @@ public class Parametre {
         copie.setPoidsPerformance(copierBloc(poidsPerformance));
         copie.setPoidsPotentiel(copierBloc(poidsPotentiel));
         copie.setPoidsSuccession(copierBloc(poidsSuccession));
+        copie.setPonderationSources(copierBloc(ponderationSources));
+        copie.setSeuilsAutoEvaluation(copierBloc(seuilsAutoEvaluation));
         copie.setBaremeExperience(copierBloc(baremeExperience));
         copie.setBaremeCompetences(copierBloc(baremeCompetences));
         copie.setSeuilsNeufBox(copierBloc(seuilsNeufBox));
@@ -217,9 +238,9 @@ public class Parametre {
      * Complete, avec les valeurs de {@link #parDefaut}, les reglages ajoutes
      * apres la mise en service : bareme d'experience, bareme des competences,
      * seuils de haut potentiel, seuil de couverture des postes critiques,
-     * seuils des categories de performance, seuil de gap de competence et axe
-     * potentiel de la 9-box (ce dernier repris de l'axe performance de la
-     * ligne, pas des defauts).
+     * seuils des categories de performance, seuil de gap de competence,
+     * ponderation des sources d'evaluation, seuil d'ecart auto / manager et axe potentiel de la 9-box (ce
+     * dernier repris de l'axe performance de la ligne, pas des defauts).
      *
      * <p>Une ligne creee avant leur ajout a ces colonnes a NULL ; quand toutes
      * les colonnes d'un bloc sont NULL, Hibernate charge le bloc entier a null.
@@ -330,6 +351,31 @@ public class Parametre {
             complete = true;
         } else if (seuilsGapCompetence.getSeuilPrioritaire() == null) {
             seuilsGapCompetence.setSeuilPrioritaire(defauts.getSeuilsGapCompetence().getSeuilPrioritaire());
+            complete = true;
+        }
+
+        // Ponderation des sources : manager seul, le score officiel d'avant l'auto-evaluation.
+        // 0 / 0 (zero implicite de MySQL) ne totalise pas 100 : traite comme absent.
+        PonderationSources sourcesParDefaut = defauts.getPonderationSources();
+        if (ponderationSources == null || (ponderationSources.getPoidsManager() != null
+                && ponderationSources.getPoidsAuto() != null && ponderationSources.getPoidsManager().signum() == 0
+                && ponderationSources.getPoidsAuto().signum() == 0)) {
+            ponderationSources = sourcesParDefaut;
+            complete = true;
+        } else {
+            if (ponderationSources.getPoidsManager() == null) {
+                ponderationSources.setPoidsManager(sourcesParDefaut.getPoidsManager());
+                complete = true;
+            }
+            if (ponderationSources.getPoidsAuto() == null) {
+                ponderationSources.setPoidsAuto(sourcesParDefaut.getPoidsAuto());
+                complete = true;
+            }
+        }
+
+        // Bloc a une seule colonne : NULL en base, Hibernate le rend a null.
+        if (seuilsAutoEvaluation == null || seuilsAutoEvaluation.getSeuilEcartImportant() == null) {
+            seuilsAutoEvaluation = defauts.getSeuilsAutoEvaluation();
             complete = true;
         }
 
@@ -495,6 +541,22 @@ public class Parametre {
 
     public SeuilsVigilance getSeuilsVigilance() {
         return seuilsVigilance;
+    }
+
+    public PonderationSources getPonderationSources() {
+        return ponderationSources;
+    }
+
+    public void setPonderationSources(PonderationSources ponderationSources) {
+        this.ponderationSources = ponderationSources;
+    }
+
+    public SeuilsAutoEvaluation getSeuilsAutoEvaluation() {
+        return seuilsAutoEvaluation;
+    }
+
+    public void setSeuilsAutoEvaluation(SeuilsAutoEvaluation seuilsAutoEvaluation) {
+        this.seuilsAutoEvaluation = seuilsAutoEvaluation;
     }
 
     public void setSeuilsVigilance(SeuilsVigilance seuilsVigilance) {

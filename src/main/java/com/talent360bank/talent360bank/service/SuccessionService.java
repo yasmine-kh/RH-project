@@ -11,6 +11,7 @@ import com.talent360bank.talent360bank.entity.Poste;
 import com.talent360bank.talent360bank.entity.Potentiel;
 import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.SeuilsReadiness;
+import com.talent360bank.talent360bank.entity.SourceEvaluation;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
@@ -283,7 +284,8 @@ public class SuccessionService {
                                 + " sur " + decrire(trimestre)));
 
         return evaluer(candidat, poste, score,
-                potentielRepository.findByCollaborateurAndTrimestre(candidat, trimestre).orElse(null),
+                potentielRepository.findByCollaborateurAndTrimestreAndSource(candidat, trimestre,
+                        SourceEvaluation.MANAGER).orElse(null),
                 competenceCollaborateurRepository.findByCollaborateurAvecCompetence(candidat),
                 calculService.chargerParametre(trimestre), trimestre.getDateReference());
     }
@@ -393,9 +395,11 @@ public class SuccessionService {
                 .orElseThrow(() -> new RessourceIntrouvableException("Aucun poste " + posteId));
     }
 
+    /** Notes de potentiel de l'evaluation du manager : leadership et mobilite du matching. */
     private Map<String, Potentiel> indexerPotentiels(Trimestre trimestre) {
         Map<String, Potentiel> index = new HashMap<>();
-        for (Potentiel potentiel : potentielRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+        for (Potentiel potentiel
+                : potentielRepository.findByTrimestreAvecCollaborateur(trimestre, SourceEvaluation.MANAGER)) {
             index.put(potentiel.getCollaborateur().getIdCollaborateur(), potentiel);
         }
         return index;

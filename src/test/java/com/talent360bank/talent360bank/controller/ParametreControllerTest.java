@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.talent360bank.talent360bank.controller.dto.ParametreForm;
 import com.talent360bank.talent360bank.entity.Parametre;
+import com.talent360bank.talent360bank.entity.PonderationSources;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.entity.Score;
@@ -84,7 +85,9 @@ class ParametreControllerTest {
     private ParametreForm formDepuis(Parametre source) {
         return new ParametreForm("Reglages revus",
                 source.getPoidsPerformance(), source.getPoidsPotentiel(),
-                source.getPoidsSuccession(), source.getBaremeExperience(), source.getBaremeCompetences(),
+                source.getPoidsSuccession(), source.getPonderationSources(), source.getSeuilsAutoEvaluation(),
+                source.getBaremeExperience(),
+                source.getBaremeCompetences(),
                 source.getSeuilsNeufBox(), source.getSeuilsNeufBoxPotentiel(),
                 source.getSeuilsCategoriePerformance(), source.getSeuilsGapCompetence(),
                 source.getSeuilsReadiness(), source.getSeuilsCouverture(),
@@ -116,6 +119,10 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilExceptionnelle").value(90))
                 .andExpect(jsonPath("$.seuilsCategoriePerformance.seuilARenforcer").value(60))
                 .andExpect(jsonPath("$.seuilsGapCompetence.seuilPrioritaire").value(2))
+                .andExpect(jsonPath("$.ponderationSources.poidsManager").value(100))
+                .andExpect(jsonPath("$.ponderationSources.poidsAuto").value(0))
+                .andExpect(jsonPath("$.ponderationSources.sommeValide").value(true))
+                .andExpect(jsonPath("$.seuilsAutoEvaluation.seuilEcartImportant").value(15))
                 .andExpect(jsonPath("$.poidsSources").doesNotExist());
     }
 
@@ -198,6 +205,103 @@ class ParametreControllerTest {
                         .content(objectMapper.writeValueAsString(formDepuis(voulu))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.seuilsCouverture.nbMinSuccesseurs").value(3));
+    }
+
+    @Test
+    void une_ponderation_des_sources_fournie_remplace_la_valeur_en_place() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        Parametre voulu = Parametre.parDefaut(trimestre);
+        voulu.setPonderationSources(new PonderationSources(new BigDecimal("70"), new BigDecimal("30")));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(voulu))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ponderationSources.poidsManager").value(70))
+                .andExpect(jsonPath("$.ponderationSources.poidsAuto").value(30));
+        // Comme tout changement de reglages, il relance le calcul du trimestre.
+        verify(calculTrimestreService).calculer(any());
+    }
+
+    @Test
+    void sans_ponderation_des_sources_la_valeur_en_place_est_conservee() throws Exception {
+        parametre.setPonderationSources(new PonderationSources(new BigDecimal("80"), new BigDecimal("20")));
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        // Corps d'un client anterieur au bloc.
+        ObjectNode corps = objectMapper.valueToTree(formDepuis(Parametre.parDefaut(trimestre)));
+        corps.remove("ponderationSources");
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corps.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ponderationSources.poidsManager").value(80));
+    }
+
+    @Test
+    void le_seuil_d_ecart_auto_manager_se_modifie_comme_les_autres_reglages() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        Parametre voulu = Parametre.parDefaut(trimestre);
+        voulu.getSeuilsAutoEvaluation().setSeuilEcartImportant(new BigDecimal("20"));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(voulu))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seuilsAutoEvaluation.seuilEcartImportant").value(20));
+    }
+
+    @Test
+    void sans_seuil_d_ecart_auto_manager_la_valeur_en_place_est_conservee() throws Exception {
+        parametre.getSeuilsAutoEvaluation().setSeuilEcartImportant(new BigDecimal("12"));
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+        when(parametreRepository.save(any(Parametre.class))).thenAnswer(appel -> appel.getArgument(0));
+
+        ObjectNode corps = objectMapper.valueToTree(formDepuis(Parametre.parDefaut(trimestre)));
+        corps.remove("seuilsAutoEvaluation");
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corps.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seuilsAutoEvaluation.seuilEcartImportant").value(12));
+    }
+
+    @Test
+    void un_seuil_d_ecart_auto_manager_au_dela_de_cent_rend_400() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+
+        Parametre casse = Parametre.parDefaut(trimestre);
+        casse.getSeuilsAutoEvaluation().setSeuilEcartImportant(new BigDecimal("150"));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(casse))))
+                .andExpect(status().isBadRequest());
+
+        verify(parametreRepository, never()).save(any());
+    }
+
+    @Test
+    void une_ponderation_des_sources_qui_ne_fait_pas_cent_rend_400() throws Exception {
+        when(parametreRepository.findByNumeroEtAnnee(1, 2026)).thenReturn(Optional.of(parametre));
+
+        Parametre casse = Parametre.parDefaut(trimestre);
+        casse.setPonderationSources(new PonderationSources(new BigDecimal("60"), new BigDecimal("30")));
+
+        mockMvc.perform(put("/api/trimestres/2026/1/parametre").header(ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(formDepuis(casse))))
+                .andExpect(status().isBadRequest());
+
+        verify(parametreRepository, never()).save(any());
+        verify(calculTrimestreService, never()).calculer(any());
     }
 
     @Test
