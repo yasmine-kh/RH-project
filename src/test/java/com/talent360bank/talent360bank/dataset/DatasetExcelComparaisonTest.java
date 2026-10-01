@@ -403,10 +403,18 @@ class DatasetExcelComparaisonTest {
         when(trimestreRepository.findPrecedents(anyInt(), anyInt(), any())).thenReturn(List.of());
         ParametreRepository parametreRepository = mock(ParametreRepository.class);
         when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        // Toute la population de 12_VIGILANCE est active et notee.
+        CollaborateurRepository collaborateurRepository = mock(CollaborateurRepository.class);
+        when(collaborateurRepository.findByStatutAvecEntite(StatutCollaborateur.ACTIF))
+                .thenReturn(scores.stream().map(Score::getCollaborateur).toList());
+        PerformanceRepository performanceRepository = mock(PerformanceRepository.class);
+        when(performanceRepository.findMatriculesEvaluesDuTrimestre(any()))
+                .thenReturn(List.copyOf(lignes.keySet()));
 
         VigilanceService service = new VigilanceService(scoreRepository, questionnaireRepository,
-                trimestreRepository, new CalculService(parametreRepository,
-                mock(PerformanceRepository.class), mock(PotentielRepository.class)), faits);
+                trimestreRepository, collaborateurRepository, performanceRepository, mock(PotentielRepository.class),
+                new CalculService(parametreRepository, mock(PerformanceRepository.class),
+                        mock(PotentielRepository.class)), faits);
 
         List<ResultatVigilance> resultats = service.evaluerTrimestre(trimestre);
         assertThat(resultats).hasSize(lignes.size()).hasSize(100);

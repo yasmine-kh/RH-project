@@ -19,6 +19,9 @@ public interface PosteRepository extends JpaRepository<Poste, String> {
 
     List<Poste> findByPosteCritique(String posteCritique);
 
+    /** Nombre de postes de ce statut critique, sans les charger (ni leur entite, EAGER). */
+    long countByPosteCritique(String posteCritique);
+
     /** Tous les postes avec competences requises et entite, en une requete : couverture d'un lot de postes. */
     @Query("select p from Poste p " +
             "left join fetch p.competenceRequise1 left join fetch p.competenceRequise2 " +

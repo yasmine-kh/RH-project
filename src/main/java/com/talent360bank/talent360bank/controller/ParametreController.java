@@ -134,7 +134,10 @@ public class ParametreController {
                 throw new ParametreInvalideException(messages);
             }
 
-            ParametreResponse enregistre = ParametreResponse.de(parametreRepository.save(parametre));
+            parametreRepository.save(parametre);
+            // save fusionne une copie dont le trimestre est un proxy LAZY, illisible
+            // hors transaction : la reponse part des reglages valides, au meme etat.
+            ParametreResponse enregistre = ParametreResponse.de(parametre);
             return new ModificationParametreResponse(enregistre, recalculer(trimestre));
         });
     }

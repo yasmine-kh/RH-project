@@ -32,7 +32,9 @@ public class VigilanceController {
     }
 
     /**
-     * Vigilance de tous les collaborateurs scores du trimestre.
+     * Vigilance du trimestre : tous les collaborateurs actifs qui ont au moins
+     * une donnee de vigilance (questionnaire, faits declares ou notes), avec ou
+     * sans score.
      *
      * @param minimum niveau plancher facultatif (FAIBLE, MODEREE, ELEVEE)
      */

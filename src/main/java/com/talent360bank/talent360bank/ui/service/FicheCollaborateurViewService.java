@@ -28,6 +28,7 @@ import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.repository.ValidationComiteRepository;
 import com.talent360bank.talent360bank.service.CalculService;
 import com.talent360bank.talent360bank.service.CompetenceCollaborateurService;
+import com.talent360bank.talent360bank.service.EntreesVigilance;
 import com.talent360bank.talent360bank.service.NeufBoxService;
 import com.talent360bank.talent360bank.service.PosteCritiqueService;
 import com.talent360bank.talent360bank.service.ScoreService;

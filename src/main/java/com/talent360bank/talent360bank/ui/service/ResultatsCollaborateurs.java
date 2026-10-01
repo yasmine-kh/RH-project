@@ -13,6 +13,7 @@ import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.CalculService;
+import com.talent360bank.talent360bank.service.EntreesVigilance;
 import com.talent360bank.talent360bank.service.NeufBoxService;
 import com.talent360bank.talent360bank.service.TalentService;
 import com.talent360bank.talent360bank.service.VigilanceService;
@@ -150,7 +151,7 @@ public class ResultatsCollaborateurs {
         }
         Set<String> sansDonnee = entreesVigilance.sansDonnee(
                 collaborateurs.stream().map(Collaborateur::getIdCollaborateur).toList(), trimestre,
-                id -> engagements.containsKey(id) && engagements.get(id).getScoreEngagement() != null,
+                EntreesVigilance.questionnaireRempli(engagements),
                 id -> avecPerformance.contains(id) || avecPotentiel.contains(id));
         if (!sansDonnee.isEmpty()) {
             manquantes.add(EntreesVigilance.AUCUNE_DONNEE + " : " + collaborateurs.stream()

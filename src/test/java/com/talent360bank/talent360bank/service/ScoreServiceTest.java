@@ -206,13 +206,45 @@ class ScoreServiceTest {
                 .thenReturn(List.of(performance(premier), performance(second)));
         when(potentielRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(potentiel(premier), potentiel(second)));
-        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(List.of());
         renvoieCeQuOnLuiDonne();
 
         ResultatRecalcul resultat = scoreService.recalculerTrimestre(trimestre);
 
         assertThat(resultat.nombreCalcules()).isEqualTo(2);
         assertThat(resultat.nombreIgnores()).isZero();
+    }
+
+    /**
+     * Les scores existants du trimestre sont lus en une fois et mis a jour sur
+     * place : aucune recherche par collaborateur (N+1, AUDIT_REPORT 3.4).
+     */
+    @Test
+    void leRecalculMetAJourLesScoresExistantsSansLesChercherUnParUn() {
+        Collaborateur deja = collaborateur("E001", StatutCollaborateur.ACTIF);
+        Collaborateur nouveau = collaborateur("E002", StatutCollaborateur.ACTIF);
+        Score existant = new Score();
+        existant.setIdScore(42);
+        existant.setCollaborateur(deja);
+        existant.setTrimestre(trimestre);
+
+        when(parametreRepository.findByTrimestre(any())).thenReturn(Optional.of(parametre));
+        when(performanceRepository.findByTrimestreAvecCollaborateur(any()))
+                .thenReturn(List.of(performance(deja), performance(nouveau)));
+        when(potentielRepository.findByTrimestreAvecCollaborateur(any()))
+                .thenReturn(List.of(potentiel(deja), potentiel(nouveau)));
+        when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of(existant));
+        renvoieCeQuOnLuiDonne();
+
+        ResultatRecalcul resultat = scoreService.recalculerTrimestre(trimestre);
+
+        assertThat(resultat.scoresEnregistres()).hasSize(2);
+        assertThat(resultat.scoresEnregistres().get(0)).isSameAs(existant);
+        assertThat(existant.getScorePerformance()).isNotNull();
+        assertThat(resultat.scoresEnregistres().get(1).getIdScore()).isNull();
+        assertThat(resultat.scoresEnregistres().get(1).getCollaborateur()).isSameAs(nouveau);
+        verify(scoreRepository, never()).findByCollaborateurAndTrimestre(any(), any());
+        verify(scoreRepository).supprimerSaufCeux(trimestre, List.of(42));
     }
 
     @Test
@@ -225,7 +257,7 @@ class ScoreServiceTest {
                 .thenReturn(List.of(performance(complet), performance(incomplet)));
         when(potentielRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(potentiel(complet)));
-        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(List.of());
         renvoieCeQuOnLuiDonne();
 
         ResultatRecalcul resultat = scoreService.recalculerTrimestre(trimestre);
@@ -247,7 +279,7 @@ class ScoreServiceTest {
                 .thenReturn(List.of(performance(complet)));
         when(potentielRepository.findByTrimestreAvecCollaborateur(any()))
                 .thenReturn(List.of(potentiel(complet), potentiel(sansPerf)));
-        when(scoreRepository.findByCollaborateurAndTrimestre(any(), any())).thenReturn(Optional.empty());
+        when(scoreRepository.findByTrimestreAvecCollaborateur(any())).thenReturn(List.of());
         renvoieCeQuOnLuiDonne();
 
         ResultatRecalcul resultat = scoreService.recalculerTrimestre(trimestre);

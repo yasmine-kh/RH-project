@@ -230,7 +230,7 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Critical positions | `GET /api/postes-critiques`, `.../alertes`, `.../synthese`, `.../{posteId}` |
 | Committee | `GET /api/comite-talent`, `GET /api/comite-talent/talents-valides` |
 | Thematic pools | `GET /api/viviers-thematiques`, `GET /api/viviers-thematiques/{code}` |
-| Vigilance | `GET .../vigilance[?minimum=MODEREE]`, `GET .../vigilance/{id}` |
+| Vigilance | `GET .../vigilance[?minimum=MODEREE]` (every active employee with at least one vigilance input, with or without a score: same rule as the fiche and the views, `EntreesVigilance`), `GET .../vigilance/{id}` |
 | Skills | `GET /api/collaborateurs/{id}/competences[?annee=&numero=]` |
 | Dashboard | `GET /api/dashboard/synthese` |
 | Quarters | `GET /api/trimestres`, `POST /api/trimestres` (`annee`, `numero`, optional `dateReference`), `PUT /api/trimestres/{annee}/{numero}` (`dateReference`), `POST .../calcul` |
@@ -713,6 +713,14 @@ The service constructor takes an `ObjectProvider` and logs a warning when the fa
 
 Ima's `ui.service` classes carry the rule "REGLE : aucun calcul ici" (no calculation here). They call the engine or the repositories, then build plain display objects (`ui.model`). Business rules therefore exist in one place only, the engine, which is tested against the workbook; the screens cannot drift from the API.
 
+### Loading: LAZY associations, no open session in views
+
+`spring.jpa.open-in-view=false`: no JPA session stays open while a page or a JSON response is rendered. `Collaborateur.entite`, `Score.entite` and `Entite.parent` are LAZY. Every repository query whose results are displayed loads what the display reads, with `join fetch` (the org chart has four levels: `left join fetch x.entite e left join fetch e.parent e1 left join fetch e1.parent e2 left join fetch e2.parent`). A forgotten association fails loudly with a `LazyInitializationException` instead of silently running one query per row.
+
+- `Entite.ancetre` walks up through the getters: a LAZY parent is a Hibernate proxy, whose fields are empty.
+- An entity returned by `save` on a detached object is a merged copy whose associations are proxies; read the response from the object you saved, or reload it with a fetch query (`ParametreController.modifier`, `CollaborateurController.creer`).
+- `SansSessionOuverteIntegrationTest` calls every page and every GET endpoint on a four-level org chart, and checks that the main pages (`/`, `/9box`, `/viviers`, `/comite-talent`), the main lists of the API and the recalculation read the database in the same number of queries for a small and a three-times larger population.
+
 ### Server-side rendering
 
 Screens are Thymeleaf templates rendered on the server. There's no JavaScript framework and no build step, and every screen is a normal GET page whose filters are ordinary query parameters. Thymeleaf escapes output by default, and no template uses `th:utext`. This is enough for a single-user local tool, and keeps the codebase small for a three-person team.
@@ -760,7 +768,7 @@ sequenceDiagram
     CS->>R: ParametreRepository.findByTrimestre
     TS->>R: ScoreRepository.findByTrimestreAvecCollaborateur (join fetch)
     TS-->>VC: talents (perf >= 85 and pot >= 85), best first
-    VC->>VC: ValidationComiteSource.statut(id, quarter) per talent
+    VC->>R: ValidationComiteSource.statuts(talents, quarter), one query
     VC-->>VS: List<DecisionComite>
     VS->>VS: count per status, KPI = count of OUI, filter rows
     VS-->>PC: ComiteTalentView
@@ -778,9 +786,9 @@ Class by class:
    - calls the engine.
 4. **`ValidationComiteService.getDecisionsComite`** asks **`TalentService.detecterTalents`** for the proposed talents:
    - that loads the settings through **`CalculService.chargerParametre`** (404 if the quarter has none);
-   - loads the quarter's scores in one query (`join fetch` employee and quarter);
+   - loads the quarter's scores in one query (`join fetch` employee, quarter, and the frozen entité with its parents, which gives the direction shown in the table);
    - keeps active employees with complete scores that pass both thresholds, sorted by performance.
-5. For each talent, **`ValidationComiteSource`** gives the committee decision. Without an implementation, everything is "En attente".
+5. **`ValidationComiteSource.statuts`** gives the committee decision of every talent in one query. Without an implementation, everything is "En attente".
 6. The view service counts decisions per status, builds the KPI card (count of "Oui", on the whole quarter), keeps only the rows matching the filter, and maps each `Score` to a `ComiteTalentRow` (badge class `bg-success`, `bg-warning text-dark` or `bg-danger`).
 7. **`comite-talent.html`** renders the sidebar fragment, the filter form (a GET form), the KPI card and the table.
 
@@ -806,10 +814,11 @@ sequenceDiagram
     SC->>SS: recalculerTrimestre(T3 2026)
     SS->>CS: chargerParametre
     SS->>R: Performance + Potentiel findByTrimestreAvecCollaborateur
+    SS->>R: ScoreRepository.findByTrimestreAvecCollaborateur (existing scores, one query)
     loop each employee with performance marks
         SS->>SS: skip if not ACTIF or no potential marks (reason recorded)
         SS->>CS: calculerScorePerformance, categoriePerformance, calculerScorePotentiel
-        SS->>R: ScoreRepository find + save (one row per employee and quarter)
+        SS->>R: ScoreRepository.save (insert, or update of the preloaded row)
     end
     SS-->>SC: ResultatRecalcul (saved scores + ignored with reason)
     SC-->>C: 200 RecalculResponse JSON
@@ -819,8 +828,9 @@ sequenceDiagram
 1. **`ProtectionRequetesFilter`** rejects the request with **403** if `Host` is not local, or if the `X-Talent360` header is missing (`en_tete_manquant`). The controller is never reached.
 2. **`ScoreController.recalculer`** resolves the quarter through **`ChargeurRessources.exigerTrimestre`**, which throws a 404 if it doesn't exist.
 3. **`ScoreService.recalculerTrimestre`** runs in one transaction:
-   - loads the settings once, then all performance and potential marks of the quarter in two queries;
-   - for each employee, calls the pure functions of **`CalculService`** and creates or updates the single `Score` row, keeping its 9-Box box.
+   - loads the settings once, then all performance and potential marks of the quarter in two queries, and the quarter's existing scores in a third (a map by matricule);
+   - for each employee, calls the pure functions of **`CalculService`** and creates or updates the single `Score` row, keeping its 9-Box box. Entité and manager are frozen on the score by reference (`figerOrganisation`), without loading them;
+   - reads the database in a fixed number of queries whatever the population (5 on the dataset), plus one INSERT per new score; a second run with nothing changed writes nothing.
    - Employees not ACTIF, or missing one set of marks, are reported with the reason instead of failing the whole run.
 4. The controller returns `RecalculResponse`: `nombreCalcules`, `nombreIgnores`, the scores and the ignored employees with their reason.
 5. Any exception is turned into the `ErreurApi` JSON by **`ApiExceptionHandler`**, and the transaction is rolled back.
@@ -922,7 +932,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**662 test executions in 61 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
+**675 test executions in 63 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
 
 | Folder | What it covers |
 |---|---|
@@ -931,7 +941,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 | `config` | Initializers, the protection filter and `SecurityConfigTest` (anonymous → `/login` or 401, RH everywhere, login, CSRF, first RH account), including JPA tests on H2 that reproduce old database shapes |
 | `entity` | Bean Validation of the settings and marks |
 | `ui` | The Comité screen: view service and real template rendering |
-| `dataset` | The Excel comparison, skipped when the workbook is absent |
+| `dataset` | The Excel comparison and query counts on the real workbook, skipped when the workbook is absent |
 
 **Troubleshooting.** If you see "Port 8080 was already in use", an earlier instance is still running: stopping `mvnw` doesn't always stop the Java process it started. Find the leftover `java.exe` and stop it.
 
@@ -972,6 +982,7 @@ git push -u origin feature/my-change
 - REST API for all modules; Comité screen; security fixes.
 - RH-only login (Spring Security, BCrypt, first RH account from environment variables), dedicated MySQL account, `CollaborateurResponse` instead of the entity.
 - Quarter reference date (`Trimestre.dateReference`): seniority no longer depends on today's date (audit C4).
+- Vigilance list covers every active employee with a vigilance input, scored or not (audit C8). No N+1 in the recalculation or the main pages, LAZY entités, `open-in-view=false` (audit 3.3, 3.4).
 
 ### Left, by owner
 
@@ -988,13 +999,13 @@ git push -u origin feature/my-change
 - Serve Bootstrap and its icons locally, so the app works offline.
 - `/viviers` shows only saved pools; the thematic pools are available from the API.
 - Page tests for `/`, `/9box`, `/viviers`.
-- `VivierService` runs one query per pool member; load them in one query.
 
 **Jas — engine and platform**
 
 - Schema migrations (Flyway) instead of `ddl-auto=update`.
 - Plan the move to Spring Boot 4.x: 3.5 no longer receives free security fixes after June 2026.
 - Make CI a required check on `develop`, and set `develop` as the default branch.
+- `GET /api/viviers-thematiques` still runs one query per score (`ViviersThematiquesEnBase.vivierPourDirection`); add a batch method to the source.
 
 ### Known limitations
 

@@ -49,10 +49,11 @@ public class Entite {
     private TypeEntite type;
 
     /**
-     * Charge avec l'entite : les services qui regroupent par direction
-     * remontent l'arbre ({@link #libelleDe}), parfois hors transaction.
+     * LAZY : les requetes qui remontent l'arbre ({@link #libelleDe}) chargent
+     * les parents par jointure (left join fetch e.parent e1 ... sur les quatre
+     * niveaux), sans requete par entite.
      */
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_entite_parent")
     private Entite parent;
 
@@ -85,11 +86,14 @@ public class Entite {
     /**
      * Entite de ce niveau parmi celle-ci et ses ancetres, ou null si
      * l'organigramme saute ce niveau.
+     *
+     * <p>Par les getters : un parent LAZY est un proxy Hibernate, dont les
+     * champs restent vides ; seuls ses getters lisent l'entite chargee.
      */
     @Transient
     public Entite ancetre(TypeEntite niveau) {
-        for (Entite courante = this; courante != null; courante = courante.parent) {
-            if (courante.type == niveau) {
+        for (Entite courante = this; courante != null; courante = courante.getParent()) {
+            if (courante.getType() == niveau) {
                 return courante;
             }
         }
@@ -100,7 +104,7 @@ public class Entite {
     @Transient
     public String libelleDe(TypeEntite niveau) {
         Entite ancetre = ancetre(niveau);
-        return ancetre == null ? null : ancetre.libelle;
+        return ancetre == null ? null : ancetre.getLibelle();
     }
 
     public Integer getIdEntite() {

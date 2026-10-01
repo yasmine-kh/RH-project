@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -75,10 +76,13 @@ public class ValidationComiteService {
         Objects.requireNonNull(talentsProposes, "talentsProposes");
         Objects.requireNonNull(trimestre, "trimestre");
 
+        // Toutes les decisions en une lecture, pas une par talent.
+        Map<String, StatutValidationComite> statuts = validationComiteSource.statuts(
+                talentsProposes.stream().map(score -> score.getCollaborateur().getIdCollaborateur()).toList(),
+                trimestre);
         List<DecisionComite> decisions = new ArrayList<>(talentsProposes.size());
         for (Score score : talentsProposes) {
-            StatutValidationComite statut = validationComiteSource.statut(
-                    score.getCollaborateur().getIdCollaborateur(), trimestre);
+            StatutValidationComite statut = statuts.get(score.getCollaborateur().getIdCollaborateur());
             decisions.add(new DecisionComite(score,
                     Objects.requireNonNullElse(statut, StatutValidationComite.EN_ATTENTE)));
         }

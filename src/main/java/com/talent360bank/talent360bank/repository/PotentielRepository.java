@@ -32,4 +32,8 @@ public interface PotentielRepository extends JpaRepository<Potentiel, Integer> {
             + "where x.trimestre = :trimestre and x.collaborateur.idCollaborateur in :ids")
     List<String> findMatriculesEvalues(@Param("trimestre") Trimestre trimestre,
                                        @Param("ids") Collection<String> ids);
+
+    /** Matricules qui ont des notes de potentiel sur le trimestre, sans charger les collaborateurs. */
+    @Query("select x.collaborateur.idCollaborateur from Potentiel x where x.trimestre = :trimestre")
+    List<String> findMatriculesEvaluesDuTrimestre(@Param("trimestre") Trimestre trimestre);
 }
