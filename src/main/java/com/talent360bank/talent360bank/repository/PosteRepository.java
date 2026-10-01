@@ -18,4 +18,12 @@ public interface PosteRepository extends JpaRepository<Poste, String> {
     Optional<Poste> findByIdAvecCompetences(@Param("posteId") String posteId);
 
     List<Poste> findByPosteCritique(String posteCritique);
+
+    /** Tous les postes avec competences requises et entite, en une requete : couverture d'un lot de postes. */
+    @Query("select p from Poste p " +
+            "left join fetch p.competenceRequise1 left join fetch p.competenceRequise2 " +
+            "left join fetch p.competenceRequise3 left join fetch p.competenceRequise4 " +
+            "left join fetch p.competenceRequise5 left join fetch p.entite " +
+            "order by p.posteId")
+    List<Poste> findAllAvecCompetences();
 }

@@ -238,6 +238,7 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Employees | `GET /api/collaborateurs`, `GET /api/collaborateurs/{id}` (both return `CollaborateurResponse`, never the entity), `POST /api/collaborateurs`, `DELETE /api/collaborateurs/{id}` |
 | Employee record (fiche) | `GET /api/trimestres/{annee}/{numero}/collaborateurs/{matricule}/fiche` ([below](#fiche-collaborateur)) |
 | Manager view | `GET /api/trimestres/{annee}/{numero}/managers` (picker), `GET /api/trimestres/{annee}/{numero}/managers/{matricule}/vue` ([below](#vue-manager)) |
+| Entité view | `GET /api/entites` (tree), `GET /api/trimestres/{annee}/{numero}/entites/vue?code={code}` ([below](#vue-entité)) |
 | Reference data | `GET` / `POST /api/competences`, `DELETE /api/competences/{id}` |
 
 Errors always have the same JSON shape, `ErreurApi`: `{ statut, erreur, message, details }`. `ApiExceptionHandler` maps the exceptions:
@@ -326,7 +327,7 @@ HR picks a manager, then sees their team's results for one quarter. Two calls (R
 
 How it works:
 
-- **Backend:** `ui/service/VueManagerViewService` (`listerManagers`, `construire`) builds `ui/model/VueManager`; `controller/VueManagerController` returns it. Same rules as the fiche: no calculation in the view service (only counts and averages), stored scores and categories, 9-box case from the placement rule (`NeufBoxService.niveauxDe`, same helper as the fiche), talent and vigilance from the engine. Missing data leaves a value `null` and adds one sentence per cause to `donneesManquantes`.
+- **Backend:** `ui/service/VueManagerViewService` (`listerManagers`, `construire`) builds `ui/model/VueManager`; `controller/VueManagerController` returns it. The team's results and the summary come from `ui/service/ResultatsCollaborateurs`, shared with the entité view. Same rules as the fiche: no calculation in the view service (only counts and averages), stored scores and categories, 9-box case from the placement rule (`NeufBoxService.niveauxDe`, same helper as the fiche), talent and vigilance from the engine. Missing data leaves a value `null` and adds one sentence per cause to `donneesManquantes`.
 - **Team = direct reports** (collaborateurs whose manager is this one), excluding `ARCHIVE` (left the company); `INACTIF` stay in the headcount. N-2 is pending the client's answer (TODO in `VueManagerViewService`).
 - **404** for an unknown quarter or matricule, or a collaborateur who is not a manager ("Le collaborateur X n'est pas manager"). A manager with no team gets an empty view (effectif 0, no error).
 - **Fixed number of queries** (about 13), whatever the team size: each piece of team data is read once with `IN (team matricules)`; vigilance goes through `VigilanceService.evaluerLot` (same rule as for one person). A test checks that a team of 6 costs as many queries as a team of 1.
@@ -380,6 +381,78 @@ Shortened example (BP005, dataset T3 2026, 5 direct reports):
 ```
 
 Tests: `VueManagerViewServiceTest` (H2: values identical to the fiche and the engine, summary, member with no data and its alerts, empty team, non-manager and unknown → 404, no settings, picker, query count independent of team size), `VueManagerControllerTest` (JSON contract, 404, 401), `VueManagerDatasetTest` (BP005's team against the workbook, skipped without it).
+
+### Vue entité
+
+HR picks an entité of the org chart (Direction › Département › Région › Agence), then sees the aggregated results of its whole subtree for one quarter. Two calls (RH only):
+
+- `GET /api/entites`: the picker. The org chart as a tree, directions first, each level sorted by label: [{`code`, `libelle`, `type`, `effectif` (headcount of the node **and all its descendants**, excluding `ARCHIVE`), `enfants`: [same shape]}].
+- `GET /api/trimestres/{annee}/{numero}/entites/vue?code={code}`: the entité view. **The code is a required query parameter** (400 `requete_mal_formee` without it): `/api/trimestres/2026/3/entites/vue?code=DIR:RESEAU_RETAIL/DEP:RESEAU_RETAIL_SUD/REG:TANGER_TETOUAN`. A code is the path from the direction and contains `/`; in a query value, `/` and `:` are allowed as is or encoded (`%2F`, `%3A`, e.g. from `encodeURIComponent`), whereas an encoded slash in the path would be rejected by Spring Security's firewall and by Tomcat. The last segment alone is not unique (the same région exists under several départements). In Thymeleaf: `th:href="@{/api/trimestres/{a}/{n}/entites/vue(a=${annee}, n=${numero}, code=${entite.code})}"`. Codes only contain `A-Z`, `0-9`, `_`, `:` and `/` (accents, spaces and punctuation are normalised to `_` by `Entite.code`), so nothing else needs escaping.
+
+How it works:
+
+- **Backend:** `ui/service/VueEntiteViewService` (`listerEntites`, `construire`) builds `ui/model/VueEntite`; `controller/VueEntiteController` returns it. The results of the people and the summary come from `ui/service/ResultatsCollaborateurs`, **the same code as the manager view**: for the same people, both views give the same figures (a test checks that an agence and the manager whose team is that agence have identical summaries).
+- **Subtree:** the org chart is read in one query and walked in memory; collaborateurs of the entité and all its descendants, excluding `ARCHIVE` (same rule as the manager view). A collaborateur attached to the entité itself (not to a child) counts in the summary but in no child row.
+- **404** for an unknown quarter or entité code. An entité with nobody in its subtree gets an empty view (headcount 0, no error).
+- **Fixed number of queries** (about 24), whatever the subtree size: org chart, collaborateurs (`IN` entités), their data (`IN` matricules), critical positions and their coverage (`PosteCritiqueService.evaluerPostes`, bulk), managers.
+
+| Block | Content |
+|---|---|
+| `trimestre` | as in the fiche |
+| `entite` | `code`, `libelle`, `type`, `chemin` (labels from the direction), `parent` {`code`, `libelle`, `type`} (null for a direction), `enfants`: direct children [{`code`, `libelle`, `type`, `effectif`}] |
+| `synthese` | the whole subtree, **same shape as the manager view's `synthese`**: `effectif`, `nbAvecScore`, averages, `categoriesPerformance`, `categoriesPotentiel`, `neufBox` (9 entries), `nbTalents`, `nbHautsPotentiels`, `nbVivierSuccession`, `moyenneEngagement`, `niveauxVigilance`, `nbSansVigilance` |
+| `enfants` | one row per direct child, to compare e.g. the agences of a région: [{`code`, `libelle`, `type`, `effectif`, `nbAvecScore`, `moyennePerformance`, `moyennePotentiel`, `pourcentageTalents` (talents / people with a score × 100, 1 decimal, null if nobody has a score), `moyenneEngagement`, `nbVigilanceElevee`}]. The children's headcounts add up to the entité's, minus the people attached to the entité itself |
+| `postesCritiques` | critical positions attached to the subtree (positions are attached to their direction) or held by someone who works in it: [{`posteId`, `nomPoste`, `direction`, `criticite`, `titulaireId`, `titulaireNom`, `rattachement` (`ENTITE` / `TITULAIRE`), `couverture` + `couvertureLibelle`, `alerte`, `nbSuccesseurs`, `meilleurMatching`}], coverage from `PosteCritiqueService` (null without settings) |
+| `alertes` | people of the subtree with vigilance ELEVEE or above, highest index first: [{`matricule`, `nom`, `prenom`, `entite` {`code`, `libelle`, `type`}, `indice`, `niveau`, `niveauLibelle`}] |
+| `managers` | managers who work in the subtree, by name, same shape as the manager picker (`tailleEquipe` = their direct team, wherever it sits): link to the Vue manager |
+| `donneesManquantes` | as in the manager view |
+
+Example (région Tanger-Tetouan under Réseau Retail - Sud, dataset T3 2026; zero counts and two managers trimmed):
+
+```json
+{
+  "trimestre": { "annee": 2026, "numero": 3, "libelle": "T3 2026", "dateReference": "2026-09-15" },
+  "entite": {
+    "code": "DIR:RESEAU_RETAIL/DEP:RESEAU_RETAIL_SUD/REG:TANGER_TETOUAN", "libelle": "Tanger-Tetouan", "type": "REGION",
+    "chemin": ["Reseau Retail", "Reseau Retail - Sud", "Tanger-Tetouan"],
+    "parent": { "code": "DIR:RESEAU_RETAIL/DEP:RESEAU_RETAIL_SUD", "libelle": "Reseau Retail - Sud", "type": "DEPARTEMENT" },
+    "enfants": [ { "code": "…/AGE:AGENCE_TANGER_MEDINA", "libelle": "Agence Tanger Medina", "type": "AGENCE", "effectif": 1 },
+                 { "code": "…/AGE:AGENCE_TANGER_NORD", "libelle": "Agence Tanger Nord", "type": "AGENCE", "effectif": 1 },
+                 { "code": "…/AGE:AGENCE_TANGER_SUD", "libelle": "Agence Tanger Sud", "type": "AGENCE", "effectif": 2 },
+                 { "code": "…/AGE:AGENCE_TANGER_VILLE_NOUVELLE", "libelle": "Agence Tanger Ville Nouvelle", "type": "AGENCE", "effectif": 1 } ]
+  },
+  "synthese": {
+    "effectif": 5, "nbAvecScore": 5, "moyennePerformance": 85.96, "moyennePotentiel": 80.25,
+    "categoriesPerformance": [ { "code": "EXCEPTIONNELLE", "libelle": "Exceptionnelle", "nombre": 3 },
+                               { "code": "SOLIDE", "libelle": "Solide", "nombre": 2 }, "…" ],
+    "categoriesPotentiel": [ { "code": "ELEVE", "libelle": "Eleve", "nombre": 1 }, { "code": "MOYEN", "libelle": "Moyen", "nombre": 4 }, "…" ],
+    "neufBox": [ { "numero": 5, "libelle": "Confirmé", "nombre": 2 }, { "numero": 8, "libelle": "Performant", "nombre": 2 },
+                 { "numero": 9, "libelle": "Talent clé", "nombre": 1 }, "…" ],
+    "nbTalents": 1, "nbHautsPotentiels": 1, "nbVivierSuccession": 1, "moyenneEngagement": 68.60,
+    "niveauxVigilance": [ { "code": "FAIBLE", "libelle": "Faible", "nombre": 4 }, { "code": "MODEREE", "libelle": "Moderee", "nombre": 1 },
+                          { "code": "ELEVEE", "libelle": "Elevee", "nombre": 0 } ],
+    "nbSansVigilance": 0
+  },
+  "enfants": [
+    { "code": "…/AGE:AGENCE_TANGER_NORD", "libelle": "Agence Tanger Nord", "type": "AGENCE", "effectif": 1, "nbAvecScore": 1,
+      "moyennePerformance": 93.90, "moyennePotentiel": 93.40, "pourcentageTalents": 100.0, "moyenneEngagement": 57.00,
+      "nbVigilanceElevee": 0 },
+    { "code": "…/AGE:AGENCE_TANGER_SUD", "libelle": "Agence Tanger Sud", "type": "AGENCE", "effectif": 2, "nbAvecScore": 2,
+      "moyennePerformance": 84.85, "moyennePotentiel": 79.43, "pourcentageTalents": 0.0, "moyenneEngagement": 63.00,
+      "nbVigilanceElevee": 0 }, "…"
+  ],
+  "postesCritiques": [ { "posteId": "PST01", "nomPoste": "Directeur regional", "direction": "Reseau Retail",
+    "criticite": "Tres elevee", "titulaireId": "BP022", "titulaireNom": "Rim Filali", "rattachement": "TITULAIRE",
+    "couverture": "READY_NOW", "couvertureLibelle": "Couverte - Ready Now", "alerte": false,
+    "nbSuccesseurs": 4, "meilleurMatching": 95.20 } ],
+  "alertes": [],
+  "managers": [ { "matricule": "BP005", "nom": "Chraibi", "prenom": "Meryem", "fonction": "Directeur regional",
+                  "entite": { "libelle": "Agence Tanger Nord", "…": "…" }, "tailleEquipe": 5 }, "…" ],
+  "donneesManquantes": []
+}
+```
+
+Tests: `VueEntiteViewServiceTest` (H2: agence, région = sum of its agences, same figures as the manager view, département with a manager attached directly, empty entité, unknown code or quarter → 404, tree, query count independent of subtree size), `VueEntiteControllerTest` (JSON contract with a full code, code as is or encoded, old path form gone, missing code → 400, 404, 401), `VueEntiteDatasetTest` (région Tanger-Tetouan against the workbook, skipped without it).
 
 ---
 
@@ -849,7 +922,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**647 test executions in 58 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
+**662 test executions in 61 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 30 Sept 2026).
 
 | Folder | What it covers |
 |---|---|
