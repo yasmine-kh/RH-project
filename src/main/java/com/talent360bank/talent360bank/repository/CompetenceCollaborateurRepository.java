@@ -23,10 +23,11 @@ public interface CompetenceCollaborateurRepository extends JpaRepository<Compete
             @Param("collaborateur") Collaborateur collaborateur);
 
     /**
-     * Niveaux {actuel, cible} de toutes les competences des collaborateurs d'un
-     * statut, sans charger les entites : tableau de bord (gaps prioritaires).
+     * {matricule, niveau actuel, niveau cible} de toutes les competences des
+     * collaborateurs d'un statut, sans charger les entites : gaps prioritaires
+     * du tableau de bord et des alertes.
      */
-    @Query("select s.niveauActuel, s.niveauCible from CompetenceCollaborateur s "
+    @Query("select s.collaborateur.idCollaborateur, s.niveauActuel, s.niveauCible from CompetenceCollaborateur s "
             + "where s.collaborateur.statut = :statut")
     List<Object[]> findNiveauxParStatut(@Param("statut") StatutCollaborateur statut);
 }

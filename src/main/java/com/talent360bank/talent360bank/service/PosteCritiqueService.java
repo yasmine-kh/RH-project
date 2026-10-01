@@ -249,10 +249,14 @@ public class PosteCritiqueService {
         return evaluer(List.of(poste), trimestre).get(0);
     }
 
-    /** Couverture de tous les postes critiques, par Poste_ID croissant. */
+    /**
+     * Couverture de tous les postes critiques, par Poste_ID croissant. Postes lus
+     * avec leur entite et leurs competences requises en une requete : sans cela,
+     * l'entite (EAGER) et les competences se chargent une requete par poste.
+     */
     @Transactional(readOnly = true)
     public List<CouverturePoste> listerPostesCritiques(Trimestre trimestre) {
-        List<Poste> critiques = posteRepository.findAll().stream()
+        List<Poste> critiques = posteRepository.findAllAvecCompetences().stream()
                 .filter(PosteCritiqueService::estCritique)
                 .sorted(Comparator.comparing(Poste::getPosteId))
                 .toList();

@@ -92,7 +92,7 @@ class SansSessionOuverteIntegrationTest {
 
     /** Pages principales et lectures de l'API dont le nombre de requetes ne depend pas de la population. */
     private static final List<String> A_NOMBRE_FIXE = List.of(
-            "/", "/9box", "/viviers", "/comite-talent",
+            "/", "/9box", "/viviers", "/comite-talent", "/alertes", "/postes-critiques",
             T + "/vigilance", T + "/scores", T + "/talents", T + "/vivier-releve",
             "/api/comite-talent" + PARAMS, "/api/viviers-thematiques" + PARAMS);
 

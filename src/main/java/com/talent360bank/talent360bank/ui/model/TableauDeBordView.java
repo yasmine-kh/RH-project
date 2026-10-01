@@ -16,15 +16,16 @@ import java.util.List;
  * @param nbNonPlaces9Box   scores du trimestre sans case (placement non lance ou scores incomplets)
  * @param vigilance         collaborateurs par niveau de vigilance (Faible, Moderee, Elevee)
  * @param nbSansVigilance   actifs sans aucune donnee de vigilance : pas d'indice (regle EntreesVigilance)
- * @param alertes           alertes prioritaires, les plus graves d'abord, au plus {@link #ALERTES_AFFICHEES}
- * @param nbAlertes         nombre total d'alertes avant la limite d'affichage
+ * @param alertes           alertes prioritaires (AlertesViewService, comme l'ecran Alertes), les plus
+ *                          graves d'abord, au plus {@link #ALERTES_AFFICHEES}
+ * @param nbAlertes         nombre total d'alertes du trimestre (= total de l'ecran Alertes)
  * @param viviers           viviers thematiques, un par ligne
  * @param erreur            reglages absents ou incomplets pour le trimestre : seuls les
  *                          chiffres qui n'en dependent pas sont affiches ; sinon null
  */
 public record TableauDeBordView(String trimestreLibelle, List<KpiCard> kpis, List<CaseTableau> neufBox,
                                 int nbPlaces9Box, int nbNonPlaces9Box, List<CompteNiveau> vigilance,
-                                int nbSansVigilance, List<AlerteTableau> alertes, int nbAlertes,
+                                int nbSansVigilance, List<AlerteVue> alertes, int nbAlertes,
                                 List<VivierTableau> viviers, String erreur) {
 
     /** Nombre d'alertes listees sur le tableau de bord ; la page Alertes les montrera toutes. */
@@ -36,12 +37,6 @@ public record TableauDeBordView(String trimestreLibelle, List<KpiCard> kpis, Lis
 
     /** Effectif d'un niveau (de vigilance...). */
     public record CompteNiveau(String code, String libelle, int nombre) {
-    }
-
-    /**
-     * @param severite CRITIQUE ou ATTENTION
-     */
-    public record AlerteTableau(String severite, String message) {
     }
 
     /**

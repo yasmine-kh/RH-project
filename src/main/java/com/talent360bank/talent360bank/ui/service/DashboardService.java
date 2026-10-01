@@ -18,12 +18,11 @@ import com.talent360bank.talent360bank.service.enums.VivierThematique;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
 import com.talent360bank.talent360bank.service.resultat.MembreVivierThematique;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
-import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import com.talent360bank.talent360bank.service.resultat.ResultatViviersThematiques;
 import com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord;
+import com.talent360bank.talent360bank.ui.model.AlerteVue;
 import com.talent360bank.talent360bank.ui.model.KpiCard;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordView.AlerteTableau;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.CaseTableau;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.CompteNiveau;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.VivierTableau;
@@ -46,9 +45,11 @@ import java.util.stream.Collectors;
  * hauts potentiels, vivier de releve, vigilance, postes critiques, Ready Now et
  * repartition 9-box viennent de {@link TableauDeBordService} ; les viviers
  * thematiques de {@link VivierThematiqueService} ; les gaps de competences de
- * {@link CompetenceCollaborateurService}. Seules les syntheses
- * d'affichage (compter, moyenner, trier les alertes) sont faites ici. Un
- * chiffre sans source de donnees n'est pas affiche plutot que d'etre invente.
+ * {@link CompetenceCollaborateurService} ; les alertes prioritaires de
+ * {@link AlertesViewService}, la source de l'ecran Alertes (les deux ne
+ * peuvent pas diverger). Seules les syntheses d'affichage (compter, moyenner)
+ * sont faites ici. Un chiffre sans source de donnees n'est pas affiche plutot
+ * que d'etre invente.
  *
  * <p>Sans reglages pour le trimestre, le moteur ne peut rien calculer : seuls
  * l'effectif et l'engagement (qui n'en dependent pas) sont affiches, avec le
@@ -68,13 +69,16 @@ public class DashboardService {
     private final CollaborateurRepository collaborateurRepository;
     private final QuestionnaireEngagementRepository questionnaireRepository;
     private final Matrice9BoxRepository matrice9BoxRepository;
+    private final AlertesViewService alertesViewService;
 
     public DashboardService(TableauDeBordService tableauDeBordService,
                             VivierThematiqueService vivierThematiqueService,
                             CompetenceCollaborateurService competenceCollaborateurService,
                             CollaborateurRepository collaborateurRepository,
                             QuestionnaireEngagementRepository questionnaireRepository,
-                            Matrice9BoxRepository matrice9BoxRepository) {
+                            Matrice9BoxRepository matrice9BoxRepository,
+                            AlertesViewService alertesViewService) {
+        this.alertesViewService = alertesViewService;
         this.tableauDeBordService = tableauDeBordService;
         this.vivierThematiqueService = vivierThematiqueService;
         this.competenceCollaborateurService = competenceCollaborateurService;
@@ -99,17 +103,19 @@ public class DashboardService {
         SyntheseTableauDeBord synthese;
         ResultatViviersThematiques viviers;
         int gapsPrioritaires;
+        List<AlerteVue> alertes;
         try {
             synthese = tableauDeBordService.synthese(trimestre);
             viviers = vivierThematiqueService.getViviersThematiques(trimestre);
             gapsPrioritaires = competenceCollaborateurService.compterGapsPrioritaires(trimestre);
+            // Les memes alertes que l'ecran Alertes, deja triees par gravite.
+            alertes = alertesViewService.alertes(trimestre);
         } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
             return new TableauDeBordView(libelle, List.of(effectif, engagement), List.of(), 0, 0, List.of(), 0,
                     List.of(), 0, List.of(), e.getMessage());
         }
 
         List<VivierTableau> lignesViviers = viviers(viviers, synthese.couvertures());
-        List<AlerteTableau> alertes = alertes(synthese);
         int nbEvaluesVigilance = synthese.vigilanceParNiveau().values().stream().mapToInt(Integer::intValue).sum();
 
         List<KpiCard> kpis = List.of(
@@ -174,37 +180,6 @@ public class DashboardService {
                     synthese.vigilanceParNiveau().getOrDefault(niveau, 0)));
         }
         return List.copyOf(comptes);
-    }
-
-    /**
-     * Alertes prioritaires : postes critiques sans successeur (CRITIQUE), puis
-     * postes sous le minimum de successeurs (ATTENTION), puis collaborateurs a
-     * vigilance elevee (ATTENTION), du plus au moins a risque.
-     */
-    private static List<AlerteTableau> alertes(SyntheseTableauDeBord synthese) {
-        List<AlerteTableau> alertes = new ArrayList<>();
-        for (CouverturePoste couverture : synthese.alertesPostesCritiques()) {
-            if (couverture.nbSuccesseurs() == 0) {
-                alertes.add(new AlerteTableau("CRITIQUE", "Poste critique sans successeur : " + poste(couverture)));
-            }
-        }
-        for (CouverturePoste couverture : synthese.alertesPostesCritiques()) {
-            if (couverture.nbSuccesseurs() > 0) {
-                alertes.add(new AlerteTableau("ATTENTION", "Successeurs insuffisants pour " + poste(couverture)
-                        + " : " + couverture.nbSuccesseurs() + " identifié(s)"));
-            }
-        }
-        for (ResultatVigilance resultat : synthese.vigilancesElevees()) {
-            alertes.add(new AlerteTableau("ATTENTION", "Vigilance élevée : " + resultat.collaborateur().getNomComplet()
-                    + " (" + resultat.collaborateur().getIdCollaborateur() + "), indice "
-                    + resultat.indice().stripTrailingZeros().toPlainString() + " / 100"));
-        }
-        return alertes;
-    }
-
-    private static String poste(CouverturePoste couverture) {
-        String direction = couverture.poste().getDirection();
-        return couverture.poste().getNomPoste() + (direction == null ? "" : " (" + direction + ")");
     }
 
     /**

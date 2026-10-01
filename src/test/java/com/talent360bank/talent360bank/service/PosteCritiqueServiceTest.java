@@ -228,7 +228,7 @@ class PosteCritiqueServiceTest {
     void seuls_les_postes_indiques_critiques_sont_suivis_et_les_alertes_detectees() {
         Collaborateur candidat = collaborateur("BP010", StatutCollaborateur.ACTIF);
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
-        when(posteRepository.findAll()).thenReturn(List.of(
+        when(posteRepository.findAllAvecCompetences()).thenReturn(List.of(
                 poste("PST02", "oui ", "BP001"), poste("PST01", "Oui", "BP002"), poste("PST04", "Non", "BP003")));
         successeurs.identifier("PST01", "BP010");
         when(collaborateurRepository.findAllByIdAvecEntite(any())).thenReturn(List.of(candidat));
@@ -263,7 +263,7 @@ class PosteCritiqueServiceTest {
                 scoreRepository, potentielRepository, competenceCollaborateurRepository, successionService,
                 calculService, new StaticListableBeanFactory().getBeanProvider(SuccesseurIdentifieSource.class));
         when(parametreRepository.findByTrimestre(trimestre)).thenReturn(Optional.of(parametre));
-        when(posteRepository.findAll()).thenReturn(List.of(poste("PST01", "Oui", "BP002")));
+        when(posteRepository.findAllAvecCompetences()).thenReturn(List.of(poste("PST01", "Oui", "BP002")));
 
         assertThat(sansSource.detecterAlertes(trimestre)).hasSize(1);
     }
