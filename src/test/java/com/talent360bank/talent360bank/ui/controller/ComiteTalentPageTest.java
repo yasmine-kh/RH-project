@@ -15,6 +15,7 @@ import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.resultat.DecisionComite;
 import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
 import com.talent360bank.talent360bank.ui.service.DashboardService;
+import com.talent360bank.talent360bank.ui.service.FicheCollaborateurPageViewService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
 import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +60,8 @@ class ComiteTalentPageTest {
     private NineBoxViewService nineBoxViewService;
     @MockBean
     private VivierService vivierService;
+    @MockBean
+    private FicheCollaborateurPageViewService ficheCollaborateurPageViewService;
 
     private Trimestre t3;
 

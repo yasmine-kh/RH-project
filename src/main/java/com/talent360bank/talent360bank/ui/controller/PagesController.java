@@ -1,7 +1,9 @@
 package com.talent360bank.talent360bank.ui.controller;
 
+import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
 import com.talent360bank.talent360bank.ui.service.DashboardService;
+import com.talent360bank.talent360bank.ui.service.FicheCollaborateurPageViewService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
 import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.springframework.stereotype.Controller;
@@ -16,13 +18,16 @@ public class PagesController {
     private final NineBoxViewService nineBoxViewService;
     private final VivierService vivierService;
     private final ComiteTalentViewService comiteTalentViewService;
+    private final FicheCollaborateurPageViewService ficheCollaborateurPageViewService;
 
     public PagesController(DashboardService dashboardService, NineBoxViewService nineBoxViewService,
-                           VivierService vivierService, ComiteTalentViewService comiteTalentViewService) {
+                           VivierService vivierService, ComiteTalentViewService comiteTalentViewService,
+                           FicheCollaborateurPageViewService ficheCollaborateurPageViewService) {
         this.dashboardService = dashboardService;
         this.nineBoxViewService = nineBoxViewService;
         this.vivierService = vivierService;
         this.comiteTalentViewService = comiteTalentViewService;
+        this.ficheCollaborateurPageViewService = ficheCollaborateurPageViewService;
     }
 
     @GetMapping("/")
@@ -60,6 +65,20 @@ public class PagesController {
         model.addAttribute("vue", comiteTalentViewService.build(trimestre, statut));
         model.addAttribute("activePage", "comite-talent");
         return "comite-talent";
+    }
+
+    @GetMapping("/fiche-collaborateur")
+    public String ficheCollaborateur(@RequestParam(required = false) String matricule, Model model) {
+        if (matricule != null && !matricule.isBlank()) {
+            try {
+                model.addAttribute("fiche", ficheCollaborateurPageViewService.construire(matricule.trim()));
+            } catch (RessourceIntrouvableException e) {
+                model.addAttribute("erreur", e.getMessage());
+            }
+        }
+        model.addAttribute("matricule", matricule);
+        model.addAttribute("activePage", "fiche-collaborateur");
+        return "fiche-collaborateur";
     }
 
     @GetMapping("/alertes")
