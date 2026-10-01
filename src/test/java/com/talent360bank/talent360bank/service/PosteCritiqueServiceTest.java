@@ -230,7 +230,7 @@ class PosteCritiqueServiceTest {
         when(posteRepository.findAll()).thenReturn(List.of(
                 poste("PST02", "oui ", "BP001"), poste("PST01", "Oui", "BP002"), poste("PST04", "Non", "BP003")));
         successeurs.identifier("PST01", "BP010");
-        when(collaborateurRepository.findAllById(any())).thenReturn(List.of(candidat));
+        when(collaborateurRepository.findAllByIdAvecEntite(any())).thenReturn(List.of(candidat));
         when(competenceCollaborateurRepository.findByCollaborateurIdsAvecCompetence(any()))
                 .thenReturn(List.of(skill(candidat, 5)));
         when(scoreRepository.findByTrimestreAvecCollaborateur(trimestre)).thenReturn(List.of(score(candidat, "95")));

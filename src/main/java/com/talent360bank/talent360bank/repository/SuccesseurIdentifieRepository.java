@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface SuccesseurIdentifieRepository extends JpaRepository<SuccesseurIdentifie, Integer> {
@@ -26,4 +27,9 @@ public interface SuccesseurIdentifieRepository extends JpaRepository<SuccesseurI
             + "left join fetch p.competenceRequise5 left join fetch p.entite "
             + "where s.collaborateur.idCollaborateur = :idCollaborateur order by p.posteId")
     List<Poste> findPostesDuSuccesseur(@Param("idCollaborateur") String idCollaborateur);
+
+    /** Successeurs identifies de plusieurs postes en une requete : {posteId, idCollaborateur}. */
+    @Query("select s.poste.posteId, s.collaborateur.idCollaborateur from SuccesseurIdentifie s "
+            + "where s.poste.posteId in :posteIds")
+    List<Object[]> findPairesParPostes(@Param("posteIds") Collection<String> posteIds);
 }

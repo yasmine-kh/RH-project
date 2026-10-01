@@ -1,6 +1,9 @@
 package com.talent360bank.talent360bank.service;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Successeurs identifies d'un poste, tels que le RH les a designes
@@ -24,4 +27,17 @@ public interface SuccesseurIdentifieSource {
      * L'ordre et les doublons sont sans importance.
      */
     List<String> successeursIdentifies(String posteId);
+
+    /**
+     * Successeurs identifies de plusieurs postes, par Poste_ID, jamais null ; un
+     * poste sans successeur a une liste vide. Par defaut, un appel par poste ;
+     * une implementation en base peut tout lire en une requete.
+     */
+    default Map<String, List<String>> successeursParPoste(Collection<String> posteIds) {
+        Map<String, List<String>> successeurs = new HashMap<>();
+        for (String posteId : posteIds) {
+            successeurs.put(posteId, successeursIdentifies(posteId));
+        }
+        return successeurs;
+    }
 }
