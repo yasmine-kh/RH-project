@@ -15,6 +15,7 @@ import com.talent360bank.talent360bank.service.ValidationComiteService;
 import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.resultat.DecisionComite;
 import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
+import com.talent360bank.talent360bank.ui.service.FicheCollaborateurPageViewService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
 import com.talent360bank.talent360bank.ui.service.PosteCritiqueViewService;
 import com.talent360bank.talent360bank.ui.service.TrimestreCourantService;
@@ -63,6 +64,8 @@ class ComiteTalentPageTest {
     private VivierService vivierService;
     @MockBean
     private PosteCritiqueViewService posteCritiqueViewService;
+    @MockBean
+    private FicheCollaborateurPageViewService ficheCollaborateurPageViewService;
 
     private Trimestre t3;
 

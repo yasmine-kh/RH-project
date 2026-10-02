@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Fiche collaborateur</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('fiche-collaborateur')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Fiche collaborateur</h1>
+            <p class="text-muted" th:if="${fiche != null}"
+               th:text="'Trimestre : ' + ${fiche.trimestre.libelle}"></p>
+        </header>
+
+        <!-- Recherche par matricule -->
+        <form method="get" th:action="@{/fiche-collaborateur}" class="row g-2 mb-4">
+            <div class="col-auto">
+                <input type="text" name="matricule" class="form-control" placeholder="Matricule"
+                       th:value="${matricule}" required>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Rechercher
+                </button>
+            </div>
+        </form>
+
+        <div class="alert alert-warning" th:if="${erreur != null}" th:text="${erreur}"></div>
+
+        <div th:if="${fiche != null}" class="row g-3">
+
+            <!-- Identite -->
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header"><i class="bi bi-person"></i> Identite</div>
+                    <div class="card-body" th:with="id=${fiche.identite}">
+                        <div class="row">
+                            <div class="col-md-4"><strong>Nom :</strong> <span th:text="${id.nom}"></span></div>
+                            <div class="col-md-4"><strong>Prenom :</strong> <span th:text="${id.prenom}"></span></div>
+                            <div class="col-md-4"><strong>Matricule :</strong> <span th:text="${id.matricule}"></span></div>
+                            <div class="col-md-4"><strong>Fonction :</strong> <span th:text="${id.fonction ?: '-'}"></span></div>
+                            <div class="col-md-4"><strong>Grade :</strong> <span th:text="${id.grade ?: '-'}"></span></div>
+                            <div class="col-md-4"><strong>Anciennete :</strong>
+                                <span th:text="${id.anciennete != null ? id.anciennete + ' ans' : '-'}"></span></div>
+                            <div class="col-md-8"><strong>Entite :</strong>
+                                <span th:text="${id.entite != null ? #strings.listJoin(id.entite.chemin, ' > ') : '-'}"></span></div>
+                            <div class="col-md-4"><strong>Manager :</strong>
+                                <span th:text="${id.manager != null ? id.manager.nom + ' (' + id.manager.matricule + ')' : '-'}"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance et potentiel -->
+            <div class="col-lg-6"
+                 th:each="axe : ${ {'Performance', 'Potentiel'} }"
+                 th:with="ev=${axe == 'Performance' ? fiche.performance : fiche.potentiel}">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header"><i class="bi bi-graph-up"></i> <span th:text="${axe}"></span></div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0" th:if="${ev == null}">Aucune evaluation du manager ce trimestre.</p>
+                        <th:block th:if="${ev != null}">
+                            <p>
+                                <strong>Score :</strong> <span th:text="${ev.score != null ? ev.score + ' / 100' : '-'}"></span>
+                                <span class="badge bg-primary ms-2" th:if="${ev.categorieLibelle != null}"
+                                      th:text="${ev.categorieLibelle}"></span>
+                            </p>
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                <tr><th>Critere</th><th>Note</th><th>Poids (%)</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="c : ${ev.criteres}">
+                                    <td th:text="${c.libelle}"></td>
+                                    <td th:text="${c.note ?: '-'}"></td>
+                                    <td th:text="${c.poids ?: '-'}"></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </th:block>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 9-box -->
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header"><i class="bi bi-grid-3x3"></i> Case 9-box</div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0" th:if="${fiche.neufBox == null}">Non place dans la matrice.</p>
+                        <p class="mb-0" th:if="${fiche.neufBox != null}">
+                            <span class="badge bg-dark fs-6" th:text="${fiche.neufBox.numero}"></span>
+                            <span class="ms-2" th:text="${fiche.neufBox.libelle}"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Engagement -->
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header"><i class="bi bi-heart"></i> Engagement</div>
+                    <div class="card-body">
+                        <p class="mb-0" th:text="${fiche.engagement != null ? fiche.engagement + ' / 100' : 'Aucun questionnaire.'}"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vigilance -->
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header"><i class="bi bi-exclamation-triangle"></i> Vigilance</div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0" th:if="${fiche.vigilance == null}">Indice non calculable.</p>
+                        <th:block th:if="${fiche.vigilance != null}">
+                            <p>
+                                <strong>Indice :</strong> <span th:text="${fiche.vigilance.indice}"></span>
+                                <span class="badge bg-warning text-dark ms-2" th:text="${fiche.vigilance.niveauLibelle}"></span>
+                            </p>
+                            <ul class="mb-0" th:if="${not #lists.isEmpty(fiche.vigilance.raisons)}">
+                                <li th:each="r : ${fiche.vigilance.raisons}"
+                                    th:text="${r.libelle + ' (' + r.points + ' pts)'}"></li>
+                            </ul>
+                        </th:block>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Talent -->
+            <div class="col-12" th:if="${fiche.talent != null}" th:with="t=${fiche.talent}">
+                <div class="card shadow-sm">
+                    <div class="card-header"><i class="bi bi-star"></i> Talent</div>
+                    <div class="card-body">
+                        <p>
+                            <span class="badge me-1"
+                                  th:classappend="${t.estTalent == null ? 'bg-light text-dark' : (t.estTalent ? 'bg-success' : 'bg-secondary')}"
+                                  th:text="'Talent : ' + ${t.estTalent == null ? 'non statue' : (t.estTalent ? 'oui' : 'non')}"></span>
+                            <span class="badge me-1"
+                                  th:classappend="${t.estHautPotentiel == null ? 'bg-light text-dark' : (t.estHautPotentiel ? 'bg-success' : 'bg-secondary')}"
+                                  th:text="'Haut potentiel : ' + ${t.estHautPotentiel == null ? 'non statue' : (t.estHautPotentiel ? 'oui' : 'non')}"></span>
+                            <span class="badge me-1"
+                                  th:classappend="${t.estVivierSuccession == null ? 'bg-light text-dark' : (t.estVivierSuccession ? 'bg-success' : 'bg-secondary')}"
+                                  th:text="'Vivier de succession : ' + ${t.estVivierSuccession == null ? 'non statue' : (t.estVivierSuccession ? 'oui' : 'non')}"></span>
+                        </p>
+                        <p><strong>Decision comite :</strong>
+                            <span th:text="${t.decisionComiteLibelle ?: 'Non saisie'}"></span></p>
+                        <p class="mb-1"><strong>Viviers :</strong></p>
+                        <p class="text-muted mb-0" th:if="${#lists.isEmpty(t.viviers)}">Aucun vivier.</p>
+                        <ul class="mb-0" th:if="${not #lists.isEmpty(t.viviers)}">
+                            <li th:each="v : ${t.viviers}" th:text="${v.libelle + ' (' + v.origine + ')'}"></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Competences -->
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header"><i class="bi bi-tools"></i> Competences</div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0" th:if="${#lists.isEmpty(fiche.competences)}">Aucune competence.</p>
+                        <div class="table-responsive" th:if="${not #lists.isEmpty(fiche.competences)}">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                <tr><th>Competence</th><th>Niveau requis</th><th>Niveau actuel</th><th>Gap</th><th>Statut</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="c : ${fiche.competences}">
+                                    <td th:text="${c.nom}"></td>
+                                    <td th:text="${c.niveauRequis ?: '-'}"></td>
+                                    <td th:text="${c.niveauActuel ?: '-'}"></td>
+                                    <td th:text="${c.gap ?: '-'}"></td>
+                                    <td th:text="${c.statutLibelle ?: '-'}"></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Successions -->
+            <div class="col-12" th:if="${not #lists.isEmpty(fiche.successions)}">
+                <div class="card shadow-sm">
+                    <div class="card-header"><i class="bi bi-diagram-3"></i> Successions</div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                <tr><th>Poste</th><th>Direction</th><th>Criticite</th><th>Score matching</th><th>Readiness</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="s : ${fiche.successions}">
+                                    <td th:text="${s.nomPoste}"></td>
+                                    <td th:text="${s.direction ?: '-'}"></td>
+                                    <td th:text="${s.criticite ?: '-'}"></td>
+                                    <td th:text="${s.scoreMatching ?: '-'}"></td>
+                                    <td th:text="${s.readinessLibelle ?: '-'}"></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historique -->
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header"><i class="bi bi-clock-history"></i> Historique</div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0" th:if="${#lists.isEmpty(fiche.historique)}">Aucun trimestre precedent.</p>
+                        <div class="table-responsive" th:if="${not #lists.isEmpty(fiche.historique)}">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                <tr><th>Trimestre</th><th>Score performance</th><th>Score potentiel</th><th>Case 9-box</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="h : ${fiche.historique}">
+                                    <td th:text="${h.libelle}"></td>
+                                    <td th:text="${h.scorePerformance ?: '-'}"></td>
+                                    <td th:text="${h.scorePotentiel ?: '-'}"></td>
+                                    <td th:text="${h.neufBox != null ? h.neufBox.numero + ' - ' + h.neufBox.libelle : '-'}"></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-evaluation (ecart = auto - manager) -->
+            <th:block th:if="${fiche.autoEvaluation != null}">
+                <div class="col-lg-6"
+                     th:each="axe : ${ {'Performance', 'Potentiel'} }"
+                     th:with="ev=${axe == 'Performance' ? fiche.autoEvaluation.performance : fiche.autoEvaluation.potentiel}">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header"><i class="bi bi-person-check"></i>
+                            <span th:text="'Auto-evaluation - ' + ${axe}"></span></div>
+                        <div class="card-body">
+                            <p class="text-muted mb-0" th:if="${ev == null}">Pas d'auto-evaluation sur cet axe.</p>
+                            <th:block th:if="${ev != null}">
+                                <p>
+                                    <strong>Auto :</strong> <span th:text="${ev.score ?: '-'}"></span>
+                                    <span class="badge bg-primary ms-1" th:if="${ev.categorieLibelle != null}"
+                                          th:text="${ev.categorieLibelle}"></span>
+                                    &nbsp;|&nbsp; <strong>Manager :</strong> <span th:text="${ev.scoreManager ?: '-'}"></span>
+                                    &nbsp;|&nbsp; <strong>Ecart :</strong>
+                                    <span th:text="${ev.ecart == null ? '-' : (ev.ecart > 0 ? '+' + ev.ecart : ev.ecart)}"
+                                          th:classappend="${ev.ecart != null and ev.ecart > 0} ? 'text-danger' : ''"></span>
+                                </p>
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                    <tr><th>Critere</th><th>Auto</th><th>Manager</th><th>Ecart</th><th>Poids (%)</th></tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="c : ${ev.criteres}">
+                                        <td th:text="${c.libelle}"></td>
+                                        <td th:text="${c.note ?: '-'}"></td>
+                                        <td th:text="${c.noteManager ?: '-'}"></td>
+                                        <td th:text="${c.ecart == null ? '-' : (c.ecart > 0 ? '+' + c.ecart : c.ecart)}"></td>
+                                        <td th:text="${c.poids ?: '-'}"></td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </th:block>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
+
+            <!-- Donnees manquantes -->
+            <div class="col-12" th:if="${not #lists.isEmpty(fiche.donneesManquantes)}">
+                <ul class="small text-muted fst-italic mb-0">
+                    <li th:each="m : ${fiche.donneesManquantes}" th:text="${m}"></li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+</div>
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>
