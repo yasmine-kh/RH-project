@@ -24,6 +24,12 @@
 
         <div class="alert alert-warning mt-4" th:if="${vue.erreur != null}" th:text="${vue.erreur}">Reglages absents</div>
 
+        <!-- Ce que les regles n'ont pas pu faire (ex. : pas de trimestre precedent pour les nouveaux talents). -->
+        <div class="alert alert-light border mt-4 small" th:if="${not #lists.isEmpty(vue.informations)}">
+            <div th:each="information : ${vue.informations}"><i class="bi bi-info-circle"></i>
+                <span th:text="${information}">Nouveaux talents : compares a T2 2026.</span></div>
+        </div>
+
         <!-- Compteurs sur toutes les alertes du trimestre, avant filtres. -->
         <div class="kpi-grid" th:if="${vue.trimestreLibelle != null and vue.erreur == null}">
             <div class="kpi-card kpi-red">

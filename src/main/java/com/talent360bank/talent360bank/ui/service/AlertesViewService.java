@@ -1,5 +1,12 @@
 package com.talent360bank.talent360bank.ui.service;
 
+import java.util.Set;
+import java.util.HashSet;
+import org.springframework.data.domain.Pageable;
+import com.talent360bank.talent360bank.service.TalentService;
+import com.talent360bank.talent360bank.repository.TrimestreRepository;
+import com.talent360bank.talent360bank.repository.ScoreRepository;
+import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Entite;
 import com.talent360bank.talent360bank.entity.Parametre;
@@ -63,7 +70,13 @@ import java.util.stream.Collectors;
  *   (SeuilsAutoEvaluation), via {@link ResultatsCollaborateurs#autoVsManager} ;</li>
  *   <li>talent propose sans decision du Comite : {@link ValidationComiteService} ;</li>
  *   <li>competences en gap Prioritaire : {@link CompetenceCollaborateurService},
- *   les {@link #TOP_GAPS_COMPETENCES} collaborateurs qui en ont le plus.</li>
+ *   les {@link #TOP_GAPS_COMPETENCES} collaborateurs qui en ont le plus ;</li>
+ *   <li>poste critique hors alerte avec exactement {@link #NB_SUCCESSEURS_UN_SEUL}
+ *   successeur : {@link PosteCritiqueService} (meme couverture que l'alerte poste critique) ;</li>
+ *   <li>nouveau talent : talent propose ce trimestre ({@link ValidationComiteService}, qui
+ *   lit les talents de {@link TalentService}) qui ne l'etait pas au dernier trimestre
+ *   precedent ayant des scores, chacun avec ses propres reglages. Sans trimestre precedent,
+ *   aucune alerte et une phrase dans {@link ResultatAlertes#informations()}.</li>
  * </ul>
  *
  * <p><strong>Requetes.</strong> Un nombre fixe quelle que soit la population :
@@ -75,6 +88,28 @@ public class AlertesViewService {
     /** Collaborateurs listes pour les gaps de competences : ceux qui en ont le plus. */
     public static final int TOP_GAPS_COMPETENCES = 10;
 
+    /**
+     * Nombre de successeurs qui declenche "Un seul successeur" (prototype : un seul
+     * successeur identifie). Aucun reglage du Parametre ne le porte : le minimum de
+     * SeuilsCouverture declenche deja l'alerte "Successeurs insuffisants", qui prime.
+     */
+    public static final int NB_SUCCESSEURS_UN_SEUL = 1;
+
+    /** Un cran sous la gravite d'un poste sans successeur (Critique). */
+    public static final SeveriteAlerte SEVERITE_UN_SEUL_SUCCESSEUR = SeveriteAlerte.ELEVEE;
+
+    /** Une information plutot qu'un risque : la gravite la plus basse (le prototype la classe "info"). */
+    public static final SeveriteAlerte SEVERITE_NOUVEAU_TALENT = SeveriteAlerte.MOYENNE;
+
+    /**
+     * Alertes du trimestre et ce que les regles n'ont pas pu faire.
+     *
+     * @param alertes      de la plus grave a la moins grave
+     * @param informations phrases a afficher telles quelles (ex. : pas de trimestre precedent)
+     */
+    public record ResultatAlertes(List<AlerteVue> alertes, List<String> informations) {
+    }
+
     private final CalculService calculService;
     private final CollaborateurRepository collaborateurRepository;
     private final ResultatsCollaborateurs resultats;
@@ -84,13 +119,18 @@ public class AlertesViewService {
     private final PosteCritiqueService posteCritiqueService;
     private final ValidationComiteService validationComiteService;
     private final CompetenceCollaborateurService competenceCollaborateurService;
+    private final TalentService talentService;
+    private final TrimestreRepository trimestreRepository;
+    private final ScoreRepository scoreRepository;
 
     public AlertesViewService(CalculService calculService, CollaborateurRepository collaborateurRepository,
                               ResultatsCollaborateurs resultats, NeufBoxService neufBoxService,
                               Matrice9BoxRepository matrice9BoxRepository, VigilanceService vigilanceService,
                               PosteCritiqueService posteCritiqueService,
                               ValidationComiteService validationComiteService,
-                              CompetenceCollaborateurService competenceCollaborateurService) {
+                              CompetenceCollaborateurService competenceCollaborateurService,
+                              TalentService talentService, TrimestreRepository trimestreRepository,
+                              ScoreRepository scoreRepository) {
         this.calculService = calculService;
         this.collaborateurRepository = collaborateurRepository;
         this.resultats = resultats;
@@ -100,6 +140,9 @@ public class AlertesViewService {
         this.posteCritiqueService = posteCritiqueService;
         this.validationComiteService = validationComiteService;
         this.competenceCollaborateurService = competenceCollaborateurService;
+        this.talentService = talentService;
+        this.trimestreRepository = trimestreRepository;
+        this.scoreRepository = scoreRepository;
     }
 
     /**
@@ -110,7 +153,18 @@ public class AlertesViewService {
      * @throws DonneesIncompletesException   si un reglage necessaire manque
      */
     public List<AlerteVue> alertes(Trimestre trimestre) {
+        return evaluer(trimestre).alertes();
+    }
+
+    /**
+     * Comme {@link #alertes}, avec les informations des regles.
+     *
+     * @throws RessourceIntrouvableException si les reglages du trimestre sont absents
+     * @throws DonneesIncompletesException   si un reglage necessaire manque
+     */
+    public ResultatAlertes evaluer(Trimestre trimestre) {
         Objects.requireNonNull(trimestre, "trimestre");
+        List<String> informations = new ArrayList<>();
         Parametre parametre = calculService.chargerParametre(trimestre);
         Liens liens = new Liens(trimestre);
 
@@ -130,11 +184,13 @@ public class AlertesViewService {
         alertes.addAll(evaluationsManquantes(actifs, groupe, liens));
         alertes.addAll(ecartsAutoManager(groupe, parametre, parMatricule, liens));
 
-        alertes.addAll(talentsSansDecision(trimestre, liens));
+        List<DecisionComite> decisions = validationComiteService.getDecisionsComite(trimestre);
+        alertes.addAll(talentsSansDecision(decisions, liens));
+        alertes.addAll(nouveauxTalents(trimestre, decisions, liens, informations));
         alertes.addAll(gapsCompetences(trimestre, parMatricule, liens));
 
         alertes.sort(Comparator.comparing(AlerteVue::severite).thenComparing(AlerteVue::type));
-        return List.copyOf(alertes);
+        return new ResultatAlertes(List.copyOf(alertes), List.copyOf(informations));
     }
 
     /**
@@ -147,16 +203,17 @@ public class AlertesViewService {
         Filtres filtres = nettoyer(demandes);
         if (trimestre == null) {
             return new AlertesView(null, 0, compteursParType(List.of()), compteursParSeverite(List.of()), List.of(),
-                    List.of(), filtres, null);
+                    List.of(), filtres, List.of(), null);
         }
         String libelle = TrimestreCourantService.libelle(trimestre);
-        List<AlerteVue> toutes;
+        ResultatAlertes resultat;
         try {
-            toutes = alertes(trimestre);
+            resultat = evaluer(trimestre);
         } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
             return new AlertesView(libelle, 0, compteursParType(List.of()), compteursParSeverite(List.of()),
-                    List.of(), List.of(), filtres, e.getMessage());
+                    List.of(), List.of(), filtres, List.of(), e.getMessage());
         }
+        List<AlerteVue> toutes = resultat.alertes();
 
         List<String> directions = toutes.stream().map(AlerteVue::direction).filter(Objects::nonNull)
                 .distinct().sorted().toList();
@@ -169,7 +226,7 @@ public class AlertesViewService {
                         || (alerte.matricule() != null && normaliser(alerte.matricule()).contains(recherche)))
                 .toList();
         return new AlertesView(libelle, toutes.size(), compteursParType(toutes), compteursParSeverite(toutes),
-                filtrees, directions, filtres, null);
+                filtrees, directions, filtres, resultat.informations(), null);
     }
 
     // --- sources --------------------------------------------------------------------
@@ -179,10 +236,20 @@ public class AlertesViewService {
                 : parametre.getSeuilsCouverture().getNbMinSuccesseurs();
         List<AlerteVue> alertes = new ArrayList<>();
         for (CouverturePoste couverture : posteCritiqueService.listerPostesCritiques(trimestre)) {
+            Poste poste = couverture.poste();
             if (!couverture.estEnAlerte()) {
+                // Hors alerte seulement : sous le minimum, "Successeurs insuffisants" le dit deja.
+                if (couverture.nbSuccesseurs() == NB_SUCCESSEURS_UN_SEUL) {
+                    alertes.add(new AlerteVue(TypeAlerte.UN_SEUL_SUCCESSEUR, SEVERITE_UN_SEUL_SUCCESSEUR,
+                            poste.getNomPoste(), poste.getPosteId(), libelle(poste.getEntite()),
+                            poste.getDirection(), "Un seul successeur identifié"
+                            + (couverture.meilleurSuccesseur() == null ? ""
+                            : " (" + couverture.meilleurSuccesseur().candidat().getNomComplet() + ", "
+                            + couverture.meilleurSuccesseur().readiness().getLibelle() + ")"),
+                            liens.postesCritiques(), "Postes critiques"));
+                }
                 continue;
             }
-            Poste poste = couverture.poste();
             boolean aucun = couverture.nbSuccesseurs() == 0;
             alertes.add(new AlerteVue(
                     aucun ? TypeAlerte.POSTE_SANS_SUCCESSEUR : TypeAlerte.POSTE_SOUS_MINIMUM,
@@ -262,9 +329,9 @@ public class AlertesViewService {
         return alertes;
     }
 
-    private List<AlerteVue> talentsSansDecision(Trimestre trimestre, Liens liens) {
+    private List<AlerteVue> talentsSansDecision(List<DecisionComite> decisions, Liens liens) {
         List<AlerteVue> alertes = new ArrayList<>();
-        for (DecisionComite decision : validationComiteService.getDecisionsComite(trimestre)) {
+        for (DecisionComite decision : decisions) {
             if (decision.statut() != StatutValidationComite.EN_ATTENTE) {
                 continue;
             }
@@ -274,6 +341,51 @@ public class AlertesViewService {
                             + ", potentiel " + decision.score().getScorePotentiel().toPlainString()
                             + ") : décision du Comité en attente",
                     liens.comiteEnAttente(), "Comité Talent"));
+        }
+        return alertes;
+    }
+
+    /**
+     * Talents proposes ce trimestre qui ne l'etaient pas au dernier trimestre
+     * precedent ayant des scores (absents de ses scores compris), chaque
+     * trimestre juge avec ses propres reglages (TalentService).
+     */
+    private List<AlerteVue> nouveauxTalents(Trimestre trimestre, List<DecisionComite> decisions, Liens liens,
+                                            List<String> informations) {
+        Set<Integer> avecScores = new HashSet<>(scoreRepository.findIdsTrimestresAvecScores());
+        Trimestre precedent = trimestreRepository.findPrecedents(trimestre.getAnnee(), trimestre.getNumero(),
+                        Pageable.unpaged()).stream()
+                .filter(t -> avecScores.contains(t.getIdTrimestre()))
+                .findFirst()
+                .orElse(null);
+        if (precedent == null) {
+            informations.add("Nouveaux talents : aucun trimestre précédent avec des scores, rien à comparer "
+                    + "(premier trimestre importé).");
+            return List.of();
+        }
+        String libellePrecedent = TrimestreCourantService.libelle(precedent);
+        Map<String, Score> talentsPrecedents;
+        try {
+            talentsPrecedents = talentService.detecterTalents(precedent).stream()
+                    .collect(Collectors.toMap(s -> s.getCollaborateur().getIdCollaborateur(), Function.identity()));
+        } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
+            informations.add("Nouveaux talents : talents de " + libellePrecedent + " non calculables ("
+                    + e.getMessage() + ").");
+            return List.of();
+        }
+        informations.add("Nouveaux talents : comparés à " + libellePrecedent + ".");
+
+        List<AlerteVue> alertes = new ArrayList<>();
+        for (DecisionComite decision : decisions) {
+            Score score = decision.score();
+            if (talentsPrecedents.containsKey(score.getCollaborateur().getIdCollaborateur())) {
+                continue;
+            }
+            alertes.add(alerte(TypeAlerte.NOUVEAU_TALENT, SEVERITE_NOUVEAU_TALENT, score.getCollaborateur(),
+                    "Talent en " + TrimestreCourantService.libelle(trimestre) + " (performance "
+                            + score.getScorePerformance().toPlainString() + ", potentiel "
+                            + score.getScorePotentiel().toPlainString() + "), pas en " + libellePrecedent,
+                    liens.fiche(score.getCollaborateur()), "Fiche collaborateur"));
         }
         return alertes;
     }

@@ -136,21 +136,45 @@ Not shown, because nothing provides them yet: development plans followed / late 
 |---|---|---|---|
 | Poste critique sans successeur | Critique | critical position with 0 identified successor (`PosteCritiqueService`) | position → `/postes-critiques` |
 | Successeurs insuffisants | Élevée | fewer successors than `seuilsCouverture.nbMinSuccesseurs` (`PosteCritiqueService`) | position → `/postes-critiques` |
+| Un seul successeur | Élevée (`SEVERITE_UN_SEUL_SUCCESSEUR`, one level below Critique) | critical position **not already in alert** with exactly `NB_SUCCESSEURS_UN_SEUL` (1) identified successor; under the minimum, "Successeurs insuffisants" is raised instead, never both (`PosteCritiqueService`). No `Parametre` setting carries this count, hence a documented constant | position → `/postes-critiques` |
 | Vigilance élevée | Élevée | level ELEVEE, with index and signals (`VigilanceService`, `EntreesVigilance` rule) | employee → fiche |
 | Évaluation du manager manquante | Élevée | manager performance or potential evaluation missing for an active employee: same rule as the manager view; the message says whether a self-evaluation exists (`ResultatsCollaborateurs`) | employee → manager view (fiche if no manager) |
 | Écart auto-évaluation / manager | Moyenne | self minus manager ≥ `seuilsAutoEvaluation.seuilEcartImportant` (`ResultatsCollaborateurs.autoVsManager`) | employee → manager view |
 | Talent sans décision du Comité | Moyenne | proposed talent with committee status EN_ATTENTE (`ValidationComiteService`) | employee → `/comite-talent?statut=EN_ATTENTE` |
+| Nouveau talent identifié | Moyenne (`SEVERITE_NOUVEAU_TALENT`, the lowest level; the prototype calls it "info") | proposed talent this quarter who was not a talent (or had no score) in the **most recent earlier quarter that has scores**; each quarter judged with its own `seuilsTalent` (`TalentService`). With no earlier quarter, no alert and a sentence in `informations` | employee → fiche |
 | Compétences en gap prioritaire | Moyenne | number of skills with a Prioritaire gap; the `TOP_GAPS_COMPETENCES` (10) employees with the most | employee → fiche |
 
 - Sorted by severity, then type (table order), then each source's order (highest vigilance index first, most gaps first...).
 - Counters (per type, per severity, total) cover all alerts of the quarter; filters (`type`, `severite`, `direction` = direction label, `q` = name or ID, case and accents ignored) only narrow the table. An unknown filter value means "all".
 - The fiche and manager-view links point to the JSON API (`/api/trimestres/{a}/{n}/collaborateurs/{m}/fiche`, `.../managers/{m}/vue`) until those screens exist; they are built in one place (`AlertesViewService.Liens`).
 - Without settings for the quarter, the page shows the reason and no alerts (as the dashboard).
+- `AlertesView.informations` (and `AlertesViewService.evaluer(trimestre).informations()`): what a rule could not do without it being an error, shown above the counters, e.g. "Nouveaux talents : aucun trimestre précédent avec des scores, rien à comparer (premier trimestre importé)." or "Nouveaux talents : comparés à T2 2026."
 - Fixed number of queries whatever the population (`SansSessionOuverteIntegrationTest`).
 
-Not implemented, because no data source exists: late development-plan actions (`11_DEVELOPMENT_PLAN` not imported), the alert lifecycle of the prototype (new / in progress / treated: needs a persisted alert), "compétence stratégique insuffisante" (no critical-skill flag in the reference data), "nouveau talent identifié" (no quarter-to-quarter comparison).
+Not implemented, because no data source exists: late development-plan actions (`11_DEVELOPMENT_PLAN` not imported), the alert lifecycle of the prototype (new / in progress / treated: needs a persisted alert), "compétence stratégique insuffisante" (no critical-skill flag in the reference data).
 
-`AlertesPageIntegrationTest` (H2) covers each type, the counters, the filters, `?trimestre=`, the 404 and the equality with the dashboard panel; `AlertesDatasetTest` checks the workbook (1 position without successor = E10, 10 high vigilance = E15, 23 alerts in total).
+`AlertesPageIntegrationTest` (H2) covers each type, the counters, the filters, `?trimestre=`, the 404 and the equality with the dashboard panel; `AlertesDatasetTest` checks the workbook (1 position without successor = E10, 10 high vigilance = E15, 23 alerts in total). `AlertesNotificationsCampagneDatasetTest` checks the new rules on the workbook (no position with exactly 1 successor in `08`, no new talent with a single quarter) and a two-quarter scenario (BP019 below the talent threshold in T2 → the only new talent of T3).
+
+### Notifications
+
+`ui/service/NotificationsViewService` → `ui/model/Notifications`; `controller/NotificationsController`. Derived from the alerts of the **latest quarter with scores** (`TrimestreCourantService`, like the screens without `?trimestre=`). No table, no read/unread state (one RH user).
+
+- `GET /api/notifications`: `total`, `parSeverite`, `parType` (the Alertes page's counters, by construction: it calls `AlertesViewService.construire` without filter), `alertes` (the first `NB_ALERTES` = 10, most severe first, each with its `lien`), `lienAlertes` (`/alertes?trimestre=…`), `informations`, `erreur`. Always recomputed (the cost of the Alertes page).
+- `GET /api/notifications/badge`, for the layout's bell: {`trimestreLibelle`, `total`, `critiques`, `elevees`, `moyennes`, `lienAlertes`}. It reads the quarter (2 queries) and reuses the last computation of that quarter if it is younger than `DUREE_CACHE` (60 s); otherwise it recomputes. So the badge can lag up to 60 s after an import or a settings change; `/api/notifications` and the Alertes page are always current.
+
+Tests: `NotificationsViewServiceTest` (cache duration), `NotificationsEtCampagneControllerTest` (JSON, 401), `AlertesNotificationsCampagneDatasetTest` (same counters as the Alertes page), `SansSessionOuverteIntegrationTest` (badge = 2 queries).
+
+### Campaign progress
+
+`ui/service/SuiviCampagneViewService` → `ui/model/SuiviCampagne`; `controller/SuiviCampagneController` at `GET /api/trimestres/{annee}/{numero}/campagne[?entite=code]`.
+
+- An active employee is **evaluated** when the manager rated both performance AND potential this quarter (source `MANAGER`): the rule of the "Évaluation du manager manquante" alert, so `nbManquants` = the number of those alerts.
+- Without `entite`: one line per direction (`Sans direction` last). With `entite`: one line per child entité of it, plus "Rattachés directement à …" for those attached to it; unknown code or quarter → 404. `total` covers the whole population (bank or entité).
+- Each line: `nbActifs`, `nbEvalues`, `pourcentageEvalues` (1 decimal), `nbManquants`, `nbAutoEvaluations` (performance or potential with source `AUTO`), `managers` [{`matricule` (null = no manager), `nom`, `nbManquants`, `manquants` (matricules)}], most late first.
+- **Not in the data, so not invented:** campaign dates and status (the workbook has none) and self-evaluations (the workbook import writes `MANAGER` evaluations only: `nbAutoEvaluations` stays 0). `remarques` says so.
+- 6 queries (7 with `entite`) whatever the population.
+
+Tests: `AlertesNotificationsCampagneDatasetTest` (actives and evaluated per direction vs `01` / `02` / `03`, 100 %, a direction's children add up to its total), `NotificationsEtCampagneControllerTest`.
 
 ### Import page
 
@@ -323,6 +347,8 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Vigilance | `GET .../vigilance[?minimum=MODEREE]` (every active employee with at least one vigilance input, with or without a score: same rule as the fiche and the views, `EntreesVigilance`), `GET .../vigilance/{id}` |
 | Skills | `GET /api/collaborateurs/{id}/competences[?annee=&numero=]` (one employee); `GET /api/trimestres/{annee}/{numero}/competences[?entite=&vivier=&poste=&ordre=&top=]` (Compétences module, [below](#competences-module)) |
 | Dashboard | `GET /api/dashboard/synthese` |
+| Notifications | `GET /api/notifications` (counters + 10 alerts), `GET /api/notifications/badge` (bell, cheap) ([below](#notifications)) |
+| Campaign | `GET /api/trimestres/{annee}/{numero}/campagne[?entite=]` ([below](#campaign-progress)) |
 | DG dashboard | `GET /api/dashboard/dg?annee=&numero=[&limite=8]` ([below](#collaborateurs-list-and-dg-dashboard)) |
 | Employee list | `GET /api/trimestres/{annee}/{numero}/collaborateurs` with optional `entite`, `case`, `talent`, `vivier`, `readiness`, `vigilance`, `q`, `tri`, `ordre`, `page`, `taille` ([below](#collaborateurs-list-and-dg-dashboard)) |
 | Quarters | `GET /api/trimestres`, `POST /api/trimestres` (`annee`, `numero`, optional `dateReference`), `PUT /api/trimestres/{annee}/{numero}` (`dateReference`), `POST .../calcul` |
@@ -1134,6 +1160,7 @@ git push -u origin feature/my-change
 - Quarter reference date (`Trimestre.dateReference`): seniority no longer depends on today's date (audit C4).
 - Vigilance list covers every active employee with a vigilance input, scored or not (audit C8). No N+1 in the recalculation or the main pages, LAZY entités, `open-in-view=false` (audit 3.3, 3.4).
 - Real home dashboard (no hard-coded figure, checked against `00_DASHBOARD`), displayed quarter = most recent with scores and `?trimestre=` on every screen (audit 2.3, B5).
+- Alerts "Un seul successeur" and "Nouveau talent identifié", notifications and bell badge (`/api/notifications[/badge]`), campaign progress per direction (`/api/trimestres/{a}/{n}/campagne`).
 - Compétences module (`/api/trimestres/{a}/{n}/competences`: per skill, top gaps, what each critical position's successors lack), checked against `06`, `07`, `09` and G10.
 - Employee list (filters, sort, pagination: `/api/trimestres/{a}/{n}/collaborateurs`) and DG dashboard (`/api/dashboard/dg`), checked against the workbook.
 - Largest gap per successor (`09_SUCCESSION!M`), every successor of each critical position, pool summaries (`/api/viviers/synthese`) and target post per employee (`/api/trimestres/{a}/{n}/postes-cibles`, fiche `posteCible`), checked against the workbook.

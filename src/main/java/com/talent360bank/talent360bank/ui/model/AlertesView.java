@@ -13,10 +13,13 @@ import java.util.List;
  * @param alertes          alertes filtrees, de la plus grave a la moins grave
  * @param directions       directions presentes dans les alertes, pour le filtre
  * @param filtres          filtres appliques, a recopier dans le formulaire
+ * @param informations     ce que les regles n'ont pas pu faire, sans etre une erreur (ex. : pas de
+ *                         trimestre precedent pour reperer les nouveaux talents) ; vide sinon
  * @param erreur           reglages absents ou incomplets : rien n'est calculable ; sinon null
  */
 public record AlertesView(String trimestreLibelle, int total, List<Compteur> parType, List<Compteur> parSeverite,
-                          List<AlerteVue> alertes, List<String> directions, Filtres filtres, String erreur) {
+                          List<AlerteVue> alertes, List<String> directions, Filtres filtres,
+                          List<String> informations, String erreur) {
 
     /**
      * @param badgeClass classe Bootstrap du badge (gravite), null pour un type
