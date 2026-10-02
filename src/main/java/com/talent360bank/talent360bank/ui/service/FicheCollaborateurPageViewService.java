@@ -34,4 +34,13 @@ public class FicheCollaborateurPageViewService {
         return ficheCollaborateurViewService.construire(matricule,
                 dernierTrimestre.getAnnee(), dernierTrimestre.getNumero());
     }
+
+    /**
+     * Fiche du collaborateur sur un trimestre donne (lien venant d'un autre ecran).
+     *
+     * @throws RessourceIntrouvableException si le matricule est inconnu
+     */
+    public FicheCollaborateur construire(String matricule, Trimestre trimestre) {
+        return ficheCollaborateurViewService.construire(matricule, trimestre.getAnnee(), trimestre.getNumero());
+    }
 }

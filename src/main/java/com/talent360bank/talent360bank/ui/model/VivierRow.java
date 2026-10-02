@@ -8,6 +8,7 @@ import java.math.BigDecimal;
  */
 public class VivierRow {
 
+    private final String matricule;
     private final String nom;
     private final String prenom;
     private final String poste;
@@ -16,8 +17,9 @@ public class VivierRow {
     private final BigDecimal performance;
     private final String categorieVivier;
 
-    public VivierRow(String nom, String prenom, String poste, String departement,
+    public VivierRow(String matricule, String nom, String prenom, String poste, String departement,
                      BigDecimal potentiel, BigDecimal performance, String categorieVivier) {
+        this.matricule = matricule;
         this.nom = nom;
         this.prenom = prenom;
         this.poste = poste;
@@ -25,6 +27,11 @@ public class VivierRow {
         this.potentiel = potentiel;
         this.performance = performance;
         this.categorieVivier = categorieVivier;
+    }
+
+    /** Matricule : le lien vers la fiche du collaborateur. */
+    public String getMatricule() {
+        return matricule;
     }
 
     public String getNom() {

@@ -24,6 +24,8 @@
 
         <div class="alert alert-warning mt-4" th:if="${vue.erreur != null}" th:text="${vue.erreur}">Reglages absents</div>
 
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
         <!-- Ce que les regles n'ont pas pu faire (ex. : pas de trimestre precedent pour les nouveaux talents). -->
         <div class="alert alert-light border mt-4 small" th:if="${not #lists.isEmpty(vue.informations)}">
             <div th:each="information : ${vue.informations}"><i class="bi bi-info-circle"></i>

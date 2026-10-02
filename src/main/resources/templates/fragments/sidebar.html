@@ -17,6 +17,12 @@
         <a href="/" class="nav-item" th:classappend="${active == 'accueil'} ? 'active'">
             <i class="bi bi-house"></i><span>Accueil</span>
         </a>
+        <a href="/dashboard-dg" class="nav-item" th:classappend="${active == 'dashboard-dg'} ? 'active'">
+            <i class="bi bi-speedometer2"></i><span>Dashboard DG</span>
+        </a>
+        <a href="/collaborateurs" class="nav-item" th:classappend="${active == 'collaborateurs'} ? 'active'">
+            <i class="bi bi-person-lines-fill"></i><span>Collaborateurs</span>
+        </a>
         <a href="/9box" class="nav-item" th:classappend="${active == '9box'} ? 'active'">
             <i class="bi bi-grid-3x3"></i><span>9-Box</span>
         </a>
@@ -26,6 +32,9 @@
         <a href="/postes-critiques" class="nav-item" th:classappend="${active == 'postes-critiques'} ? 'active'">
             <i class="bi bi-exclamation-triangle"></i><span>Postes critiques</span>
         </a>
+        <a href="/competences" class="nav-item" th:classappend="${active == 'competences'} ? 'active'">
+            <i class="bi bi-mortarboard"></i><span>Compétences</span>
+        </a>
         <a href="/comite-talent" class="nav-item" th:classappend="${active == 'comite-talent'} ? 'active'">
             <i class="bi bi-person-badge"></i><span>Comite Talent</span>
         </a>
@@ -34,6 +43,12 @@
         </a>
         <a href="/alertes" class="nav-item" th:classappend="${active == 'alertes'} ? 'active'">
             <i class="bi bi-bell"></i><span>Alertes</span>
+        </a>
+        <a href="/notifications" class="nav-item" th:classappend="${active == 'notifications'} ? 'active'">
+            <i class="bi bi-envelope"></i><span>Notifications</span>
+        </a>
+        <a href="/campagne" class="nav-item" th:classappend="${active == 'campagne'} ? 'active'">
+            <i class="bi bi-clipboard-check"></i><span>Campagne</span>
         </a>
         <a href="/import" class="nav-item" th:classappend="${active == 'import'} ? 'active'">
             <i class="bi bi-upload"></i><span>Import</span>

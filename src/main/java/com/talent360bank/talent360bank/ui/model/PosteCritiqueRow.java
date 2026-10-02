@@ -12,6 +12,7 @@ import java.util.List;
  */
 public class PosteCritiqueRow {
 
+    private final String posteId;
     private final String nomPoste;
     private final String direction;
     private final String criticite;
@@ -35,9 +36,10 @@ public class PosteCritiqueRow {
                                 String readinessLibelle, String gapCompetence, int gapNiveaux) {
     }
 
-    public PosteCritiqueRow(String nomPoste, String direction, String criticite, String titulaire,
+    public PosteCritiqueRow(String posteId, String nomPoste, String direction, String criticite, String titulaire,
                             int nbSuccesseurs, String candidatPotentiel, BigDecimal scoreMatching,
                             String statut, boolean enAlerte, List<SuccesseurRow> successeurs) {
+        this.posteId = posteId;
         this.nomPoste = nomPoste;
         this.direction = direction;
         this.criticite = criticite;
@@ -48,6 +50,11 @@ public class PosteCritiqueRow {
         this.statut = statut;
         this.enAlerte = enAlerte;
         this.successeurs = List.copyOf(successeurs);
+    }
+
+    /** Poste_ID : l'ancre de la ligne ({@code #poste-<Poste_ID>}) pour les liens des autres ecrans. */
+    public String getPosteId() {
+        return posteId;
     }
 
     public String getNomPoste() {

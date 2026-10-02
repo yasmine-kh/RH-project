@@ -70,16 +70,25 @@ The rule is simple: **the engine must produce the same results as the workbook.*
 
 ### Screens
 
+Sidebar order: Accueil, Dashboard DG, Collaborateurs, 9-Box, Viviers, Postes critiques, Compétences, Comité Talent, Fiche collaborateur, Alertes, Notifications, Campagne, Import, Paramètres. Every screen by quarter has the quarter selector (`?trimestre=AAAA-N`) and, when no quarter exists yet, the same empty state with a link to `/import` (`fragments/commun.html` : `aucunTrimestre`, `choixTrimestre`). Text is always rendered with `th:text` (never `th:utext`, checked by `PagesSansTrimestreTest`).
+
 | URL | Status | What HR does there |
 |---|---|---|
-| `/` | Working | Home dashboard ([below](#home-dashboard)): 13 indicator cards, the 9-Box counts, vigilance by level, priority alerts and the thematic pools, all from the engine for the displayed quarter. Quarter selector |
-| `/9box` | Working | Sees the 3×3 matrix for the displayed quarter, with the names in each box. |
-| `/viviers` | Working | Sees the pool members (currently the relief pool saved by the engine) with their scores. |
+| `/` | Working | Home dashboard ([below](#home-dashboard)): the `00_DASHBOARD` blocks (key figures, 9-Box distribution by category, critical positions without successor) plus vigilance by level, priority alerts and the thematic pools. Quarter selector |
+| `/dashboard-dg` | Working | DG dashboard: the home dashboard's cards and 9-Box, top talents (perf + pot) with their target post, every critical position with successors, Ready Now, best successor and coverage. `ModulesPagesController` → `TableauDeBordDgViewService` → `templates/dashboard-dg.html` |
+| `/collaborateurs` | Working | Employee list: filters (entité with subtree, 9-Box case, talent, pool, readiness, vigilance, name/matricule), sort by clicking the column headers (name, performance, potential, matching, vigilance), 20 rows per page; each name links to the fiche. `ListeCollaborateursViewService` → `templates/collaborateurs.html` |
+| `/9box` | Working | The 3×3 matrix (`fragments/matrice9box.html`, shared with `/` and `/dashboard-dg`): potential on X (low → high, left to right), performance on Y (low → high, bottom to top), case number + label, count, % of the population, colour by zone; up to 6 names per box linking to the fiche, then "+N autres"; the box header opens `/collaborateurs?case=N`. Names hidden on a phone. Quarter selector |
+| `/viviers` | Working | One card per thematic pool then the relief pool (`VivierSyntheseService`: members, talents, high potentials, Ready Now, averages, positions covered, gaps identified), then the saved pool members. Quarter selector |
+| `/postes-critiques` | Working | Every critical position of the displayed quarter: direction, criticality, holder, number of successors, best candidate and matching, coverage status, and under each position **all** its successors (matching, readiness, largest gap). Quarter selector. `PosteCritiqueViewService` → `templates/postes-critiques.html` |
+| `/competences` | Working | Per-skill table sorted by average gap (current / target / gap averages, with a gap, Prioritaire, level distribution as small bars), the top gaps, and each critical position's requirements against its successors; filters entité, pool, critical position. `CompetenceSyntheseService` → `templates/competences.html` |
 | `/comite-talent` | Working | Chooses a quarter and a committee status; sees the "Talents validés (Comité)" indicator and the table of proposed talents with scores, categories, 9-Box box and a coloured status badge. |
-| `/postes-critiques` | Working | Sees every critical position of the displayed quarter: direction, criticality, holder, number of successors, best candidate and matching score, coverage status (rows in alert highlighted). `PosteCritiqueViewService` → `templates/postes-critiques.html`. |
 | `/alertes` | Working | Alerts of the displayed quarter ([below](#alerts)), computed on the fly by the engine: counters per type and severity, table sorted by severity, filters by type, severity, direction and name. Quarter selector |
-| `/import` | Working | Uploads the dataset workbook (.xlsx) for a quarter, with simulation, "calculate after import" and an optional reference date; sees the report (status, rows per sheet, rejected rows with sheet + Excel row + reason, deactivations, calculation result or error, link to the quarter's dashboard) and the last 20 imports. [Below](#import-page). Not in the sidebar yet |
+| `/notifications` | Working | Counters per severity and type and the 10 most severe alerts with their links (`NotificationsViewService`, same figures as `/alertes`). `templates/notifications.html` |
+| `/campagne` | Working | Evaluation progress per direction (progress bars), click a direction to see its child entités, managers with missing evaluations, and what the data cannot show (`remarques`). `SuiviCampagneViewService` → `templates/campagne.html` |
+| `/import` | Working | Uploads the dataset workbook (.xlsx) for a quarter, with simulation, "calculate after import" and an optional reference date; sees the report (status, rows per sheet, rejected rows with sheet + Excel row + reason, deactivations, calculation result or error, link to the quarter's dashboard) and the last 20 imports. [Below](#import-page) |
 | `/parametres` | Placeholder | — (settings are editable through the API only; see [`requetes-ecriture.md`](requetes-ecriture.md)) |
+
+The five new screens (`/dashboard-dg`, `/collaborateurs`, `/competences`, `/notifications`, `/campagne`) are served by `ui/controller/ModulesPagesController`, which only reads the filters and builds the pagination / sort links; the filter menus come from `ui/service/OptionsFiltresService`. Each one calls its view service directly (the same as its JSON endpoint). A fixed number of queries whatever the population (`SansSessionOuverteIntegrationTest`); `ModulesPagesDatasetTest` checks every screen on the workbook.
 
 All screens are read-only except `/import`. Everything else is available through the REST API (`/api/...`), listed in [section 3](#rest-api).
 
@@ -122,9 +131,9 @@ A selector is a GET form with a `<select name="trimestre">`, as on `dashboard.ht
 | Compétences en gap prioritaire | skills of active employees whose gap reaches the quarter's threshold | G10 |
 | Engagement moyen /100 (N réponses) | average questionnaire score of active employees | — |
 
-Below the cards: the 9-Box counts (with placed / not placed), vigilance by level and the number of active employees without vigilance input, the 6 first **priority alerts** (the same list as [`/alertes`](#alerts), from the same `AlertesViewService`, so the total always matches the page), and one row per thematic pool (members, average performance and potential, talents, members Ready Now on a critical position, critical positions covered by a member). Without settings for the quarter, only the active employees and the engagement are shown, with the reason.
+Below the cards: the 9-Box counts (with placed / not placed) and the same counts as a table by category (`00_DASHBOARD` block 2), vigilance by level and the number of active employees without vigilance input, the 6 first **priority alerts** (the same list as [`/alertes`](#alerts), from the same `AlertesViewService`, so the total always matches the page), and one row per thematic pool (members, average performance and potential, talents, members Ready Now on a critical position, critical positions covered by a member). Then the critical positions without any identified successor, with Poste_ID, name and direction (`00_DASHBOARD` block 3, `TableauDeBordView.postesSansSuccesseur`). Without settings for the quarter, only the active employees and the engagement are shown, with the reason.
 
-Not shown, because nothing provides them yet: development plans followed / late (`00_DASHBOARD` A15, C15: `11_DEVELOPMENT_PLAN` is not imported), the pools' "last review" date, a CSV export.
+Not shown, because nothing provides them yet: development plans followed / late (`00_DASHBOARD` A15, C15: `11_DEVELOPMENT_PLAN` is not imported; the page says so under the positions block), the pools' "last review" date, a CSV export. The coverage rate shows 93.33 % where `00_DASHBOARD` A10 rounds to 93 (audit D8, open question).
 
 `TableauDeBordDatasetTest` checks every card that exists in `00_DASHBOARD` and the 9-Box counts against the workbook; `TableauDeBordPageIntegrationTest` checks every card against the engine on H2.
 
@@ -146,7 +155,7 @@ Not shown, because nothing provides them yet: development plans followed / late 
 
 - Sorted by severity, then type (table order), then each source's order (highest vigilance index first, most gaps first...).
 - Counters (per type, per severity, total) cover all alerts of the quarter; filters (`type`, `severite`, `direction` = direction label, `q` = name or ID, case and accents ignored) only narrow the table. An unknown filter value means "all".
-- The fiche and manager-view links point to the JSON API (`/api/trimestres/{a}/{n}/collaborateurs/{m}/fiche`, `.../managers/{m}/vue`) until those screens exist; they are built in one place (`AlertesViewService.Liens`).
+- Links always point to pages, never to `/api/**` (checked on every page by `LiensEtMatriceDatasetTest`): a person → `/fiche-collaborateur?matricule=…&trimestre=…` (the Fiche page honours `trimestre`), a position → `/postes-critiques?trimestre=…#poste-<Poste_ID>`. The manager-related alerts lead to the employee's fiche (the manager view has no screen). Built in one place (`AlertesViewService.Liens`).
 - Without settings for the quarter, the page shows the reason and no alerts (as the dashboard).
 - `AlertesView.informations` (and `AlertesViewService.evaluer(trimestre).informations()`): what a rule could not do without it being an error, shown above the counters, e.g. "Nouveaux talents : aucun trimestre précédent avec des scores, rien à comparer (premier trimestre importé)." or "Nouveaux talents : comparés à T2 2026."
 - Fixed number of queries whatever the population (`SansSessionOuverteIntegrationTest`).
@@ -1181,8 +1190,7 @@ git push -u origin feature/my-change
 - Screens still to build: Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)). `/import` needs an entry in the sidebar (Ima).
 - Import (Dou): lock `POST /api/imports` like the page does (B6); avoid the empty quarter left by a failed import (B5); fill `ImportExcel.utilisateur` (the history's "Utilisateur" column stays empty until then).
 - Serve Bootstrap and its icons locally, so the app works offline.
-- `/viviers` shows only saved pools; the five thematic pools and the relief pool, with their figures, are in `GET /api/viviers/synthese` (`VivierSyntheseService`).
-- `/postes-critiques`: `PosteCritiqueRow.successeurs` lists every successor (matching, readiness, largest gap); the fiche has `posteCible`.
+- Fiche page: show `posteCible` and `successions[].gapCompetence` (the model has them).
 - Page tests for `/`, `/9box`, `/viviers`.
 
 **Jas — engine and platform**

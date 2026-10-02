@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Notifications</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('notifications')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Notifications</h1>
+            <p class="text-muted" th:if="${vue != null}"
+               th:text="|Résumé des alertes - ${vue.trimestreLibelle}|">Résumé des alertes - T3 2026</p>
+        </header>
+
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
+        <form method="get" action="/notifications" class="filtre-bar" th:if="${trimestre != null}">
+            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
+        </form>
+
+        <th:block th:if="${vue != null}">
+            <div class="alert alert-warning mt-4" th:if="${vue.erreur != null}" th:text="${vue.erreur}">Reglages absents</div>
+            <div class="alert alert-light border mt-4 small" th:if="${not #lists.isEmpty(vue.informations)}">
+                <div th:each="information : ${vue.informations}"><i class="bi bi-info-circle"></i>
+                    <span th:text="${information}">Information</span></div>
+            </div>
+
+            <div class="kpi-grid" th:if="${vue.erreur == null}">
+                <div class="kpi-card kpi-red">
+                    <div class="kpi-icon"><i class="bi bi-bell"></i></div>
+                    <div class="kpi-body">
+                        <div class="kpi-value" th:text="${vue.total}">0</div>
+                        <div class="kpi-label">Alertes</div>
+                    </div>
+                </div>
+                <div class="kpi-card" th:each="compteur : ${vue.parSeverite}"
+                     th:classappend="${compteur.code == 'CRITIQUE'} ? 'kpi-red' : (${compteur.code == 'ELEVEE'} ? 'kpi-orange' : 'kpi-blue')">
+                    <div class="kpi-icon"><i class="bi bi-exclamation-circle"></i></div>
+                    <div class="kpi-body">
+                        <div class="kpi-value" th:text="${compteur.nombre}">0</div>
+                        <div class="kpi-label" th:text="${compteur.libelle}">Critique</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3" th:if="${vue.erreur == null}">
+                <a th:each="compteur : ${vue.parType}" class="badge text-bg-light border text-decoration-none"
+                   th:href="@{/alertes(trimestre=${trimestre.valeur}, type=${compteur.code})}"
+                   th:text="|${compteur.libelle} : ${compteur.nombre}|">Vigilance elevee : 3</a>
+            </div>
+
+            <section class="mt-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="h6 mb-0">Les alertes les plus graves</h2>
+                    <a th:if="${vue.lienAlertes != null}" th:href="${vue.lienAlertes}" class="small">Toutes les alertes</a>
+                </div>
+                <p class="text-muted mt-2" th:if="${#lists.isEmpty(vue.alertes)}">Aucune alerte.</p>
+                <div class="list-group mt-2" th:if="${not #lists.isEmpty(vue.alertes)}">
+                    <div class="list-group-item d-flex justify-content-between align-items-start gap-3"
+                         th:each="alerte : ${vue.alertes}">
+                        <div>
+                            <span class="badge me-1" th:classappend="${alerte.severite.badgeClass}"
+                                  th:text="${alerte.severite.libelle}">Critique</span>
+                            <strong th:text="${alerte.type.libelle}">Type</strong>
+                            <span th:text="|- ${alerte.sujet}|">- Sujet</span>
+                            <div class="small text-muted" th:text="${alerte.message}">Message</div>
+                        </div>
+                        <a class="small text-nowrap" th:href="${alerte.lien}" th:text="${alerte.lienLibelle}">Fiche</a>
+                    </div>
+                </div>
+            </section>
+        </th:block>
+    </main>
+
+</div>
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

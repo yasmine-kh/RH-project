@@ -1,5 +1,7 @@
 package com.talent360bank.talent360bank.ui.service;
 
+import com.talent360bank.talent360bank.ui.model.MatriceNeufBox;
+import org.springframework.web.util.UriComponentsBuilder;
 import java.util.Set;
 import java.util.HashSet;
 import org.springframework.data.domain.Pageable;
@@ -172,7 +174,7 @@ public class AlertesViewService {
         alertes.addAll(postesCritiques(trimestre, parametre, liens));
         alertes.addAll(vigilance(trimestre, liens));
 
-        // Actifs avec manager, entite et parents en une requete : les liens "Vue manager"
+        // Actifs avec manager, entite et parents en une requete : les liens
         // et les entites se lisent sans requete par collaborateur.
         List<Collaborateur> actifs = collaborateurRepository.findAllAvecManager().stream()
                 .filter(Collaborateur::estCalculable)
@@ -246,7 +248,7 @@ public class AlertesViewService {
                             + (couverture.meilleurSuccesseur() == null ? ""
                             : " (" + couverture.meilleurSuccesseur().candidat().getNomComplet() + ", "
                             + couverture.meilleurSuccesseur().readiness().getLibelle() + ")"),
-                            liens.postesCritiques(), "Postes critiques"));
+                            liens.posteCritique(poste.getPosteId()), "Postes critiques"));
                 }
                 continue;
             }
@@ -258,7 +260,7 @@ public class AlertesViewService {
                     aucun ? "Aucun successeur identifié"
                             : couverture.nbSuccesseurs() + " successeur(s) identifié(s), minimum "
                             + (minimum == null ? "non configuré" : minimum),
-                    liens.postesCritiques(), "Postes critiques"));
+                    liens.posteCritique(poste.getPosteId()), "Postes critiques"));
         }
         return alertes;
     }
@@ -305,7 +307,7 @@ public class AlertesViewService {
                 message = "Évaluation de " + (performance ? "potentiel" : "performance") + " du manager manquante"
                         + (auto ? " (auto-évaluation reçue)" : "");
             }
-            alertes.add(versManager(TypeAlerte.EVALUATION_MANAGER_MANQUANTE, SeveriteAlerte.ELEVEE,
+            alertes.add(versFiche(TypeAlerte.EVALUATION_MANAGER_MANQUANTE, SeveriteAlerte.ELEVEE,
                     collaborateur, message, liens));
         }
         return alertes;
@@ -320,7 +322,7 @@ public class AlertesViewService {
         List<AlerteVue> alertes = new ArrayList<>();
         for (EcartAutoManager ecart : synthese.ecartsImportants()) {
             Collaborateur collaborateur = parMatricule.get(ecart.matricule());
-            alertes.add(versManager(TypeAlerte.ECART_AUTO_MANAGER, SeveriteAlerte.MOYENNE, collaborateur,
+            alertes.add(versFiche(TypeAlerte.ECART_AUTO_MANAGER, SeveriteAlerte.MOYENNE, collaborateur,
                     "Auto-évaluation - manager : performance " + signe(ecart.ecartPerformance()) + ", potentiel "
                             + signe(ecart.ecartPotentiel()) + " (seuil "
                             + synthese.seuilEcartImportant().stripTrailingZeros().toPlainString() + " points)",
@@ -414,13 +416,13 @@ public class AlertesViewService {
                 libelle(collaborateur.getEntite()), collaborateur.getDirection(), message, lien, lienLibelle);
     }
 
-    /** Vers la vue manager du manager du collaborateur ; sans manager, vers sa fiche. */
-    private static AlerteVue versManager(TypeAlerte type, SeveriteAlerte severite, Collaborateur collaborateur,
-                                         String message, Liens liens) {
-        return collaborateur.getManager() == null
-                ? alerte(type, severite, collaborateur, message, liens.fiche(collaborateur), "Fiche collaborateur")
-                : alerte(type, severite, collaborateur, message,
-                liens.vueManager(collaborateur.getManager().getIdCollaborateur()), "Vue manager");
+    /**
+     * Vers la fiche du collaborateur concerne (page). La vue manager n'a pas
+     * d'ecran : aucun lien d'une page ne mene a l'API.
+     */
+    private static AlerteVue versFiche(TypeAlerte type, SeveriteAlerte severite, Collaborateur collaborateur,
+                                       String message, Liens liens) {
+        return alerte(type, severite, collaborateur, message, liens.fiche(collaborateur), "Fiche collaborateur");
     }
 
     private static String libelle(Entite entite) {
@@ -488,28 +490,23 @@ public class AlertesViewService {
     }
 
     /**
-     * Liens des alertes, pour le trimestre affiche. La fiche collaborateur et la
-     * vue manager n'ont pas encore d'ecran : les liens menent a leur API (JSON).
-     * A remplacer ici, en un seul endroit, quand les pages existeront.
+     * Liens des alertes vers les pages, pour le trimestre affiche : jamais vers
+     * l'API (JSON). Une personne mene a sa fiche, un poste a sa ligne de l'ecran
+     * Postes critiques (ancre {@code #poste-<Poste_ID>}).
      */
-    private record Liens(String annee, String numero, String valeur) {
+    private record Liens(String valeur) {
 
         Liens(Trimestre trimestre) {
-            this(String.valueOf(trimestre.getAnnee()), String.valueOf(trimestre.getNumero()),
-                    TrimestreCourantService.valeur(trimestre));
+            this(TrimestreCourantService.valeur(trimestre));
         }
 
         String fiche(Collaborateur collaborateur) {
-            return "/api/trimestres/" + annee + "/" + numero + "/collaborateurs/"
-                    + collaborateur.getIdCollaborateur() + "/fiche";
+            return MatriceNeufBox.lienFiche(collaborateur.getIdCollaborateur(), valeur);
         }
 
-        String vueManager(String matriculeManager) {
-            return "/api/trimestres/" + annee + "/" + numero + "/managers/" + matriculeManager + "/vue";
-        }
-
-        String postesCritiques() {
-            return "/postes-critiques?trimestre=" + valeur;
+        String posteCritique(String posteId) {
+            return UriComponentsBuilder.fromPath("/postes-critiques").queryParam("trimestre", valeur)
+                    .fragment("poste-" + posteId).encode().build().toUriString();
         }
 
         String comiteEnAttente() {

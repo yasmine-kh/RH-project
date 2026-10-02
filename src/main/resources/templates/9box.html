@@ -17,16 +17,23 @@
     <main class="main-content">
         <header class="page-header">
             <h1>Matrice 9-Box</h1>
-            <p class="text-muted">Performance (bas -&gt; haut) x Potentiel (gauche -&gt; droite)</p>
+            <p class="text-muted" th:if="${trimestre != null}"
+               th:text="|Performance (en bas faible, en haut élevée) x Potentiel (à gauche faible, à droite élevé) - ${trimestre.libelle}|">
+                Performance x Potentiel</p>
         </header>
 
-        <div class="ninebox-grid">
-            <div class="ninebox-cell" th:each="cell : ${cells}">
-                <div class="ninebox-cell-title" th:text="${cell.categorie}">Categorie</div>
-                <div class="ninebox-cell-count" th:text="${cell.nombreCollaborateurs} + ' collaborateur(s)'">0</div>
-                <ul class="ninebox-cell-list">
-                    <li th:each="nom : ${cell.collaborateurs}" th:text="${nom}">Nom</li>
-                </ul>
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
+        <form method="get" action="/9box" class="filtre-bar" th:if="${trimestre != null}">
+            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
+        </form>
+
+        <div class="card shadow-sm mt-3" th:if="${trimestre != null}">
+            <div class="card-body">
+                <div th:replace="~{fragments/matrice9box :: matrice(${matrice})}"></div>
+                <p class="small text-muted mt-2 mb-0">Cliquer sur l'en-tête d'une case ouvre la liste de ses collaborateurs ;
+                    un nom ouvre sa fiche.</p>
             </div>
         </div>
     </main>

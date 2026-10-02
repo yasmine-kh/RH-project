@@ -1,6 +1,9 @@
 package com.talent360bank.talent360bank.ui.controller;
 
+import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
+import com.talent360bank.talent360bank.service.VivierSyntheseService;
+import com.talent360bank.talent360bank.service.resultat.SyntheseVivier;
 import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
 import com.talent360bank.talent360bank.ui.service.FicheCollaborateurPageViewService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
@@ -11,6 +14,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.List;
 
 /**
  * Ecrans 9-Box, Viviers, Postes critiques, Comite Talent, Fiche collaborateur
@@ -32,18 +37,21 @@ public class PagesController {
     private final PosteCritiqueViewService posteCritiqueViewService;
     private final TrimestreCourantService trimestreCourant;
     private final FicheCollaborateurPageViewService ficheCollaborateurPageViewService;
+    private final VivierSyntheseService vivierSyntheseService;
 
     public PagesController(NineBoxViewService nineBoxViewService, VivierService vivierService,
                            ComiteTalentViewService comiteTalentViewService,
                            PosteCritiqueViewService posteCritiqueViewService,
                            TrimestreCourantService trimestreCourant,
-                           FicheCollaborateurPageViewService ficheCollaborateurPageViewService) {
+                           FicheCollaborateurPageViewService ficheCollaborateurPageViewService,
+                           VivierSyntheseService vivierSyntheseService) {
         this.nineBoxViewService = nineBoxViewService;
         this.vivierService = vivierService;
         this.comiteTalentViewService = comiteTalentViewService;
         this.posteCritiqueViewService = posteCritiqueViewService;
         this.trimestreCourant = trimestreCourant;
         this.ficheCollaborateurPageViewService = ficheCollaborateurPageViewService;
+        this.vivierSyntheseService = vivierSyntheseService;
     }
 
     @GetMapping("/9box")
@@ -51,7 +59,7 @@ public class PagesController {
                           Model model) {
         TrimestreCourantService.Selection selection = trimestreCourant.selectionner(trimestre);
         selection.exposer(model);
-        model.addAttribute("cells", nineBoxViewService.buildGrid(selection.trimestre()));
+        model.addAttribute("matrice", nineBoxViewService.buildMatrice(selection.trimestre()));
         model.addAttribute("activePage", "9box");
         return "9box";
     }
@@ -62,6 +70,16 @@ public class PagesController {
         TrimestreCourantService.Selection selection = trimestreCourant.selectionner(trimestre);
         selection.exposer(model);
         model.addAttribute("rows", vivierService.buildRows(selection.trimestre()));
+        // Une carte par vivier thematique puis le vivier de releve (VivierSyntheseService, Jas).
+        List<SyntheseVivier> syntheses = List.of();
+        if (selection.trimestre() != null) {
+            try {
+                syntheses = vivierSyntheseService.synthese(selection.trimestre());
+            } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
+                model.addAttribute("erreur", e.getMessage());
+            }
+        }
+        model.addAttribute("syntheses", syntheses);
         model.addAttribute("activePage", "viviers");
         return "viviers";
     }
@@ -88,10 +106,15 @@ public class PagesController {
     }
 
     @GetMapping("/fiche-collaborateur")
-    public String ficheCollaborateur(@RequestParam(required = false) String matricule, Model model) {
+    public String ficheCollaborateur(@RequestParam(required = false) String matricule,
+                                     @RequestParam(required = false) String trimestre, Model model) {
         if (matricule != null && !matricule.isBlank()) {
             try {
-                model.addAttribute("fiche", ficheCollaborateurPageViewService.construire(matricule.trim()));
+                // ?trimestre=AAAA-N (liens des autres ecrans) : ce trimestre ; sinon le plus recent.
+                model.addAttribute("fiche", trimestre == null || trimestre.isBlank()
+                        ? ficheCollaborateurPageViewService.construire(matricule.trim())
+                        : ficheCollaborateurPageViewService.construire(matricule.trim(),
+                        trimestreCourant.selectionner(trimestre).trimestre()));
             } catch (RessourceIntrouvableException e) {
                 model.addAttribute("erreur", e.getMessage());
             }

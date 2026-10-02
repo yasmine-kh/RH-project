@@ -201,7 +201,7 @@ class AlertesPageIntegrationTest {
         AlerteVue pa = parSujet.get("POSTE_SANS_SUCCESSEUR/PA");
         assertThat(pa.sujet()).isEqualTo("Directeur regional");
         assertThat(pa.direction()).isEqualTo("Reseau Retail");
-        assertThat(pa.lien()).isEqualTo("/postes-critiques?trimestre=2026-1");
+        assertThat(pa.lien()).isEqualTo("/postes-critiques?trimestre=2026-1#poste-PA");
         assertThat(parSujet.get("POSTE_SOUS_MINIMUM/PB").message()).contains("1 successeur", "minimum 2");
 
         AlerteVue a06 = parSujet.get("VIGILANCE_ELEVEE/A06");
@@ -209,17 +209,18 @@ class AlertesPageIntegrationTest {
         assertThat(a06.entite()).isEqualTo("Agence Centre");
         assertThat(a06.direction()).isEqualTo("Reseau Retail");
         assertThat(a06.message()).contains("60", "Engagement faible");
-        assertThat(a06.lien()).isEqualTo("/api/trimestres/2026/1/collaborateurs/A06/fiche");
+        assertThat(a06.lien()).isEqualTo("/fiche-collaborateur?matricule=A06&trimestre=2026-1");
 
         assertThat(parSujet.get("EVALUATION_MANAGER_MANQUANTE/A03").message()).contains("Auto-évaluation seule");
         assertThat(parSujet.get("EVALUATION_MANAGER_MANQUANTE/A04").message()).contains("potentiel");
         assertThat(parSujet.get("EVALUATION_MANAGER_MANQUANTE/A05").message()).contains("Aucune évaluation");
+        // La vue manager n'a pas d'ecran : la fiche (page) du collaborateur concerne.
         assertThat(parSujet.get("EVALUATION_MANAGER_MANQUANTE/A05").lien())
-                .isEqualTo("/api/trimestres/2026/1/managers/M01/vue");
+                .isEqualTo("/fiche-collaborateur?matricule=A05&trimestre=2026-1");
 
         AlerteVue a02 = parSujet.get("ECART_AUTO_MANAGER/A02");
         assertThat(a02.message()).contains("performance +20", "potentiel +20", "seuil 15");
-        assertThat(a02.lienLibelle()).isEqualTo("Vue manager");
+        assertThat(a02.lienLibelle()).isEqualTo("Fiche collaborateur");
 
         assertThat(parSujet.get("TALENT_SANS_DECISION/A01").lien())
                 .isEqualTo("/comite-talent?trimestre=2026-1&statut=EN_ATTENTE");
@@ -288,7 +289,7 @@ class AlertesPageIntegrationTest {
                 .andExpect(view().name("alertes"))
                 .andExpect(content().string(containsString("Vigilance élevée : 1")))
                 .andExpect(content().string(containsString("PrenomA06 NomA06")))
-                .andExpect(content().string(containsString("/api/trimestres/2026/1/collaborateurs/A06/fiche")))
+                .andExpect(content().string(containsString("/fiche-collaborateur?matricule=A06&amp;trimestre=2026-1")))
                 .andExpect(content().string(containsString("1 alerte(s) affichee(s) sur 9")));
     }
 

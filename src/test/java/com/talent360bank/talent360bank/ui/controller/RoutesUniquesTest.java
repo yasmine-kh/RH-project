@@ -63,6 +63,11 @@ class RoutesUniquesTest {
                 .containsEntry("/9box", "PagesController")
                 .containsEntry("/viviers", "PagesController")
                 .containsEntry("/comite-talent", "PagesController")
-                .containsEntry("/parametres", "PagesController");
+                .containsEntry("/parametres", "PagesController")
+                .containsEntry("/collaborateurs", "ModulesPagesController")
+                .containsEntry("/dashboard-dg", "ModulesPagesController")
+                .containsEntry("/competences", "ModulesPagesController")
+                .containsEntry("/notifications", "ModulesPagesController")
+                .containsEntry("/campagne", "ModulesPagesController");
     }
 }

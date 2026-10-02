@@ -20,13 +20,20 @@ import java.util.List;
  *                          graves d'abord, au plus {@link #ALERTES_AFFICHEES}
  * @param nbAlertes         nombre total d'alertes du trimestre (= total de l'ecran Alertes)
  * @param viviers           viviers thematiques, un par ligne
+ * @param postesSansSuccesseur postes critiques sans aucun successeur identifie, par Poste_ID
+ *                          (00_DASHBOARD, bloc 3 "Postes critiques sans successeur identifie")
  * @param erreur            reglages absents ou incomplets pour le trimestre : seuls les
  *                          chiffres qui n'en dependent pas sont affiches ; sinon null
  */
 public record TableauDeBordView(String trimestreLibelle, List<KpiCard> kpis, List<CaseTableau> neufBox,
                                 int nbPlaces9Box, int nbNonPlaces9Box, List<CompteNiveau> vigilance,
                                 int nbSansVigilance, List<AlerteVue> alertes, int nbAlertes,
-                                List<VivierTableau> viviers, String erreur) {
+                                List<VivierTableau> viviers, List<PosteSansSuccesseur> postesSansSuccesseur,
+                                String erreur) {
+
+    /** Un poste critique sans successeur identifie : Poste_ID, nom, direction (00_DASHBOARD A-C). */
+    public record PosteSansSuccesseur(String posteId, String nomPoste, String direction) {
+    }
 
     /** Nombre d'alertes listees sur le tableau de bord ; la page Alertes les montrera toutes. */
     public static final int ALERTES_AFFICHEES = 6;

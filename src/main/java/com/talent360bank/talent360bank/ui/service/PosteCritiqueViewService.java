@@ -49,6 +49,7 @@ public class PosteCritiqueViewService {
             String candidatPotentiel = meilleur == null ? "-" : meilleur.candidat().getNomComplet();
 
             lignes.add(new PosteCritiqueRow(
+                    couverture.poste().getPosteId(),
                     couverture.poste().getNomPoste(),
                     couverture.poste().getDirection(),
                     couverture.poste().getCriticite(),
