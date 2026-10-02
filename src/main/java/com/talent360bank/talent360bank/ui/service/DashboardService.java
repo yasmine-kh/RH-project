@@ -86,14 +86,29 @@ public class DashboardService {
     }
 
     /**
+     * Le tableau de bord et la synthese du moteur dont il est tire : le
+     * tableau de bord DG reprend les memes cartes et les memes couvertures
+     * sans les recalculer.
+     *
+     * @param synthese null si elle n'a pas pu etre calculee (aucun trimestre, reglages absents)
+     */
+    public record Construction(TableauDeBordView vue, SyntheseTableauDeBord synthese) {
+    }
+
+    /**
      * @param trimestre trimestre affiche (TrimestreCourantService), null s'il n'en existe aucun
      */
     public TableauDeBordView construire(Trimestre trimestre) {
+        return construireAvecSynthese(trimestre).vue();
+    }
+
+    /** Comme {@link #construire}, avec la synthese du moteur. */
+    public Construction construireAvecSynthese(Trimestre trimestre) {
         long actifs = collaborateurRepository.countByStatut(StatutCollaborateur.ACTIF);
         KpiCard effectif = new KpiCard("Collaborateurs actifs", String.valueOf(actifs), "bi-people", "kpi-blue");
         if (trimestre == null) {
-            return new TableauDeBordView(null, List.of(effectif), List.of(), 0, 0, List.of(), 0, List.of(), 0,
-                    List.of(), null);
+            return new Construction(new TableauDeBordView(null, List.of(effectif), List.of(), 0, 0, List.of(), 0,
+                    List.of(), 0, List.of(), null), null);
         }
         String libelle = TrimestreCourantService.libelle(trimestre);
         KpiCard engagement = engagement(trimestre);
@@ -109,8 +124,8 @@ public class DashboardService {
             // Les memes alertes que l'ecran Alertes, deja triees par gravite.
             alertes = alertesViewService.alertes(trimestre);
         } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
-            return new TableauDeBordView(libelle, List.of(effectif, engagement), List.of(), 0, 0, List.of(), 0,
-                    List.of(), 0, List.of(), e.getMessage());
+            return new Construction(new TableauDeBordView(libelle, List.of(effectif, engagement), List.of(), 0, 0,
+                    List.of(), 0, List.of(), 0, List.of(), e.getMessage()), null);
         }
 
         List<VivierTableau> lignesViviers = viviers(viviers, synthese.couvertures());
@@ -142,10 +157,10 @@ public class DashboardService {
                         "bi-mortarboard", "kpi-orange"),
                 engagement);
 
-        return new TableauDeBordView(libelle, kpis, neufBox(synthese), synthese.nbPlaces9Box(),
+        return new Construction(new TableauDeBordView(libelle, kpis, neufBox(synthese), synthese.nbPlaces9Box(),
                 synthese.nbNonPlaces9Box(), vigilance(synthese), (int) Math.max(0, actifs - nbEvaluesVigilance),
                 alertes.stream().limit(TableauDeBordView.ALERTES_AFFICHEES).toList(), alertes.size(),
-                lignesViviers, null);
+                lignesViviers, null), synthese);
     }
 
     /** Moyenne des questionnaires d'engagement des actifs (score /100) et nombre de reponses. */
