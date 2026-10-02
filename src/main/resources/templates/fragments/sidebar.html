@@ -13,6 +13,46 @@
         <span class="brand-text">Talent 360 Bank</span>
     </div>
 
+    <!--
+      Selecteur de profil : des vues que le RH ouvre, pas des connexions (un seul compte RH).
+      Options lues une fois par requete (ProfilsAdvice). Sans JavaScript, le formulaire marche
+      tel quel (bouton Ouvrir) ; profil.js masque le second champ pour RH / Comite et choisit sa liste.
+    -->
+    <form th:if="${profils != null}" method="get" action="/profil" class="sidebar-profil" id="profil-form"
+          th:with="courant=${active == 'fiche-collaborateur'} ? 'COLLABORATEUR'
+                  : (${active == 'vue-manager' or active == 'managers'} ? 'MANAGER'
+                  : (${active == 'vue-entite' or active == 'entites'} ? 'ENTITE'
+                  : (${active == 'comite-talent'} ? 'COMITE' : 'RH')))">
+        <input type="hidden" name="trimestre" th:if="${trimestre != null}" th:value="${trimestre.valeur}">
+        <label for="profil-type" class="sidebar-profil-label">Profil</label>
+        <select id="profil-type" name="profil" class="form-select form-select-sm">
+            <option th:each="type : ${profils.types()}"
+                    th:value="${type.valeur}" th:text="${type.libelle}"
+                    th:selected="${type.valeur == courant}">RH</option>
+        </select>
+        <div class="sidebar-profil-cible" id="profil-cible-bloc">
+            <input type="search" id="profil-cible" name="cible" class="form-control form-control-sm mt-2"
+                   autocomplete="off" placeholder="Matricule, nom ou entité"
+                   th:value="${courant != 'RH' and courant != 'COMITE'} ? ${profilCible} : ''"
+                   th:attr="list=${courant == 'MANAGER'} ? 'profils-managers'
+                           : (${courant == 'ENTITE'} ? 'profils-entites' : 'profils-collaborateurs')">
+            <button type="submit" class="btn btn-sm btn-light mt-2 w-100">Ouvrir</button>
+        </div>
+        <datalist id="profils-collaborateurs">
+            <option th:each="choix : ${profils.collaborateurs}" th:value="${choix.valeur}" th:label="${choix.libelle}"
+                    th:text="${choix.libelle}">Nom</option>
+        </datalist>
+        <datalist id="profils-managers">
+            <option th:each="choix : ${profils.managers}" th:value="${choix.valeur}" th:label="${choix.libelle}"
+                    th:text="${choix.libelle}">Nom</option>
+        </datalist>
+        <datalist id="profils-entites">
+            <option th:each="choix : ${profils.entites}" th:value="${choix.valeur}" th:label="${choix.libelle}"
+                    th:text="${choix.libelle}">Entite</option>
+        </datalist>
+    </form>
+    <script th:if="${profils != null}" th:src="@{/js/profil.js}" defer></script>
+
     <nav class="sidebar-nav">
         <a href="/" class="nav-item" th:classappend="${active == 'accueil'} ? 'active'">
             <i class="bi bi-house"></i><span>Accueil</span>

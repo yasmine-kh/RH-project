@@ -113,12 +113,15 @@
                         <span class="text-muted small d-block" th:text="${ligne.matricule}">BP001</span>
                     </td>
                     <td>
-                        <span th:text="${ligne.entite != null ? ligne.entite.libelle : '-'}">Agence</span>
+                        <a th:if="${ligne.entite != null}"
+                           th:href="@{/entites(code=${ligne.entite.code}, trimestre=${trimestre.valeur})}"
+                           th:text="${ligne.entite.libelle}">Agence</a>
+                        <span th:if="${ligne.entite == null}">-</span>
                         <span class="text-muted small d-block" th:text="${ligne.direction}">Direction</span>
                     </td>
                     <td>
                         <a th:if="${ligne.manager != null}"
-                           th:href="@{/fiche-collaborateur(matricule=${ligne.manager.matricule}, trimestre=${trimestre.valeur})}"
+                           th:href="@{/managers/{m}(m=${ligne.manager.matricule}, trimestre=${trimestre.valeur})}"
                            th:text="${ligne.manager.nom}">Manager</a>
                         <span th:if="${ligne.manager == null}">-</span>
                     </td>

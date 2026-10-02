@@ -15,7 +15,7 @@
             <th:block th:each="c, etat : ${m.cases}">
                 <div class="matrice9-niveau-y" th:if="${etat.index % 3 == 0}"
                      th:text="${c.niveauPerformance == 3} ? 'Élevée' : (${c.niveauPerformance == 2} ? 'Moyenne' : 'Faible')">Elevee</div>
-                <div class="matrice9-case" th:classappend="'matrice9-' + ${c.zone}"
+                <div class="matrice9-case" th:classappend="${c.numero == 9} ? 'matrice9-talent-cle' : ''"
                      th:attr="data-case=${c.numero}">
                     <a class="matrice9-entete" th:href="${c.lienListe}">
                         <span class="matrice9-numero" th:text="${c.numero}">9</span>
@@ -42,11 +42,8 @@
     <div class="matrice9-titre-x">Potentiel &rarr;</div>
 
     <div class="matrice9-legende small text-muted">
-        <span><span class="matrice9-pastille matrice9-excellent"></span>Les deux élevés</span>
-        <span><span class="matrice9-pastille matrice9-fort"></span>Élevé et moyen</span>
-        <span><span class="matrice9-pastille matrice9-neutre"></span>Intermédiaire</span>
-        <span><span class="matrice9-pastille matrice9-attention"></span>Faible et moyen</span>
-        <span><span class="matrice9-pastille matrice9-risque"></span>Les deux faibles</span>
+        <span><span class="matrice9-pastille matrice9-talent-cle"></span>Talent clé (performance et potentiel élevés)</span>
+        <span>Cliquer sur une case ouvre la liste de ses collaborateurs</span>
         <span class="matrice9-total"
               th:text="|Total : ${m.total} collaborateur(s) placé(s)| + (${m.nbNonPlaces} > 0 ? |, ${m.nbNonPlaces} non placé(s)| : '')">Total : 100</span>
     </div>

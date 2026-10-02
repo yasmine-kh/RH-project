@@ -64,7 +64,8 @@ class LiensEtMatriceDatasetTest {
             "/collaborateurs?page=2", "/9box", "/viviers", "/postes-critiques", "/competences",
             "/competences?poste=PST01", "/comite-talent", "/fiche-collaborateur",
             "/fiche-collaborateur?matricule=BP019&trimestre=2026-3", "/alertes", "/notifications", "/campagne",
-            "/campagne?entite=DIR:RESEAU_RETAIL", "/import", "/parametres");
+            "/campagne?entite=DIR:RESEAU_RETAIL", "/import", "/parametres", "/managers", "/managers/BP026",
+            "/entites", "/entites?code=DIR:RESEAU_RETAIL", "/fiche-collaborateur?matricule=BP001&trimestre=2026-3");
 
     @Autowired
     private MockMvc mockMvc;
@@ -218,7 +219,7 @@ class LiensEtMatriceDatasetTest {
         // L'accueil et le dashboard DG utilisent le meme composant, sans les noms.
         for (String url : List.of("/", "/dashboard-dg")) {
             String autre = html(page(url));
-            assertThat(autre).contains("data-case=\"9\"", "matrice9-excellent")
+            assertThat(autre).contains("data-case=\"9\"", "matrice9-talent-cle")
                     .doesNotContain("matrice9-nom\"");
         }
     }

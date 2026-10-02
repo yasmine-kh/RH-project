@@ -22,6 +22,7 @@ import com.talent360bank.talent360bank.ui.service.TrimestreCourantService;
 import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.junit.jupiter.api.BeforeEach;
 import com.talent360bank.talent360bank.service.VivierSyntheseService;
+import com.talent360bank.talent360bank.ui.service.ProfilsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -69,6 +70,8 @@ class ComiteTalentPageTest {
     private FicheCollaborateurPageViewService ficheCollaborateurPageViewService;
     @MockBean
     private VivierSyntheseService vivierSyntheseService;
+    @MockBean
+    private ProfilsService profilsService;
 
     private Trimestre t3;
 

@@ -4,6 +4,8 @@ import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.VivierSyntheseService;
 import com.talent360bank.talent360bank.service.resultat.SyntheseVivier;
+import com.talent360bank.talent360bank.ui.model.FicheCollaborateur;
+import com.talent360bank.talent360bank.ui.service.LiensPages;
 import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
 import com.talent360bank.talent360bank.ui.service.FicheCollaborateurPageViewService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
@@ -120,6 +122,13 @@ public class PagesController {
             }
         }
         model.addAttribute("matricule", matricule);
+        model.addAttribute("profilCible", matricule);
+        if (model.getAttribute("fiche") instanceof FicheCollaborateur fiche) {
+            // Liens de la fiche (vue manager, vue entite) pour le trimestre de la fiche.
+            model.addAttribute("trimestreFiche", fiche.trimestre().annee() + "-" + fiche.trimestre().numero());
+            model.addAttribute("cheminEntite", fiche.identite().entite() == null ? List.of()
+                    : LiensPages.chemin(fiche.identite().entite().code(), fiche.identite().entite().chemin()));
+        }
         model.addAttribute("activePage", "fiche-collaborateur");
         return "fiche-collaborateur";
     }

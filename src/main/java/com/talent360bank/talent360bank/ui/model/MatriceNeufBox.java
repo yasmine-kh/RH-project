@@ -8,6 +8,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.IntFunction;
 
 /**
  * La matrice 9-Box prete pour le composant d'affichage commun
@@ -51,6 +52,15 @@ public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces
 
     /** Matrice a partir des cases ; l'ordre d'affichage est refait ici. */
     public static MatriceNeufBox construire(List<Entree> entrees, int nbNonPlaces, boolean avecNoms, String trimestre) {
+        return construire(entrees, nbNonPlaces, avecNoms, numero -> lienListe(trimestre, null, numero));
+    }
+
+    /**
+     * Comme {@link #construire(List, int, boolean, String)}, avec le lien de la
+     * liste de chaque case donne par l'appelant (null : pas de lien).
+     */
+    public static MatriceNeufBox construire(List<Entree> entrees, int nbNonPlaces, boolean avecNoms,
+                                            IntFunction<String> lienListe) {
         int total = entrees.stream().mapToInt(Entree::nombre).sum();
         List<CaseMatrice> cases = new ArrayList<>();
         for (Entree entree : entrees.stream()
@@ -66,7 +76,7 @@ public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces
                     total == 0 ? null : BigDecimal.valueOf(entree.nombre() * 100L)
                             .divide(BigDecimal.valueOf(total), 1, RoundingMode.HALF_UP),
                     zone(entree.niveauPerformance(), entree.niveauPotentiel()), affiches,
-                    avecNoms ? entree.nombre() - affiches.size() : 0, lienListe(trimestre, numero)));
+                    avecNoms ? entree.nombre() - affiches.size() : 0, lienListe.apply(numero)));
         }
         return new MatriceNeufBox(List.copyOf(cases), total, nbNonPlaces, avecNoms);
     }
@@ -93,9 +103,31 @@ public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces
         };
     }
 
-    private static String lienListe(String trimestre, int numero) {
-        return UriComponentsBuilder.fromPath("/collaborateurs").queryParam("trimestre", trimestre)
-                .queryParam("case", numero).encode().build().toUriString();
+    /**
+     * Matrice d'un groupe (equipe d'un manager, sous-arbre d'une entite) a partir
+     * des effectifs par numero de case de sa synthese ; les niveaux se deduisent
+     * du numero ((rang perf - 1) x 3 + rang pot).
+     *
+     * @param membresParCase noms par numero de case ; vide pour les seuls effectifs
+     * @param lienListe      lien de la liste d'une case, null pour aucun
+     */
+    public static MatriceNeufBox depuisComptes(List<VueManager.CompteCase> comptes,
+                                               java.util.Map<Integer, List<Membre>> membresParCase,
+                                               IntFunction<String> lienListe) {
+        boolean avecNoms = !membresParCase.isEmpty();
+        return construire(comptes.stream()
+                .map(c -> new Entree((c.numero() - 1) / 3 + 1, (c.numero() - 1) % 3 + 1, c.libelle(), c.nombre(),
+                        membresParCase.getOrDefault(c.numero(), List.of())))
+                .toList(), 0, avecNoms, lienListe);
+    }
+
+    /** La liste des collaborateurs d'une case, eventuellement limitee a une entite (sous-arbre). */
+    public static String lienListe(String trimestre, String entite, int numero) {
+        UriComponentsBuilder lien = UriComponentsBuilder.fromPath("/collaborateurs").queryParam("trimestre", trimestre);
+        if (entite != null) {
+            lien.queryParam("entite", entite);
+        }
+        return lien.queryParam("case", numero).encode().build().toUriString();
     }
 
     /** La fiche d'un collaborateur sur un trimestre (page, jamais l'API). */

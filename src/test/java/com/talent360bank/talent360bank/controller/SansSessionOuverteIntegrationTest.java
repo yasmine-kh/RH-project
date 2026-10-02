@@ -102,6 +102,8 @@ class SansSessionOuverteIntegrationTest {
             "/collaborateurs", "/collaborateurs?talent=false&tri=PERFORMANCE&page=1", "/dashboard-dg",
             "/competences", "/competences?vivier=RELEVE&ordre=asc", "/notifications", "/campagne",
             "/campagne?entite=" + Entite.code(null, TypeEntite.DIRECTION, "Direction A"),
+            "/managers", "/managers/A01", "/entites",
+            "/entites?code=" + Entite.code(null, TypeEntite.DIRECTION, "Direction A"),
             T + "/campagne?entite=" + Entite.code(null, TypeEntite.DIRECTION, "Direction A"));
 
     @Autowired
