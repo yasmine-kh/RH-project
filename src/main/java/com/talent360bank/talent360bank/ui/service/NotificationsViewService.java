@@ -59,6 +59,11 @@ public class NotificationsViewService {
         return calculer(trimestre);
     }
 
+    /** Resume des alertes d'un trimestre donne (ecran Notifications avec ?trimestre=), toujours recalcule. */
+    public Notifications notifications(Trimestre trimestre) {
+        return calculer(trimestre);
+    }
+
     /** Badge de la cloche : le dernier resume du trimestre s'il est assez recent, sinon un nouveau. */
     public Badge badge() {
         Trimestre trimestre = trimestreCourant.selectionner(null).trimestre();

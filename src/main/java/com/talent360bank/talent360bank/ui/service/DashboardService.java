@@ -108,7 +108,7 @@ public class DashboardService {
         KpiCard effectif = new KpiCard("Collaborateurs actifs", String.valueOf(actifs), "bi-people", "kpi-blue");
         if (trimestre == null) {
             return new Construction(new TableauDeBordView(null, List.of(effectif), List.of(), 0, 0, List.of(), 0,
-                    List.of(), 0, List.of(), null), null);
+                    List.of(), 0, List.of(), List.of(), null), null);
         }
         String libelle = TrimestreCourantService.libelle(trimestre);
         KpiCard engagement = engagement(trimestre);
@@ -125,7 +125,7 @@ public class DashboardService {
             alertes = alertesViewService.alertes(trimestre);
         } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
             return new Construction(new TableauDeBordView(libelle, List.of(effectif, engagement), List.of(), 0, 0,
-                    List.of(), 0, List.of(), 0, List.of(), e.getMessage()), null);
+                    List.of(), 0, List.of(), 0, List.of(), List.of(), e.getMessage()), null);
         }
 
         List<VivierTableau> lignesViviers = viviers(viviers, synthese.couvertures());
@@ -160,7 +160,7 @@ public class DashboardService {
         return new Construction(new TableauDeBordView(libelle, kpis, neufBox(synthese), synthese.nbPlaces9Box(),
                 synthese.nbNonPlaces9Box(), vigilance(synthese), (int) Math.max(0, actifs - nbEvaluesVigilance),
                 alertes.stream().limit(TableauDeBordView.ALERTES_AFFICHEES).toList(), alertes.size(),
-                lignesViviers, null), synthese);
+                lignesViviers, postesSansSuccesseur(synthese), null), synthese);
     }
 
     /** Moyenne des questionnaires d'engagement des actifs (score /100) et nombre de reponses. */
@@ -183,6 +183,15 @@ public class DashboardService {
                 .map(case9Box -> new CaseTableau(case9Box.getCategorie(), case9Box.getNiveauPerformance(),
                         case9Box.getNiveauPotentiel(),
                         synthese.repartition9Box().getOrDefault(case9Box.getCategorie(), 0)))
+                .toList();
+    }
+
+    /** Meme regle que la carte "Postes critiques sans successeur" (SyntheseTableauDeBord) : aucun successeur. */
+    private static List<TableauDeBordView.PosteSansSuccesseur> postesSansSuccesseur(SyntheseTableauDeBord synthese) {
+        return synthese.couvertures().stream()
+                .filter(couverture -> couverture.nbSuccesseurs() == 0)
+                .map(couverture -> new TableauDeBordView.PosteSansSuccesseur(couverture.poste().getPosteId(),
+                        couverture.poste().getNomPoste(), couverture.poste().getDirection()))
                 .toList();
     }
 

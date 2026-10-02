@@ -224,7 +224,7 @@ class AlertesNotificationsCampagneDatasetTest {
         assertThat(nouveaux).extracting(AlerteVue::matricule).containsExactly("BP019");
         assertThat(nouveaux.get(0).severite()).isEqualTo(AlertesViewService.SEVERITE_NOUVEAU_TALENT);
         assertThat(nouveaux.get(0).message()).contains("pas en T2 2026");
-        assertThat(nouveaux.get(0).lien()).contains("/collaborateurs/BP019/fiche");
+        assertThat(nouveaux.get(0).lien()).isEqualTo("/fiche-collaborateur?matricule=BP019&trimestre=2026-3");
         assertThat(vue.informations()).anyMatch(i -> i.contains("comparés à T2 2026"));
         // Le total n'est pas compare a 23 + 1 : avec un trimestre precedent, la "baisse de
         // performance" de la vigilance vient de l'historique des scores et non plus du drapeau importe.

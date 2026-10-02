@@ -190,3 +190,60 @@ body {
     color: var(--color-muted);
     font-size: 0.8rem;
 }
+/* ---------- MATRICE 9-BOX (fragments/matrice9box.html) ----------
+   Composant commun de la page 9-Box, de l'accueil et du dashboard DG.
+   Couleurs par zone (somme des deux rangs), texte fonce explicite pour rester lisible ;
+   variantes sombres sous [data-bs-theme="dark"]. */
+.matrice9-bloc { margin-top: 12px; }
+.matrice9 { display: flex; gap: 6px; }
+.matrice9-titre-y {
+    display: flex; align-items: center; justify-content: center;
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    font-size: 12px; color: var(--color-muted); font-weight: 600;
+}
+.matrice9-titre-x { text-align: center; font-size: 12px; color: var(--color-muted); font-weight: 600; margin-top: 2px; }
+.matrice9-grille {
+    flex: 1; min-width: 0;
+    display: grid; grid-template-columns: 4.5rem repeat(3, minmax(0, 1fr)); gap: 6px;
+}
+.matrice9-niveau-y { display: flex; align-items: center; justify-content: flex-end; font-size: 11px; color: var(--color-muted); padding-right: 4px; }
+.matrice9-niveau-x { text-align: center; font-size: 11px; color: var(--color-muted); }
+.matrice9-case {
+    border-radius: var(--radius); padding: 8px 10px; min-height: 96px; color: #1f2937;
+    border: 1px solid rgba(0, 0, 0, 0.08); display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.matrice9-entete { display: flex; gap: 6px; align-items: baseline; color: inherit; text-decoration: none; font-size: 12px; font-weight: 600; }
+.matrice9-entete:hover { text-decoration: underline; }
+.matrice9-numero { display: inline-block; min-width: 1.4em; text-align: center; border-radius: 4px; background: rgba(0, 0, 0, 0.08); }
+.matrice9-libelle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.matrice9-chiffres { display: flex; align-items: baseline; gap: 6px; }
+.matrice9-compte { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.matrice9-part { font-size: 12px; opacity: 0.75; }
+.matrice9-noms { flex-wrap: wrap; gap: 4px; }
+.matrice9-nom, .matrice9-autres {
+    font-size: 11px; padding: 1px 7px; border-radius: 999px; text-decoration: none;
+    background: rgba(255, 255, 255, 0.75); color: #1f2937; border: 1px solid rgba(0, 0, 0, 0.1);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.matrice9-autres { font-weight: 600; }
+.matrice9-excellent { background: #cdeed7; }
+.matrice9-fort { background: #e3f3d5; }
+.matrice9-neutre { background: #eef0f3; }
+.matrice9-attention { background: #fdecc0; }
+.matrice9-risque { background: #f8d5d2; }
+.matrice9-legende { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; align-items: center; }
+.matrice9-pastille { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(0, 0, 0, 0.1); }
+.matrice9-total { margin-left: auto; font-weight: 600; }
+[data-bs-theme="dark"] .matrice9-case, [data-bs-theme="dark"] .matrice9-nom, [data-bs-theme="dark"] .matrice9-autres { color: #f1f3f5; }
+[data-bs-theme="dark"] .matrice9-nom, [data-bs-theme="dark"] .matrice9-autres { background: rgba(0, 0, 0, 0.35); border-color: rgba(255, 255, 255, 0.15); }
+[data-bs-theme="dark"] .matrice9-excellent { background: #1e5631; }
+[data-bs-theme="dark"] .matrice9-fort { background: #33521f; }
+[data-bs-theme="dark"] .matrice9-neutre { background: #343a40; }
+[data-bs-theme="dark"] .matrice9-attention { background: #5e4a12; }
+[data-bs-theme="dark"] .matrice9-risque { background: #5c2523; }
+@media (max-width: 767.98px) {
+    .matrice9-grille { grid-template-columns: 3.2rem repeat(3, minmax(0, 1fr)); gap: 4px; }
+    .matrice9-case { min-height: 70px; padding: 6px; }
+    .matrice9-libelle { display: none; }
+    .matrice9-compte { font-size: 1.2rem; }
+}

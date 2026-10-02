@@ -57,6 +57,7 @@ public class VivierService {
             Optional<Score> score = Optional.ofNullable(scores.get(collaborateur.getIdCollaborateur()));
 
             rows.add(new VivierRow(
+                    collaborateur.getIdCollaborateur(),
                     collaborateur.getNom(),
                     collaborateur.getPrenom(),
                     collaborateur.getFonction(),

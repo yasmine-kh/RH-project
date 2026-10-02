@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.ui.service;
 
+import com.talent360bank.talent360bank.ui.model.MatriceNeufBox;
 import com.talent360bank.talent360bank.ui.model.NineBoxCell;
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Matrice9Box;
@@ -10,6 +11,7 @@ import com.talent360bank.talent360bank.repository.ScoreRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,5 +68,39 @@ public class NineBoxViewService {
         });
 
         return grille;
+    }
+
+    /**
+     * La matrice du composant commun (fragments/matrice9box.html), avec les noms
+     * de chaque case, par nom : memes deux lectures que {@link #buildGrid}.
+     *
+     * @param trimestre trimestre affiche, null s'il n'en existe aucun : les 9 cases sont alors vides
+     */
+    public MatriceNeufBox buildMatrice(Trimestre trimestre) {
+        String valeur = trimestre == null ? null : TrimestreCourantService.valeur(trimestre);
+        Map<String, List<Collaborateur>> parCategorie = new HashMap<>();
+        int nonPlaces = 0;
+        if (trimestre != null) {
+            for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
+                if (score.getPositionBox() == null) {
+                    nonPlaces++;
+                } else {
+                    parCategorie.computeIfAbsent(score.getPositionBox(), k -> new ArrayList<>())
+                            .add(score.getCollaborateur());
+                }
+            }
+        }
+        List<MatriceNeufBox.Entree> entrees = new ArrayList<>();
+        for (Matrice9Box box : matriceRepository.findAll()) {
+            List<MatriceNeufBox.Membre> membres = parCategorie.getOrDefault(box.getCategorie(), List.of()).stream()
+                    .sorted(Comparator.comparing(Collaborateur::getNom).thenComparing(Collaborateur::getPrenom)
+                            .thenComparing(Collaborateur::getIdCollaborateur))
+                    .map(c -> new MatriceNeufBox.Membre(c.getIdCollaborateur(), c.getPrenom() + " " + c.getNom(),
+                            MatriceNeufBox.lienFiche(c.getIdCollaborateur(), valeur)))
+                    .toList();
+            entrees.add(new MatriceNeufBox.Entree(box.getNiveauPerformance(), box.getNiveauPotentiel(),
+                    box.getCategorie(), membres.size(), membres));
+        }
+        return MatriceNeufBox.construire(entrees, nonPlaces, true, valeur);
     }
 }

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Compétences</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('competences')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Compétences et gaps</h1>
+            <p class="text-muted" th:if="${vue != null}"
+               th:text="|${vue.nbCollaborateurs} collaborateur(s) retenu(s) - niveau cible = celui de 06_EMPLOYEE_SKILLS|">
+                100 collaborateurs</p>
+        </header>
+
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
+        <form method="get" action="/competences" class="filtre-bar" th:if="${trimestre != null}">
+            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
+            <div>
+                <label for="entite" class="form-label">Entité</label>
+                <select id="entite" name="entite" class="form-select">
+                    <option value="">Toutes</option>
+                    <option th:each="choix : ${optionsEntites}" th:value="${choix.valeur}" th:text="${choix.libelle}"
+                            th:selected="${choix.valeur == filtres['entite']}">Reseau Retail</option>
+                </select>
+            </div>
+            <div>
+                <label for="vivier" class="form-label">Vivier</label>
+                <select id="vivier" name="vivier" class="form-select">
+                    <option value="">Tous</option>
+                    <option th:each="choix : ${optionsViviers}" th:value="${choix.valeur}" th:text="${choix.libelle}"
+                            th:selected="${choix.valeur == filtres['vivier']}">Vivier Commercial</option>
+                </select>
+            </div>
+            <div>
+                <label for="poste" class="form-label">Poste critique (successeurs)</label>
+                <select id="poste" name="poste" class="form-select">
+                    <option value="">Tous</option>
+                    <option th:each="choix : ${optionsPostes}" th:value="${choix.valeur}" th:text="${choix.libelle}"
+                            th:selected="${choix.valeur == filtres['poste']}">PST01</option>
+                </select>
+            </div>
+            <div>
+                <label for="ordre" class="form-label">Tri par gap moyen</label>
+                <select id="ordre" name="ordre" class="form-select">
+                    <option value="desc" th:selected="${filtres['ordre'] == 'desc'}">Du plus grand</option>
+                    <option value="asc" th:selected="${filtres['ordre'] == 'asc'}">Du plus petit</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
+        </form>
+
+        <div class="alert alert-warning mt-4" th:if="${erreur != null}" th:text="${erreur}">Reglages absents</div>
+
+        <th:block th:if="${vue != null}">
+            <div class="kpi-grid">
+                <div class="kpi-card kpi-orange">
+                    <div class="kpi-icon"><i class="bi bi-mortarboard"></i></div>
+                    <div class="kpi-body">
+                        <div class="kpi-value" th:text="${vue.nbGapsPrioritaires}">0</div>
+                        <div class="kpi-label">Compétences en gap prioritaire</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-blue" th:each="ligne : ${vue.topGaps}">
+                    <div class="kpi-icon"><i class="bi bi-arrow-up-right"></i></div>
+                    <div class="kpi-body">
+                        <div class="kpi-value" th:text="${ligne.gapMoyen}">0.74</div>
+                        <div class="kpi-label" th:text="|Gap moyen - ${ligne.competence}|">Leadership</div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="mt-4">
+                <h2 class="h6">Par compétence</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover bg-white rounded shadow-sm align-middle">
+                        <thead>
+                        <tr>
+                            <th>Compétence</th><th class="text-end">Évalués</th><th class="text-end">Niveau actuel</th>
+                            <th class="text-end">Niveau cible</th><th class="text-end">Gap moyen</th>
+                            <th class="text-end">Avec gap</th><th class="text-end">Prioritaires</th>
+                            <th style="min-width: 180px">Répartition niveau actuel (1 à 5)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="ligne : ${vue.competences}">
+                            <td>
+                                <span th:text="${ligne.competence}">Credit</span>
+                                <span class="text-muted small d-block" th:text="${ligne.categorie}">Metier</span>
+                            </td>
+                            <td class="text-end" th:text="${ligne.nbEvalues}">100</td>
+                            <td class="text-end" th:text="${ligne.niveauActuelMoyen} ?: '-'">3.1</td>
+                            <td class="text-end" th:text="${ligne.niveauCibleMoyen} ?: '-'">3.8</td>
+                            <td class="text-end fw-bold" th:text="${ligne.gapMoyen} ?: '-'">0.7</td>
+                            <td class="text-end"
+                                th:text="${ligne.pourcentageAvecGap != null} ? |${ligne.nbAvecGap} (${ligne.pourcentageAvecGap} %)| : '-'">60 (60 %)</td>
+                            <td class="text-end" th:text="${ligne.nbPrioritaires}">5</td>
+                            <td>
+                                <div th:each="niveau : ${ligne.repartition}" class="d-flex align-items-center gap-2 small"
+                                     th:if="${ligne.nbEvalues > 0}">
+                                    <span class="text-muted" style="width: 1em" th:text="${niveau.niveau}">1</span>
+                                    <div class="progress flex-grow-1" style="height: 6px">
+                                        <div class="progress-bar" role="progressbar"
+                                             th:style="|width: ${niveau.nombre * 100 / ligne.nbEvalues}%|"></div>
+                                    </div>
+                                    <span class="text-muted" style="width: 2em" th:text="${niveau.nombre}">0</span>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="mt-4" th:if="${not #lists.isEmpty(vue.postesCritiques)}">
+                <h2 class="h6">Exigences des postes critiques face à leurs successeurs</h2>
+                <div class="row g-3">
+                    <div class="col-lg-6" th:each="poste : ${vue.postesCritiques}">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white d-flex justify-content-between">
+                                <span class="fw-bold" th:text="|${poste.posteId} - ${poste.nomPoste}|">PST01</span>
+                                <span class="text-muted small" th:text="|${poste.nbSuccesseurs} successeur(s)|">4 successeurs</span>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm mb-2">
+                                    <thead><tr><th>Compétence exigée</th><th class="text-end">Requis</th>
+                                        <th class="text-end">Moy. successeurs</th><th class="text-end">Sous le niveau</th></tr></thead>
+                                    <tbody>
+                                    <tr th:each="exigence : ${poste.exigences}">
+                                        <td th:text="${exigence.competence}">Leadership</td>
+                                        <td class="text-end" th:text="${exigence.niveauRequis}">5</td>
+                                        <td class="text-end" th:text="${exigence.niveauMoyenSuccesseurs} ?: '-'">5</td>
+                                        <td class="text-end" th:text="${exigence.nbSuccesseursSousLeNiveau}">0</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                                <p class="small mb-0" th:if="${not #lists.isEmpty(poste.gapsFrequents)}">
+                                    <span class="text-muted">Manque le plus souvent :</span>
+                                    <span class="badge text-bg-light border me-1" th:each="gap : ${poste.gapsFrequents}"
+                                          th:text="|${gap.competence} (${gap.nombre})|">Audit (2)</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </th:block>
+    </main>
+
+</div>
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

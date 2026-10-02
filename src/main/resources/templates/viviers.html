@@ -17,11 +17,53 @@
     <main class="main-content">
         <header class="page-header">
             <h1>Viviers de talents</h1>
-            <p class="text-muted" th:if="${#lists.isEmpty(rows)}">
+            <p class="text-muted" th:if="${trimestre != null and #lists.isEmpty(rows) and #lists.isEmpty(syntheses)}">
                 Aucun collaborateur rattache a un vivier pour le trimestre en cours.
             </p>
         </header>
 
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
+        <form method="get" action="/viviers" class="filtre-bar" th:if="${trimestre != null}">
+            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
+        </form>
+
+        <div class="alert alert-warning mt-4" th:if="${erreur != null}" th:text="${erreur}">Reglages absents</div>
+
+        <!-- Une carte par vivier thematique puis le vivier de releve (VivierSyntheseService). -->
+        <div class="row g-3 mt-1" th:if="${not #lists.isEmpty(syntheses)}">
+            <div class="col-md-6 col-xl-4" th:each="vivier : ${syntheses}">
+                <div class="card shadow-sm h-100" th:classappend="${vivier.releve} ? 'border-primary' : ''">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <strong th:text="${vivier.libelle}">Vivier Commercial</strong>
+                        <span class="badge bg-primary" th:text="|${vivier.effectif} membre(s)|">47 membres</span>
+                    </div>
+                    <div class="card-body small">
+                        <div class="row text-center g-2 mb-2">
+                            <div class="col-4"><div class="fw-bold fs-5" th:text="${vivier.nbTalents}">6</div><div class="text-muted">Talents</div></div>
+                            <div class="col-4"><div class="fw-bold fs-5" th:text="${vivier.nbHautsPotentiels}">8</div><div class="text-muted">Hauts potentiels</div></div>
+                            <div class="col-4"><div class="fw-bold fs-5" th:text="${vivier.nbReadyNow}">3</div><div class="text-muted">Ready Now</div></div>
+                        </div>
+                        <table class="table table-sm mb-2">
+                            <tbody>
+                            <tr><td>Performance moyenne</td><td class="text-end" th:text="${vivier.performanceMoyenne} ?: '-'">79.12</td></tr>
+                            <tr><td>Potentiel moyen</td><td class="text-end" th:text="${vivier.potentielMoyen} ?: '-'">76.68</td></tr>
+                            <tr><td>Postes critiques couverts</td><td class="text-end" th:text="${vivier.nbPostesCouverts}">3</td></tr>
+                            </tbody>
+                        </table>
+                        <div>
+                            <span class="text-muted">Gaps identifiés :</span>
+                            <span th:if="${#lists.isEmpty(vivier.gapsIdentifies)}">aucun</span>
+                            <span class="badge text-bg-light border me-1" th:each="gap : ${vivier.gapsIdentifies}"
+                                  th:text="|${gap.competence} (${gap.nombre})|">Audit (2)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="h6 mt-4" th:if="${not #lists.isEmpty(rows)}">Membres des viviers enregistrés</h2>
         <div class="table-responsive" th:if="${not #lists.isEmpty(rows)}">
             <table class="table table-hover bg-white rounded shadow-sm">
                 <thead>
@@ -37,7 +79,8 @@
                 </thead>
                 <tbody>
                 <tr th:each="row : ${rows}">
-                    <td th:text="${row.nom}"></td>
+                    <td><a th:href="@{/fiche-collaborateur(matricule=${row.matricule}, trimestre=${trimestre.valeur})}"
+                           th:text="${row.nom}">Nom</a></td>
                     <td th:text="${row.prenom}"></td>
                     <td th:text="${row.poste}"></td>
                     <td th:text="${row.departement}"></td>

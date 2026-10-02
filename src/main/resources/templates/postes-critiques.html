@@ -16,12 +16,19 @@
     <main class="main-content">
         <header class="page-header">
             <h1>Postes critiques</h1>
-            <p class="text-muted" th:if="${#lists.isEmpty(rows)}">
+            <p class="text-muted" th:if="${trimestre != null and #lists.isEmpty(rows)}">
                 Aucun poste critique pour le trimestre en cours.
             </p>
         </header>
 
-        <div class="table-responsive" th:if="${not #lists.isEmpty(rows)}">
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
+        <form method="get" action="/postes-critiques" class="filtre-bar" th:if="${trimestre != null}">
+            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
+        </form>
+
+        <div class="table-responsive mt-3" th:if="${not #lists.isEmpty(rows)}">
             <table class="table table-hover bg-white rounded shadow-sm">
                 <thead>
                 <tr>
@@ -36,19 +43,44 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="row : ${rows}" th:classappend="${row.enAlerte} ? 'table-danger' : ''">
-                    <td th:text="${row.nomPoste}"></td>
-                    <td th:text="${row.direction}"></td>
-                    <td th:text="${row.criticite}"></td>
-                    <td th:text="${row.titulaire}"></td>
-                    <td th:text="${row.nbSuccesseurs}"></td>
-                    <td th:text="${row.candidatPotentiel}"></td>
-                    <td th:text="${row.scoreMatching != null ? row.scoreMatching : '-'}"></td>
-                    <td>
-                        <span class="badge" th:classappend="${row.enAlerte} ? 'bg-danger' : 'bg-success'"
-                              th:text="${row.statut}"></span>
-                    </td>
-                </tr>
+                <th:block th:each="row : ${rows}">
+                    <tr th:id="|poste-${row.posteId}|" th:classappend="${row.enAlerte} ? 'table-danger' : ''">
+                        <td th:text="${row.nomPoste}"></td>
+                        <td th:text="${row.direction}"></td>
+                        <td th:text="${row.criticite}"></td>
+                        <td th:text="${row.titulaire}"></td>
+                        <td th:text="${row.nbSuccesseurs}"></td>
+                        <td th:text="${row.candidatPotentiel}"></td>
+                        <td th:text="${row.scoreMatching != null ? row.scoreMatching : '-'}"></td>
+                        <td>
+                            <span class="badge" th:classappend="${row.enAlerte} ? 'bg-danger' : 'bg-success'"
+                                  th:text="${row.statut}"></span>
+                        </td>
+                    </tr>
+                    <!-- Tous les successeurs evalues, du meilleur matching au moins bon. -->
+                    <tr th:if="${not #lists.isEmpty(row.successeurs)}" class="table-light">
+                        <td></td>
+                        <td colspan="7">
+                            <table class="table table-sm mb-0 small">
+                                <thead>
+                                <tr><th>Successeur</th><th class="text-end">Matching</th><th>Readiness</th><th>Plus grand gap</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="successeur : ${row.successeurs}">
+                                    <td>
+                                        <a th:href="@{/fiche-collaborateur(matricule=${successeur.matricule}, trimestre=${trimestre.valeur})}"
+                                           th:text="${successeur.nomComplet}">Nom</a>
+                                        <span class="text-muted" th:text="|(${successeur.matricule})|">(BP001)</span>
+                                    </td>
+                                    <td class="text-end" th:text="${successeur.scoreMatching}">95.20</td>
+                                    <td th:text="${successeur.readinessLibelle}">Ready Now</td>
+                                    <td th:text="${successeur.gapCompetence != null} ? |${successeur.gapCompetence} (${successeur.gapNiveaux} niveau(x))| : 'Aucun écart'">Aucun ecart</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </th:block>
                 </tbody>
             </table>
         </div>

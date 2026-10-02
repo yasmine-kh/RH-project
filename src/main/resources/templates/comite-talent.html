@@ -22,6 +22,8 @@
                 Talents proposes par le moteur et decision du comite</p>
         </header>
 
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
         <form method="get" action="/comite-talent" class="filtre-bar" th:if="${vue.trimestreLibelle != null}">
             <div>
                 <label for="trimestre" class="form-label">Trimestre</label>

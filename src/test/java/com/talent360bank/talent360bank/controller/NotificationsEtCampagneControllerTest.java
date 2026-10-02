@@ -53,7 +53,7 @@ class NotificationsEtCampagneControllerTest {
                 List.of(new Compteur("POSTE_SANS_SUCCESSEUR", "Poste critique sans successeur", 1, null)),
                 List.of(new AlerteVue(TypeAlerte.POSTE_SANS_SUCCESSEUR, SeveriteAlerte.CRITIQUE, "Responsable Cybersecurite",
                         "PST13", null, "IT & Digital", "Aucun successeur identifié",
-                        "/postes-critiques?trimestre=2026-3", "Postes critiques")),
+                        "/postes-critiques?trimestre=2026-3#poste-PST13", "Postes critiques")),
                 "/alertes?trimestre=2026-3", List.of("Nouveaux talents : comparés à T2 2026."), null));
 
         mockMvc.perform(get("/api/notifications"))
@@ -61,7 +61,7 @@ class NotificationsEtCampagneControllerTest {
                 .andExpect(jsonPath("$.total").value(2))
                 .andExpect(jsonPath("$.parSeverite[0].code").value("CRITIQUE"))
                 .andExpect(jsonPath("$.alertes[0].type").value("POSTE_SANS_SUCCESSEUR"))
-                .andExpect(jsonPath("$.alertes[0].lien").value("/postes-critiques?trimestre=2026-3"))
+                .andExpect(jsonPath("$.alertes[0].lien").value("/postes-critiques?trimestre=2026-3#poste-PST13"))
                 .andExpect(jsonPath("$.lienAlertes").value("/alertes?trimestre=2026-3"))
                 .andExpect(jsonPath("$.informations[0]").value("Nouveaux talents : comparés à T2 2026."));
     }

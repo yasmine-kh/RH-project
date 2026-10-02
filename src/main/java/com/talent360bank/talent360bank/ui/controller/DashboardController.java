@@ -1,5 +1,7 @@
 package com.talent360bank.talent360bank.ui.controller;
 
+import com.talent360bank.talent360bank.ui.model.MatriceNeufBox;
+import com.talent360bank.talent360bank.ui.model.TableauDeBordView;
 import com.talent360bank.talent360bank.ui.service.DashboardService;
 import com.talent360bank.talent360bank.ui.service.TrimestreCourantService;
 import org.springframework.stereotype.Controller;
@@ -30,7 +32,10 @@ public class DashboardController {
                           Model model) {
         TrimestreCourantService.Selection selection = trimestreCourant.selectionner(trimestre);
         selection.exposer(model);
-        model.addAttribute("tableau", dashboardService.construire(selection.trimestre()));
+        TableauDeBordView tableau = dashboardService.construire(selection.trimestre());
+        model.addAttribute("tableau", tableau);
+        model.addAttribute("matrice", MatriceNeufBox.depuis(tableau.neufBox(), tableau.nbNonPlaces9Box(),
+                selection.trimestre() == null ? null : TrimestreCourantService.valeur(selection.trimestre())));
         model.addAttribute("activePage", "accueil");
         return "dashboard";
     }

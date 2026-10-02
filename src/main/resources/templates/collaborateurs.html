@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Collaborateurs</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('collaborateurs')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Collaborateurs</h1>
+            <p class="text-muted" th:if="${vue != null}"
+               th:text="|${vue.nbFiltres} collaborateur(s) sur ${vue.nbTotal} actifs - ${vue.trimestre.libelle}|">
+                100 collaborateurs - T3 2026</p>
+        </header>
+
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
+        <form method="get" action="/collaborateurs" class="filtre-bar" th:if="${trimestre != null}">
+            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
+            <div>
+                <label for="entite" class="form-label">Entité</label>
+                <select id="entite" name="entite" class="form-select">
+                    <option value="">Toutes</option>
+                    <option th:each="choix : ${optionsEntites}" th:value="${choix.valeur}" th:text="${choix.libelle}"
+                            th:selected="${choix.valeur == filtres['entite']}">Reseau Retail</option>
+                </select>
+            </div>
+            <div>
+                <label for="case" class="form-label">Case 9-Box</label>
+                <select id="case" name="case" class="form-select">
+                    <option value="">Toutes</option>
+                    <option th:each="choix : ${optionsCases}" th:value="${choix.valeur}" th:text="${choix.libelle}"
+                            th:selected="${choix.valeur == filtres['case']}">9 - Talent cle</option>
+                </select>
+            </div>
+            <div>
+                <label for="talent" class="form-label">Talent</label>
+                <select id="talent" name="talent" class="form-select">
+                    <option value="">Tous</option>
+                    <option value="true" th:selected="${filtres['talent'] == 'true'}">Talents</option>
+                    <option value="false" th:selected="${filtres['talent'] == 'false'}">Non talents</option>
+                </select>
+            </div>
+            <div>
+                <label for="vivier" class="form-label">Vivier</label>
+                <select id="vivier" name="vivier" class="form-select">
+                    <option value="">Tous</option>
+                    <option th:each="choix : ${optionsViviers}" th:value="${choix.valeur}" th:text="${choix.libelle}"
+                            th:selected="${choix.valeur == filtres['vivier']}">Vivier Commercial</option>
+                </select>
+            </div>
+            <div>
+                <label for="readiness" class="form-label">Readiness</label>
+                <select id="readiness" name="readiness" class="form-select">
+                    <option value="">Toutes</option>
+                    <option th:each="choix : ${optionsReadiness}" th:value="${choix.valeur}" th:text="${choix.libelle}"
+                            th:selected="${choix.valeur == filtres['readiness']}">Ready Now</option>
+                </select>
+            </div>
+            <div>
+                <label for="vigilance" class="form-label">Vigilance</label>
+                <select id="vigilance" name="vigilance" class="form-select">
+                    <option value="">Toutes</option>
+                    <option th:each="choix : ${optionsVigilance}" th:value="${choix.valeur}" th:text="${choix.libelle}"
+                            th:selected="${choix.valeur == filtres['vigilance']}">Faible</option>
+                </select>
+            </div>
+            <div>
+                <label for="q" class="form-label">Recherche</label>
+                <input type="search" id="q" name="q" class="form-control" placeholder="Nom ou matricule"
+                       th:value="${filtres['q']}">
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
+        </form>
+
+        <div class="alert alert-warning mt-4" th:if="${erreur != null}" th:text="${erreur}">Critere invalide</div>
+        <div class="alert alert-light border mt-4 small" th:if="${vue != null and not #lists.isEmpty(vue.donneesManquantes)}">
+            <div th:each="manque : ${vue.donneesManquantes}" th:text="${manque}">Donnee manquante</div>
+        </div>
+
+        <p class="text-muted mt-4" th:if="${vue != null and #lists.isEmpty(vue.lignes)}">
+            Aucun collaborateur pour ces filtres.</p>
+
+        <div class="table-responsive mt-4" th:if="${vue != null and not #lists.isEmpty(vue.lignes)}">
+            <table class="table table-hover bg-white rounded shadow-sm">
+                <thead>
+                <tr>
+                    <th><a th:href="${tris['NOM']}">Collaborateur</a></th>
+                    <th>Entité</th>
+                    <th>Manager</th>
+                    <th>Poste</th>
+                    <th class="text-end"><a th:href="${tris['PERFORMANCE']}">Perf.</a></th>
+                    <th class="text-end"><a th:href="${tris['POTENTIEL']}">Pot.</a></th>
+                    <th>9-Box</th>
+                    <th>Statut</th>
+                    <th>Viviers</th>
+                    <th><a th:href="${tris['MATCHING']}">Poste cible</a></th>
+                    <th><a th:href="${tris['VIGILANCE']}">Vigilance</a></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="ligne : ${vue.lignes}">
+                    <td>
+                        <a th:href="@{/fiche-collaborateur(matricule=${ligne.matricule}, trimestre=${trimestre.valeur})}" th:text="${ligne.nomComplet}">Nom</a>
+                        <span class="text-muted small d-block" th:text="${ligne.matricule}">BP001</span>
+                    </td>
+                    <td>
+                        <span th:text="${ligne.entite != null ? ligne.entite.libelle : '-'}">Agence</span>
+                        <span class="text-muted small d-block" th:text="${ligne.direction}">Direction</span>
+                    </td>
+                    <td>
+                        <a th:if="${ligne.manager != null}"
+                           th:href="@{/fiche-collaborateur(matricule=${ligne.manager.matricule}, trimestre=${trimestre.valeur})}"
+                           th:text="${ligne.manager.nom}">Manager</a>
+                        <span th:if="${ligne.manager == null}">-</span>
+                    </td>
+                    <td th:text="${ligne.poste} ?: '-'">Poste</td>
+                    <td class="text-end" th:text="${ligne.scorePerformance} ?: '-'">0</td>
+                    <td class="text-end" th:text="${ligne.scorePotentiel} ?: '-'">0</td>
+                    <td th:text="${ligne.neufBox != null ? ligne.neufBox.numero + ' - ' + ligne.neufBox.libelle : '-'}">9</td>
+                    <td>
+                        <span class="badge bg-success" th:if="${ligne.estTalentValide}">Talent validé</span>
+                        <span class="badge bg-primary" th:if="${ligne.estTalent == true and !ligne.estTalentValide}">Talent</span>
+                        <span class="badge bg-info text-dark" th:if="${ligne.estHautPotentiel}">HP</span>
+                    </td>
+                    <td><span class="badge text-bg-light border me-1" th:each="vivier : ${ligne.viviers}"
+                              th:text="${vivier.libelle}">Vivier</span></td>
+                    <td>
+                        <th:block th:if="${ligne.posteCible != null}">
+                            <a th:href="@{/postes-critiques(trimestre=${trimestre.valeur})} + '#poste-' + ${ligne.posteCible.posteId}"
+                               th:text="${ligne.posteCible.nomPoste}">Poste</a>
+                            <span class="text-muted small d-block"
+                                  th:text="|${ligne.posteCible.scoreMatching} - ${ligne.posteCible.readinessLibelle}|">90 - Ready Now</span>
+                            <span class="text-muted small d-block" th:if="${ligne.posteCible.gapCompetence != null}"
+                                  th:text="|Gap : ${ligne.posteCible.gapCompetence} (${ligne.posteCible.gapNiveaux})|">Gap</span>
+                        </th:block>
+                        <span th:if="${ligne.posteCible == null}">-</span>
+                    </td>
+                    <td th:text="${ligne.niveauVigilanceLibelle} ?: '-'">Faible</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <nav th:if="${pages != null and #lists.size(pages) > 1}" aria-label="Pages">
+            <ul class="pagination">
+                <li class="page-item" th:each="lien : ${pages}" th:classappend="${lien.courante} ? 'active'">
+                    <a class="page-link" th:href="${lien.url}" th:text="${lien.numero}">1</a>
+                </li>
+            </ul>
+        </nav>
+    </main>
+
+</div>
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>
