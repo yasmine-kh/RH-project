@@ -323,6 +323,8 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Vigilance | `GET .../vigilance[?minimum=MODEREE]` (every active employee with at least one vigilance input, with or without a score: same rule as the fiche and the views, `EntreesVigilance`), `GET .../vigilance/{id}` |
 | Skills | `GET /api/collaborateurs/{id}/competences[?annee=&numero=]` |
 | Dashboard | `GET /api/dashboard/synthese` |
+| DG dashboard | `GET /api/dashboard/dg?annee=&numero=[&limite=8]` ([below](#collaborateurs-list-and-dg-dashboard)) |
+| Employee list | `GET /api/trimestres/{annee}/{numero}/collaborateurs` with optional `entite`, `case`, `talent`, `vivier`, `readiness`, `vigilance`, `q`, `tri`, `ordre`, `page`, `taille` ([below](#collaborateurs-list-and-dg-dashboard)) |
 | Quarters | `GET /api/trimestres`, `POST /api/trimestres` (`annee`, `numero`, optional `dateReference`), `PUT /api/trimestres/{annee}/{numero}` (`dateReference`), `POST .../calcul` |
 | Import | `POST /api/imports` (workbook upload), `GET /api/imports` (journal) |
 | Employees | `GET /api/collaborateurs`, `GET /api/collaborateurs/{id}` (both return `CollaborateurResponse`, never the entity), `POST /api/collaborateurs`, `DELETE /api/collaborateurs/{id}` |
@@ -420,6 +422,29 @@ Both are engine services (Jas) with a JSON endpoint; the screens (Ima) only disp
 - **Pool summaries** (`VivierSyntheseService`): one `SyntheseVivier` per thematic pool (in `VivierThematique` order) then the relief pool (`code = RELEVE`, `releve = true`; its members are also in a thematic pool): `effectif`, `nbTalents`, `nbHautsPotentiels`, `nbReadyNow` (members Ready Now on at least one critical position where they are an identified successor, counted once), `performanceMoyenne` / `potentielMoyen` (2 decimals, known values only), `nbPostesCouverts` (critical positions with at least one member among their successors), `gapsIdentifies` [{`competenceId`, `competence`, `nombre`}]: the largest gaps of the members' successions with a real gap (one per position/successor pair), most frequent first. The home dashboard's pool table uses `resumerThematiques` on data it has already read, so its figures and its query count are unchanged.
 
 Tests: `SuccessionViviersDatasetTest` (the workbook: `09!M` on all 44 rows, every successor of PST01 and PST13, every pool summary against `10_TALENTS` / `09_SUCCESSION`, target posts of BP001, BP003, BP019), `PosteCibleServiceTest`, `VivierSyntheseServiceTest`, `SuccessionServiceTest` (largest gap), `PosteCibleEtVivierSyntheseControllerTest` (JSON contract), `SansSessionOuverteIntegrationTest` (fixed number of queries).
+
+### Collaborateurs list and DG dashboard
+
+Two read-only views (Jas) built from the engine's results, for the Collaborateurs and DG screens (Ima). Neither adds a formula: they assemble, filter, sort and count.
+
+**Employee list**: `ui/service/ListeCollaborateursViewService.construire(annee, numero, criteres)` → `ui/model/ListeCollaborateurs`; `controller/ListeCollaborateursController` returns it at `GET /api/trimestres/{annee}/{numero}/collaborateurs`.
+
+- **Who:** the active employees (`ACTIF`), the ones the engine calculates, like the "Collaborateurs actifs" card.
+- **One row** (`lignes[]`): `matricule`, `nom`, `prenom`, `nomComplet`, `entite` {`code`, `libelle`, `type`}, `direction`, `manager` {`matricule`, `nom`} or null, `poste` (job), `grade`, `scorePerformance`, `scorePotentiel`, `neufBox` {`numero`, `libelle`}, `estTalent`, `estHautPotentiel`, `estTalentValide`, `decisionComite` (talents only), `viviers` [{`code`, `libelle`}] (thematic pool, then `RELEVE` if in the relief pool), `posteCible` {`posteId`, `nomPoste`, `scoreMatching`, `readiness` + `readinessLibelle`, `successeurIdentifie`, `gapCompetence`, `gapNiveaux`} or null, `indiceVigilance`, `niveauVigilance` + `niveauVigilanceLibelle`.
+- **Sources:** scores, case, talent, high potential and vigilance from `ResultatsCollaborateurs` (the same code as the manager and entité views), committee decision from `ValidationComiteService`, thematic pool from `VivierThematiqueService`, target post from `PosteCibleService`.
+- **Filters** (all optional, combined with AND): `entite` (code of an entité: it and its whole subtree), `case` (1–9), `talent` (`true`/`false`; `false` also returns employees without a status), `vivier` (`COMMERCIAL`, `DIGITAL`, `EXPERTISE`, `MANAGEMENT`, `RISQUES`, `RELEVE`), `readiness` (on the target post), `vigilance` (`FAIBLE`/`MODEREE`/`ELEVEE`), `q` (name, first name or matricule, ignoring accents and case). An unknown value → 400; an unknown entité code → empty list.
+- **Sort:** `tri` = `NOM` (default), `MATRICULE`, `PERFORMANCE`, `POTENTIEL`, `MATCHING`, `VIGILANCE`; `ordre` = `asc`/`desc` (default asc for names, desc for scores). Missing values are always last; ties by matricule.
+- **Pagination:** `page` from 1, `taille` 1–100 (default 20). The response gives `nbTotal` (before filters), `nbFiltres`, `nbPages`, and the `criteres` actually applied.
+- **Queries:** a fixed number (24) whatever the population: everything is read in batches, then filtered in memory.
+
+**DG dashboard**: `ui/service/TableauDeBordDgViewService.construire(trimestre, limite)` → `ui/model/TableauDeBordDg`; `controller/TableauDeBordDgController` at `GET /api/dashboard/dg?annee=&numero=&limite=`.
+
+- `kpis` and `neufBox`: **the same cards and grid as the home dashboard** (`DashboardService.construireAvecSynthese`), never recalculated.
+- `postesCritiques[]`, one per critical position (from the dashboard's own `PosteCritiqueService` coverage): `nbSuccesseurs` (08!G), `nbReadyNow` (successors at Ready Now, 09!L), `meilleurSuccesseur` {`matricule`, `nomComplet`, `scoreMatching`, `readiness`} or null, `couverture` + `couvertureLibelle`, `alerte`.
+- `topTalents[]`: proposed talents (10_TALENTS!E). **The workbook has no ranking**, so the rule is `TableauDeBordDg.REGLE_TOP_TALENTS`: performance + potential descending, then performance descending, then matricule (to be confirmed with the client). Each one: `rang`, scores, `scoreCumule`, `estHautPotentiel`, `decisionComite`, `estTalentValide`, `posteCible`. `limite` 1–50, default 8 (the prototype shows 8).
+- Without settings, `erreur` explains it and only the cards that do not depend on them are present.
+
+Tests: `CollaborateursDgDatasetTest` (the workbook: counts per 9-box case vs `00_DASHBOARD`, talents and validated talents, pools, vigilance, entité subtree, sort and pagination, every critical position's successors / Ready Now / best successor vs 08 and 09, top talents order, same cards as the home dashboard), `ListeCollaborateursViewServiceTest` (filters, sort, pagination, invalid criteria, top-talents order), `ListeCollaborateursEtDgControllerTest` (JSON contract, 400, 404, 401), `SansSessionOuverteIntegrationTest` (fixed number of queries).
 
 ### Vue manager
 
@@ -1093,6 +1118,7 @@ git push -u origin feature/my-change
 - Quarter reference date (`Trimestre.dateReference`): seniority no longer depends on today's date (audit C4).
 - Vigilance list covers every active employee with a vigilance input, scored or not (audit C8). No N+1 in the recalculation or the main pages, LAZY entités, `open-in-view=false` (audit 3.3, 3.4).
 - Real home dashboard (no hard-coded figure, checked against `00_DASHBOARD`), displayed quarter = most recent with scores and `?trimestre=` on every screen (audit 2.3, B5).
+- Employee list (filters, sort, pagination: `/api/trimestres/{a}/{n}/collaborateurs`) and DG dashboard (`/api/dashboard/dg`), checked against the workbook.
 - Largest gap per successor (`09_SUCCESSION!M`), every successor of each critical position, pool summaries (`/api/viviers/synthese`) and target post per employee (`/api/trimestres/{a}/{n}/postes-cibles`, fiche `posteCible`), checked against the workbook.
 - Self-evaluation and manager evaluation stored side by side (`source` on `Performance` / `Potentiel`), official score blended by `PonderationSources` (default manager only), fiche `autoEvaluation` and manager view `autoVsManager` (audit R1d).
 
