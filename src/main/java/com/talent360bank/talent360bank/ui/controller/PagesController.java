@@ -1,5 +1,6 @@
 package com.talent360bank.talent360bank.ui.controller;
 
+import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.VivierSyntheseService;
@@ -124,10 +125,18 @@ public class PagesController {
         return "fiche-collaborateur";
     }
 
+    /**
+     * Reglages du moteur du trimestre choisi. La page lit et ecrit elle-meme
+     * via l'API GET/PUT /api/trimestres/{annee}/{numero}/parametre (voir
+     * docs/requetes-ecriture.md) : rien n'est lu ni calcule ici.
+     */
     @GetMapping("/parametres")
-    public String parametres(Model model) {
+    public String parametres(@RequestParam(name = TrimestreCourantService.PARAMETRE, required = false) String trimestre,
+                             Model model) {
+        TrimestreCourantService.Selection selection = trimestreCourant.selectionner(trimestre);
+        selection.exposer(model);
+        model.addAttribute("enTeteEcriture", ProtectionRequetesFilter.EN_TETE_ECRITURE);
         model.addAttribute("activePage", "parametres");
-        model.addAttribute("pageTitle", "Parametres / Ponderations");
-        return "placeholder";
+        return "parametres";
     }
 }
