@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Import</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('import')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Import du classeur</h1>
+            <p class="text-muted">Charger le classeur TALENT_360_BANK_Dataset d'un trimestre, puis calculer scores,
+                9-Box et vivier de relève.</p>
+        </header>
+
+        <div class="alert alert-danger mt-4" id="erreur-import" th:if="${vue.erreur != null}" th:text="${vue.erreur}">
+            Envoi refusé</div>
+
+        <th:block th:if="${vue.rapport != null}">
+            <div th:replace="~{fragments/import-rapport :: rapport(${vue.rapport})}"></div>
+        </th:block>
+
+        <!-- Formulaire HTML classique : th:action ajoute le champ cache du jeton CSRF. -->
+        <form method="post" th:action="@{/import}" enctype="multipart/form-data" class="card shadow-sm mt-4"
+              id="formulaire-import">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="fichier" class="form-label">Classeur (.xlsx)</label>
+                        <input type="file" id="fichier" name="fichier" class="form-control" required
+                               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                               th:attr="data-taille-max=${vue.tailleMax}">
+                        <div class="form-text" th:text="|${vue.tailleMaxLibelle} au maximum.|">10 Mo au maximum.</div>
+                        <div class="invalid-feedback" id="fichier-trop-gros"
+                             th:text="|Fichier trop volumineux : ${vue.tailleMaxLibelle} au maximum.|">Fichier trop volumineux</div>
+                    </div>
+                    <div class="col-sm-4 col-md-3">
+                        <label for="annee" class="form-label">Année</label>
+                        <input type="number" id="annee" name="annee" class="form-control" min="2000" max="2100"
+                               required th:value="${vue.formulaire.annee}">
+                    </div>
+                    <div class="col-sm-4 col-md-3">
+                        <label for="numero" class="form-label">Trimestre</label>
+                        <select id="numero" name="numero" class="form-select">
+                            <option th:each="n : ${#numbers.sequence(1, 4)}" th:value="${n}" th:text="|T${n}|"
+                                    th:selected="${#strings.toString(n) == vue.formulaire.numero}">T1</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-4 col-md-3">
+                        <label for="dateReference" class="form-label">Date de référence</label>
+                        <input type="date" id="dateReference" name="dateReference" class="form-control"
+                               th:value="${vue.formulaire.dateReference}">
+                        <div class="form-text">Vide : dernier jour du trimestre.</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="simulation" name="simulation"
+                                   value="true" th:checked="${vue.formulaire.simulation}">
+                            <label class="form-check-label" for="simulation">Simulation : contrôler le fichier
+                                sans rien enregistrer</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="calcul" name="calcul" value="true"
+                                   th:checked="${vue.formulaire.calcul}">
+                            <label class="form-check-label" for="calcul">Calculer après l'import (scores, 9-Box,
+                                vivier de relève)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-white">
+                <button type="submit" class="btn btn-primary" id="bouton-import">
+                    <i class="bi bi-upload"></i> Importer</button>
+            </div>
+        </form>
+
+        <section class="mt-4">
+            <h2 class="h6">Derniers imports</h2>
+            <p class="text-muted" th:if="${#lists.isEmpty(vue.journal)}">Aucun import pour le moment.</p>
+            <div class="table-responsive" th:unless="${#lists.isEmpty(vue.journal)}">
+                <table class="table table-sm table-hover bg-white rounded shadow-sm" id="journal-imports">
+                    <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Fichier</th>
+                        <th>Trimestre</th>
+                        <th>Statut</th>
+                        <th class="text-end">Lignes</th>
+                        <th class="text-end">Erreurs</th>
+                        <th>Utilisateur</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="ligne : ${vue.journal}">
+                        <td th:text="${#temporals.format(ligne.dateImport, 'dd/MM/yyyy')}">01/10/2026</td>
+                        <td>
+                            <span th:text="${ligne.nomFichier}">classeur.xlsx</span>
+                            <span class="small text-muted d-block" th:if="${ligne.message != null}"
+                                  th:text="${ligne.message}">Cause</span>
+                        </td>
+                        <td th:text="${ligne.trimestre} ?: '-'">T3 2026</td>
+                        <td th:text="${ligne.statut}">SUCCES</td>
+                        <td class="text-end" th:text="${ligne.nbLignes}">3102</td>
+                        <td class="text-end" th:text="${ligne.nbErreurs}">0</td>
+                        <td th:text="${ligne.utilisateur} ?: '-'">rh</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+</div>
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script>
+    // Taille controlee avant l'envoi : au-dela de la limite du serveur, le
+    // navigateur afficherait sinon une erreur de connexion. Un seul envoi a la fois.
+    (function () {
+        var formulaire = document.getElementById('formulaire-import');
+        var fichier = document.getElementById('fichier');
+        var bouton = document.getElementById('bouton-import');
+        var max = parseInt(fichier.getAttribute('data-taille-max'), 10);
+        function tropGros() {
+            return max >= 0 && fichier.files.length > 0 && fichier.files[0].size > max;
+        }
+        fichier.addEventListener('change', function () {
+            fichier.classList.toggle('is-invalid', tropGros());
+        });
+        formulaire.addEventListener('submit', function (evenement) {
+            if (tropGros()) {
+                evenement.preventDefault();
+                fichier.classList.add('is-invalid');
+                return;
+            }
+            bouton.disabled = true;
+            bouton.textContent = 'Import en cours...';
+        });
+    })();
+</script>
+</body>
+</html>
