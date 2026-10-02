@@ -20,6 +20,7 @@ import com.talent360bank.talent360bank.repository.PosteRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
+import com.talent360bank.talent360bank.service.resultat.PlusGrandGap;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,16 +132,7 @@ public class SuccessionService {
             throw new DonneesIncompletesException("Le bareme des competences n'est pas configure");
         }
 
-        Map<String, Integer> acquis = new HashMap<>();
-        if (competencesCandidat != null) {
-            for (CompetenceCollaborateur skill : competencesCandidat) {
-                Competence competence = skill.getCompetence();
-                if (competence == null || skill.getNiveauActuel() == null) {
-                    continue;
-                }
-                acquis.merge(competence.getCompetenceId(), skill.getNiveauActuel(), Math::max);
-            }
-        }
+        Map<String, Integer> acquis = niveauxActuels(competencesCandidat);
 
         BigDecimal total = BigDecimal.ZERO;
         int exigencesChiffrees = 0;
@@ -165,6 +157,63 @@ public class SuccessionService {
         }
         return total.divide(BigDecimal.valueOf(exigencesChiffrees),
                 CalculService.PRECISION_SCORE, ARRONDI);
+    }
+
+    /**
+     * Competence exigee par le poste sur laquelle le candidat manque le plus de
+     * niveaux, comme la colonne Plus grand gap de 09_SUCCESSION (M). Memes
+     * donnees que {@link #scoreCompetences} : rapprochement par identifiant,
+     * niveau par defaut du bareme pour une competence absente du profil,
+     * exigences sans niveau ignorees.
+     *
+     * <p>Le classeur prend la competence au plus petit sous-score ; avec le
+     * sous-score plafonne a 100, c'est celle qui a le plus grand nombre de
+     * niveaux manquants, max(0, requis - actuel). A egalite (y compris sans
+     * aucun ecart), la premiere dans l'ordre du poste, comme MATCH dans le
+     * classeur.
+     *
+     * @return null si le poste n'exige aucune competence chiffree
+     * @throws DonneesIncompletesException si le bareme n'est pas configure
+     */
+    public PlusGrandGap plusGrandGap(Poste poste, List<CompetenceCollaborateur> competencesCandidat,
+                                     BaremeCompetences bareme) {
+        Objects.requireNonNull(poste, "poste");
+        if (bareme == null || bareme.getNiveauParDefaut() == null) {
+            throw new DonneesIncompletesException("Le bareme des competences n'est pas configure");
+        }
+        Map<String, Integer> acquis = niveauxActuels(competencesCandidat);
+
+        PlusGrandGap plusGrand = null;
+        for (Poste.ExigenceCompetence exigence : poste.getExigencesCompetences()) {
+            Integer requis = exigence.niveauRequis();
+            if (requis == null || requis <= 0) {
+                continue;
+            }
+            Competence competence = exigence.competence();
+            int actuel = acquis.getOrDefault(competence.getCompetenceId(), bareme.getNiveauParDefaut());
+            int ecart = Math.max(0, requis - actuel);
+            // Strictement plus grand : a egalite, la premiere competence du poste reste.
+            if (plusGrand == null || ecart > plusGrand.ecart()) {
+                plusGrand = new PlusGrandGap(competence.getCompetenceId(), competence.getNom(), requis, actuel,
+                        ecart);
+            }
+        }
+        return plusGrand;
+    }
+
+    /** Niveau actuel du candidat par identifiant de competence (le plus haut en cas de doublon). */
+    private static Map<String, Integer> niveauxActuels(List<CompetenceCollaborateur> competencesCandidat) {
+        Map<String, Integer> acquis = new HashMap<>();
+        if (competencesCandidat != null) {
+            for (CompetenceCollaborateur skill : competencesCandidat) {
+                Competence competence = skill.getCompetence();
+                if (competence == null || skill.getNiveauActuel() == null) {
+                    continue;
+                }
+                acquis.merge(competence.getCompetenceId(), skill.getNiveauActuel(), Math::max);
+            }
+        }
+        return acquis;
     }
 
     /**
@@ -263,7 +312,8 @@ public class SuccessionService {
                         poids.getPoidsLeadership(), poids.getPoidsMobilite()});
 
         return new ResultatMatching(candidat, scoreMatching,
-                readinessPour(scoreMatching, parametre.getSeuilsReadiness()), detail);
+                readinessPour(scoreMatching, parametre.getSeuilsReadiness()), detail,
+                plusGrandGap(poste, competencesCandidat, parametre.getBaremeCompetences()));
     }
 
     /**

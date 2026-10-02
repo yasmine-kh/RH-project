@@ -14,6 +14,7 @@ import com.talent360bank.talent360bank.service.PosteCritiqueService;
 import com.talent360bank.talent360bank.service.enums.NiveauCouverture;
 import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
+import com.talent360bank.talent360bank.service.resultat.PlusGrandGap;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,8 @@ class PosteCritiqueControllerTest {
         ResultatMatching matching = new ResultatMatching(successeur, new BigDecimal("95.20"),
                 NiveauReadiness.READY_NOW, new ResultatMatching.DetailMatching(
                 new BigDecimal("100"), new BigDecimal("96.30"), new BigDecimal("89.70"),
-                new BigDecimal("100"), new BigDecimal("86"), new BigDecimal("94")));
+                new BigDecimal("100"), new BigDecimal("86"), new BigDecimal("94")),
+                new PlusGrandGap("C10", "Leadership", 5, 4, 1));
 
         couverte = new CouverturePoste(poste("PST01", "Directeur regional", "BP022"), 1,
                 List.of(matching), List.of(), NiveauCouverture.READY_NOW);
@@ -97,6 +99,9 @@ class PosteCritiqueControllerTest {
                 .andExpect(jsonPath("$[0].couverture").value("READY_NOW"))
                 .andExpect(jsonPath("$[0].alerte").value(false))
                 .andExpect(jsonPath("$[0].successeurs[0].candidat.idCollaborateur").value("BP035"))
+                .andExpect(jsonPath("$[0].successeurs[0].readiness").value("READY_NOW"))
+                .andExpect(jsonPath("$[0].successeurs[0].plusGrandGap.competence").value("Leadership"))
+                .andExpect(jsonPath("$[0].successeurs[0].plusGrandGap.ecart").value(1))
                 .andExpect(jsonPath("$[1].alerte").value(true))
                 .andExpect(jsonPath("$[1].meilleurMatching").doesNotExist())
                 .andExpect(jsonPath("$[1].ignores[0].motif").value("Titulaire du poste"));

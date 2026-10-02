@@ -11,13 +11,10 @@ import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.service.CompetenceCollaborateurService;
 import com.talent360bank.talent360bank.service.TableauDeBordService;
+import com.talent360bank.talent360bank.service.VivierSyntheseService;
 import com.talent360bank.talent360bank.service.VivierThematiqueService;
-import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
 import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
-import com.talent360bank.talent360bank.service.enums.VivierThematique;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
-import com.talent360bank.talent360bank.service.resultat.MembreVivierThematique;
-import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import com.talent360bank.talent360bank.service.resultat.ResultatViviersThematiques;
 import com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord;
 import com.talent360bank.talent360bank.ui.model.AlerteVue;
@@ -34,9 +31,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * Tableau de bord RH d'un trimestre (page "/").
@@ -44,7 +38,8 @@ import java.util.stream.Collectors;
  * <p>REGLE : aucun calcul ici et aucun chiffre ecrit en dur. Talents valides,
  * hauts potentiels, vivier de releve, vigilance, postes critiques, Ready Now et
  * repartition 9-box viennent de {@link TableauDeBordService} ; les viviers
- * thematiques de {@link VivierThematiqueService} ; les gaps de competences de
+ * thematiques de {@link VivierThematiqueService}, resumes par
+ * {@link VivierSyntheseService} ; les gaps de competences de
  * {@link CompetenceCollaborateurService} ; les alertes prioritaires de
  * {@link AlertesViewService}, la source de l'ecran Alertes (les deux ne
  * peuvent pas diverger). Seules les syntheses d'affichage (compter, moyenner)
@@ -70,6 +65,7 @@ public class DashboardService {
     private final QuestionnaireEngagementRepository questionnaireRepository;
     private final Matrice9BoxRepository matrice9BoxRepository;
     private final AlertesViewService alertesViewService;
+    private final VivierSyntheseService vivierSyntheseService;
 
     public DashboardService(TableauDeBordService tableauDeBordService,
                             VivierThematiqueService vivierThematiqueService,
@@ -77,8 +73,10 @@ public class DashboardService {
                             CollaborateurRepository collaborateurRepository,
                             QuestionnaireEngagementRepository questionnaireRepository,
                             Matrice9BoxRepository matrice9BoxRepository,
-                            AlertesViewService alertesViewService) {
+                            AlertesViewService alertesViewService,
+                            VivierSyntheseService vivierSyntheseService) {
         this.alertesViewService = alertesViewService;
+        this.vivierSyntheseService = vivierSyntheseService;
         this.tableauDeBordService = tableauDeBordService;
         this.vivierThematiqueService = vivierThematiqueService;
         this.competenceCollaborateurService = competenceCollaborateurService;
@@ -183,41 +181,15 @@ public class DashboardService {
     }
 
     /**
-     * Une ligne par vivier thematique : effectif, moyennes, talents, membres
-     * Ready Now et postes critiques couverts par un membre.
+     * Une ligne par vivier thematique, chiffres de {@link VivierSyntheseService}
+     * sur les donnees deja lues (aucune requete de plus).
      */
-    private static List<VivierTableau> viviers(ResultatViviersThematiques viviers,
-                                               List<CouverturePoste> couvertures) {
-        Set<String> readyNow = couvertures.stream()
-                .flatMap(couverture -> couverture.successeurs().stream())
-                .filter(successeur -> successeur.readiness() == NiveauReadiness.READY_NOW)
-                .map(successeur -> successeur.candidat().getIdCollaborateur())
-                .collect(Collectors.toSet());
-
-        List<VivierTableau> lignes = new ArrayList<>();
-        for (VivierThematique vivier : VivierThematique.values()) {
-            List<MembreVivierThematique> membres = viviers.membresDe(vivier);
-            Set<String> ids = membres.stream()
-                    .map(membre -> membre.score().getCollaborateur().getIdCollaborateur())
-                    .collect(Collectors.toSet());
-            int postesCouverts = (int) couvertures.stream()
-                    .filter(couverture -> couverture.successeurs().stream()
-                            .map(ResultatMatching::candidat)
-                            .anyMatch(candidat -> ids.contains(candidat.getIdCollaborateur())))
-                    .count();
-            lignes.add(new VivierTableau(vivier.getCode(), vivier.getLibelle(), membres.size(),
-                    moyenne(membres, membre -> membre.score().getScorePerformance()),
-                    moyenne(membres, membre -> membre.score().getScorePotentiel()),
-                    (int) membres.stream().filter(MembreVivierThematique::talent).count(),
-                    (int) ids.stream().filter(readyNow::contains).count(),
-                    postesCouverts));
-        }
-        return List.copyOf(lignes);
-    }
-
-    private static BigDecimal moyenne(List<MembreVivierThematique> membres,
-                                      Function<MembreVivierThematique, BigDecimal> valeur) {
-        return moyenne(membres.stream().map(valeur).filter(Objects::nonNull).toList());
+    private List<VivierTableau> viviers(ResultatViviersThematiques viviers, List<CouverturePoste> couvertures) {
+        return vivierSyntheseService.resumerThematiques(viviers, couvertures).stream()
+                .map(vivier -> new VivierTableau(vivier.code(), vivier.libelle(), vivier.effectif(),
+                        vivier.performanceMoyenne(), vivier.potentielMoyen(), vivier.nbTalents(),
+                        vivier.nbReadyNow(), vivier.nbPostesCouverts()))
+                .toList();
     }
 
     /** Moyenne arrondie a 2 decimales, null sans valeur. */

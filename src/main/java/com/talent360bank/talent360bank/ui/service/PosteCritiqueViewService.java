@@ -5,6 +5,7 @@ import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.PosteCritiqueService;
 import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
+import com.talent360bank.talent360bank.service.resultat.PlusGrandGap;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import com.talent360bank.talent360bank.ui.model.PosteCritiqueRow;
 import org.springframework.stereotype.Service;
@@ -56,10 +57,20 @@ public class PosteCritiqueViewService {
                     candidatPotentiel,
                     couverture.meilleurMatching(),
                     couverture.niveau().getLibelle(),
-                    couverture.estEnAlerte()
+                    couverture.estEnAlerte(),
+                    couverture.successeurs().stream().map(PosteCritiqueViewService::successeur).toList()
             ));
         }
 
         return lignes;
+    }
+
+    /** Un successeur tel que CouverturePoste le classe (meilleur matching d'abord). */
+    static PosteCritiqueRow.SuccesseurRow successeur(ResultatMatching matching) {
+        PlusGrandGap gap = matching.plusGrandGap();
+        boolean ecart = gap != null && gap.aUnEcart();
+        return new PosteCritiqueRow.SuccesseurRow(matching.candidat().getIdCollaborateur(),
+                matching.candidat().getNomComplet(), matching.scoreMatching(), matching.readiness().name(),
+                matching.readiness().getLibelle(), ecart ? gap.competence() : null, ecart ? gap.ecart() : 0);
     }
 }
