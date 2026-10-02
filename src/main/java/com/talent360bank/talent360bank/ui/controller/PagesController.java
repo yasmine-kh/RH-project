@@ -6,6 +6,7 @@ import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.VivierSyntheseService;
 import com.talent360bank.talent360bank.service.resultat.SyntheseVivier;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur;
+import com.talent360bank.talent360bank.ui.model.MatriceNeufBox;
 import com.talent360bank.talent360bank.ui.service.LiensPages;
 import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
 import com.talent360bank.talent360bank.ui.service.FicheCollaborateurPageViewService;
@@ -18,7 +19,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Ecrans 9-Box, Viviers, Postes critiques, Comite Talent, Fiche collaborateur
@@ -57,14 +61,62 @@ public class PagesController {
         this.vivierSyntheseService = vivierSyntheseService;
     }
 
+    /**
+     * La 9-Box et le panneau de detail d'une case. Sans JavaScript, chaque case est un
+     * lien vers {@code ?case=N#detail} ; {@code q} (nom, matricule, entite) et {@code tri}
+     * (NOM, PERFORMANCE, POTENTIEL) filtrent et trient les listes du panneau, sans requete.
+     *
+     * @param caseNeufBox case ouverte, 1 a 9 ; Talent cle (9) par defaut ou si hors bornes
+     */
     @GetMapping("/9box")
     public String neufBox(@RequestParam(name = TrimestreCourantService.PARAMETRE, required = false) String trimestre,
+                          @RequestParam(name = "case", required = false) Integer caseNeufBox,
+                          @RequestParam(required = false) String q,
+                          @RequestParam(required = false) String tri,
                           Model model) {
         TrimestreCourantService.Selection selection = trimestreCourant.selectionner(trimestre);
         selection.exposer(model);
-        model.addAttribute("matrice", nineBoxViewService.buildMatrice(selection.trimestre()));
+        int selectionnee = caseNeufBox != null && caseNeufBox >= 1 && caseNeufBox <= 9 ? caseNeufBox : 9;
+        MatriceNeufBox matrice = nineBoxViewService.buildMatrice(selection.trimestre(), selectionnee);
+        String recherche = q == null || q.isBlank() ? null : q.trim();
+        String ordre = tri == null ? "NOM" : tri.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!List.of("NOM", "PERFORMANCE", "POTENTIEL").contains(ordre)) {
+            ordre = "NOM";
+        }
+        Map<Integer, List<MatriceNeufBox.Membre>> panneaux = new HashMap<>();
+        for (MatriceNeufBox.CaseMatrice c : matrice.cases()) {
+            panneaux.put(c.numero(), filtrerEtTrier(c.membres(), recherche, ordre));
+        }
+        model.addAttribute("matrice", matrice);
+        model.addAttribute("panneaux", panneaux);
+        model.addAttribute("recherche", recherche);
+        model.addAttribute("tri", ordre);
         model.addAttribute("activePage", "9box");
         return "9box";
+    }
+
+    /** Filtre (nom, matricule ou entite, sans accents ni casse) puis trie les membres d'une case. */
+    static List<MatriceNeufBox.Membre> filtrerEtTrier(List<MatriceNeufBox.Membre> membres, String recherche,
+                                                      String tri) {
+        String texte = recherche == null ? null : sansAccents(recherche);
+        Comparator<MatriceNeufBox.Membre> parNom = Comparator.comparing(m -> sansAccents(m.nomComplet()));
+        Comparator<MatriceNeufBox.Membre> ordre = switch (tri) {
+            case "PERFORMANCE" -> Comparator.comparing(MatriceNeufBox.Membre::performance,
+                    Comparator.nullsLast(Comparator.reverseOrder())).thenComparing(parNom);
+            case "POTENTIEL" -> Comparator.comparing(MatriceNeufBox.Membre::potentiel,
+                    Comparator.nullsLast(Comparator.reverseOrder())).thenComparing(parNom);
+            default -> parNom;
+        };
+        return membres.stream()
+                .filter(m -> texte == null || sansAccents(m.nomComplet()).contains(texte)
+                        || sansAccents(m.matricule()).contains(texte) || sansAccents(m.entite()).contains(texte))
+                .sorted(ordre)
+                .toList();
+    }
+
+    private static String sansAccents(String texte) {
+        return texte == null ? "" : java.text.Normalizer.normalize(texte.trim(), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "").toLowerCase(java.util.Locale.ROOT);
     }
 
     @GetMapping("/viviers")

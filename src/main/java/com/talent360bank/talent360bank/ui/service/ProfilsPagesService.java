@@ -55,13 +55,9 @@ public class ProfilsPagesService {
         VueManager vue = vueManagerViewService.construire(matricule, trimestre.getAnnee(), trimestre.getNumero());
         String valeur = TrimestreCourantService.valeur(trimestre);
 
-        Map<Integer, List<MatriceNeufBox.Membre>> parCase = vue.membres().stream()
-                .filter(m -> m.neufBox() != null)
-                .sorted(java.util.Comparator.comparing(VueManager.Membre::nom).thenComparing(VueManager.Membre::prenom))
-                .collect(Collectors.groupingBy(m -> m.neufBox().numero(), Collectors.mapping(
-                        m -> new MatriceNeufBox.Membre(m.matricule(), m.prenom() + " " + m.nom(),
-                                LiensPages.fiche(m.matricule(), valeur)), Collectors.toList())));
-        MatriceNeufBox matrice = MatriceNeufBox.depuisComptes(vue.synthese().neufBox(), parCase, numero -> null);
+        // Un clic sur une case filtre le tableau de l'equipe de cette page sur la case.
+        MatriceNeufBox matrice = MatriceNeufBox.depuisComptes(vue.synthese().neufBox(),
+                numero -> LiensPages.vueManager(matricule, valeur) + "&case=" + numero + "#equipe");
 
         Set<String> equipe = vue.membres().stream().map(VueManager.Membre::matricule).collect(Collectors.toSet());
         Map<String, PosteCibleLigne> cibles = new HashMap<>();
@@ -81,7 +77,7 @@ public class ProfilsPagesService {
         VueEntite vue = vueEntiteViewService.construire(code, trimestre.getAnnee(), trimestre.getNumero());
         String valeur = TrimestreCourantService.valeur(trimestre);
         String codeEntite = vue.entite().code();
-        MatriceNeufBox matrice = MatriceNeufBox.depuisComptes(vue.synthese().neufBox(), Map.of(),
+        MatriceNeufBox matrice = MatriceNeufBox.depuisComptes(vue.synthese().neufBox(),
                 numero -> MatriceNeufBox.lienListe(valeur, codeEntite, numero));
         return new PageVueEntite(vue, matrice, LiensPages.chemin(codeEntite, vue.entite().chemin()));
     }

@@ -191,9 +191,10 @@ body {
     font-size: 0.8rem;
 }
 /* ---------- MATRICE 9-BOX (fragments/matrice9box.html) ----------
-   Composant commun de la page 9-Box, de l'accueil et du dashboard DG. Sobre, comme
-   l'ancienne grille de l'accueil : cases tres claires a bordure fine, effectif en gros,
-   libelle en petit gris. Seule la case 9 (Talent cle) est teintee, de la couleur d'accent. */
+   Composant commun (page 9-Box, accueil, dashboard DG, vue manager, vue entite). Sobre :
+   cases tres claires a bordure fine, sans noms ; contenu centre (numero et libelle en haut,
+   effectif au milieu, % dessous) ; 9 cases de meme hauteur ; toute la case est cliquable.
+   Seule la case 9 (Talent cle) est teintee de la couleur d'accent. */
 .matrice9-bloc { margin-top: 12px; }
 .matrice9 { display: flex; gap: 6px; }
 .matrice9-titre-y {
@@ -209,42 +210,51 @@ body {
 .matrice9-niveau-y { display: flex; align-items: center; justify-content: flex-end; font-size: 11px; color: var(--color-muted); padding-right: 4px; }
 .matrice9-niveau-x { text-align: center; font-size: 11px; color: var(--color-muted); }
 .matrice9-case {
+    height: 112px; padding: 8px 10px; min-width: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     background: #f8f9fa; border: 1px solid #dee2e6; border-radius: var(--radius);
-    padding: 10px 12px; min-height: 96px; color: var(--color-text);
-    display: flex; flex-direction: column; gap: 4px; min-width: 0;
+    color: var(--color-text); text-decoration: none; text-align: center; cursor: pointer;
+    transition: background-color .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.matrice9-case:hover, .matrice9-case:focus-visible {
+    background: #fff; border-color: rgba(47, 111, 237, 0.45); box-shadow: 0 2px 8px rgba(16, 27, 51, 0.08);
+    color: var(--color-text);
 }
 .matrice9-case.matrice9-talent-cle { background: rgba(47, 111, 237, 0.07); border-color: rgba(47, 111, 237, 0.35); }
-.matrice9-entete { display: flex; gap: 6px; align-items: baseline; color: var(--color-muted); text-decoration: none; font-size: 12px; }
-.matrice9-entete:hover { color: var(--color-primary); text-decoration: underline; }
+.matrice9-case.matrice9-selectionnee { border: 2px solid var(--color-primary); padding: 7px 9px; }
+.matrice9-entete { display: flex; gap: 5px; align-items: baseline; justify-content: center; max-width: 100%;
+    font-size: 12px; color: var(--color-muted); }
 .matrice9-numero { font-weight: 600; }
 .matrice9-libelle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.matrice9-chiffres { display: flex; align-items: baseline; gap: 6px; }
-.matrice9-compte { font-size: 1.6rem; font-weight: 700; line-height: 1.1; color: var(--color-text); }
+.matrice9-compte { font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: var(--color-text); }
 .matrice9-part { font-size: 11px; color: var(--color-muted); }
-.matrice9-noms { flex-wrap: wrap; gap: 4px; }
-.matrice9-nom, .matrice9-autres {
-    font-size: 11px; padding: 1px 8px; border-radius: 999px; text-decoration: none;
-    background: #fff; color: #495057; border: 1px solid #dee2e6;
-    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.matrice9-nom:hover, .matrice9-autres:hover { color: var(--color-primary); border-color: var(--color-primary); }
-.matrice9-autres { color: var(--color-primary); }
 .matrice9-legende { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; align-items: center; }
 .matrice9-pastille { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px;
     vertical-align: -1px; border: 1px solid #dee2e6; }
+.matrice9-pastille.matrice9-talent-cle { background: rgba(47, 111, 237, 0.07); border-color: rgba(47, 111, 237, 0.35); }
 .matrice9-total { margin-left: auto; font-weight: 600; }
 [data-bs-theme="dark"] .matrice9-case { background: #212529; border-color: #495057; color: #f1f3f5; }
 [data-bs-theme="dark"] .matrice9-case.matrice9-talent-cle { background: rgba(47, 111, 237, 0.18); }
 [data-bs-theme="dark"] .matrice9-compte { color: #f1f3f5; }
-[data-bs-theme="dark"] .matrice9-nom, [data-bs-theme="dark"] .matrice9-autres { background: #2b3035; color: #dee2e6; border-color: #495057; }
 @media (max-width: 767.98px) {
     .matrice9-grille { grid-template-columns: 3.2rem repeat(3, minmax(0, 1fr)); gap: 4px; }
-    .matrice9-case { min-height: 70px; padding: 6px; }
+    .matrice9-case { height: 76px; padding: 4px; }
+    .matrice9-case.matrice9-selectionnee { padding: 3px; }
     .matrice9-libelle { display: none; }
     .matrice9-compte { font-size: 1.2rem; }
 }
+
+/* Panneau de detail de la page 9-Box (templates/9box.html). */
+.neufbox-detail .neufbox-recherche { flex: 1 1 10rem; }
+.neufbox-detail .neufbox-tri { flex: 0 0 9rem; }
+.neufbox-detail tbody tr[hidden] { display: none; }
 
 /* ---------- SELECTEUR DE PROFIL (haut de la sidebar, fragments/sidebar.html) ---------- */
 .sidebar-profil { padding: 0 16px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); margin-bottom: 8px; }
 .sidebar-profil-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.6); margin-bottom: 4px; }
+
+/* Bandeau du profil choisi (sidebar), avec le retour a la vue RH. */
+.sidebar-bandeau { margin: 0 16px 10px; padding: 10px 12px; border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); }
+.sidebar-bandeau-texte { font-size: 13px; color: #fff; font-weight: 600; }

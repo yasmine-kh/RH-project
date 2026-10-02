@@ -155,7 +155,7 @@ class ProfilsPagesDatasetTest {
         String html = html(resultat);
         assertThat(html).contains("/entites?code=DIR:RESEAU_RETAIL&amp;trimestre=2026-3");
         // Les cases de la matrice menent a la liste du sous-arbre.
-        assertThat(vue.matrice().cases().get(2).lienListe()).contains("entite=", "case=9");
+        assertThat(vue.matrice().cases().get(2).lien()).contains("/collaborateurs?", "entite=", "case=9");
         // Les entites filles sont cliquables.
         vue.vue().enfants().forEach(enfant -> assertThat(html).contains(enfant.libelle()));
         assertThat(html(page("/entites?trimestre=2026-3"))).contains("/entites?code=DIR:RESEAU_RETAIL");
@@ -192,13 +192,9 @@ class ProfilsPagesDatasetTest {
             assertThat(options(html, "profils-managers")).as(url).isEqualTo((int) managers);
             assertThat(options(html, "profils-entites")).as(url).isEqualTo((int) entiteRepository.count());
         }
-        // Le profil courant est selectionne.
+        // Sans profil choisi, la session est en vue RH.
         assertThat(html(page("/managers/" + plusGrandeEquipe().getKey())))
-                .containsPattern("<option value=\"MANAGER\" selected=\"selected\">");
-        assertThat(html(page("/entites?code=DIR:RESEAU_RETAIL")))
-                .containsPattern("<option value=\"ENTITE\" selected=\"selected\">");
-        assertThat(html(page("/fiche-collaborateur?matricule=BP001")))
-                .containsPattern("<option value=\"COLLABORATEUR\" selected=\"selected\">");
+                .containsPattern("<option value=\"RH\" selected=\"selected\">");
     }
 
     private static int options(String html, String liste) {

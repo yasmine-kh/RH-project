@@ -1,9 +1,14 @@
 package com.talent360bank.talent360bank.ui.controller;
 
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
+import com.talent360bank.talent360bank.ui.model.ElementMenu;
+import com.talent360bank.talent360bank.ui.model.ProfilActif;
 import com.talent360bank.talent360bank.ui.model.Profils;
+import com.talent360bank.talent360bank.ui.service.MenuProfilService;
 import com.talent360bank.talent360bank.ui.service.ProfilsService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.ui.Model;
@@ -12,11 +17,14 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 /**
  * Pour toutes les pages (controleurs de ui.controller, jamais l'API) :
  * <ul>
  *   <li>les options du selecteur de profil de la sidebar, lues une fois par
  *   requete ({@link ProfilsService}, trois requetes) ;</li>
+ *   <li>le profil choisi (session HTTP) et le menu de ce profil, sans requete ;</li>
  *   <li>une ressource introuvable (matricule, code d'entite, trimestre) donne
  *   la page 404 en francais, jamais une trace d'erreur.</li>
  * </ul>
@@ -38,6 +46,21 @@ public class ProfilsAdvice {
     public Profils profils() {
         ProfilsService service = profilsService.getIfAvailable();
         return service == null ? null : service.options();
+    }
+
+    /** Le profil choisi, garde en session (RH par defaut) : aucune requete. */
+    @ModelAttribute("profilActif")
+    public ProfilActif profilActif(HttpSession session) {
+        Object profil = session.getAttribute(ProfilActif.SESSION);
+        return profil instanceof ProfilActif actif ? actif : ProfilActif.RH;
+    }
+
+    /** Le menu du profil choisi ; liens pour le trimestre demande ({@code ?trimestre=}). */
+    @ModelAttribute("menu")
+    public List<ElementMenu> menu(HttpSession session, HttpServletRequest requete) {
+        String trimestre = requete.getParameter("trimestre");
+        return MenuProfilService.menu(profilActif(session),
+                trimestre == null || trimestre.isBlank() ? null : trimestre.trim());
     }
 
     @ExceptionHandler(RessourceIntrouvableException.class)
