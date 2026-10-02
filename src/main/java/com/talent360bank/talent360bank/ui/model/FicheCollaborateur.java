@@ -22,6 +22,9 @@ import java.util.List;
  * @param neufBox           null si le collaborateur n'est pas place dans la matrice
  * @param engagement        score du questionnaire sur 100, null sans questionnaire
  * @param vigilance         null si l'indice n'est pas calculable (reglages absents)
+ * @param successions       postes critiques ou il est successeur identifie, avec le plus grand gap
+ * @param posteCible        poste critique ou son matching est le meilleur (PosteCibleService) ;
+ *                          null sans score complet ou sans reglages
  * @param historique        trimestres precedents, du plus recent au plus ancien
  * @param autoEvaluation    auto-evaluation face a l'evaluation du manager ; null sans auto-evaluation
  * @param donneesManquantes une phrase par donnee absente, pour l'afficher telle quelle
@@ -37,6 +40,7 @@ public record FicheCollaborateur(
         BigDecimal engagement,
         Vigilance vigilance,
         List<Succession> successions,
+        PosteCible posteCible,
         List<HistoriqueTrimestre> historique,
         AutoEvaluation autoEvaluation,
         List<String> donneesManquantes) {
@@ -163,9 +167,29 @@ public record FicheCollaborateur(
     public record RaisonVigilance(String code, String libelle, BigDecimal points) {
     }
 
-    /** Poste critique pour lequel le collaborateur est successeur identifie. */
+    /**
+     * Poste critique pour lequel le collaborateur est successeur identifie.
+     *
+     * @param gapCompetence competence la plus eloignee du niveau requis (09_SUCCESSION!M),
+     *                      null sans aucun ecart
+     * @param gapNiveaux    niveaux manquants sur cette competence, 0 sans ecart
+     */
     public record Succession(String posteId, String nomPoste, String direction, String criticite,
-                             BigDecimal scoreMatching, String readiness, String readinessLibelle) {
+                             BigDecimal scoreMatching, String readiness, String readinessLibelle,
+                             String gapCompetence, int gapNiveaux) {
+    }
+
+    /**
+     * Poste cible : le poste critique (hors celui dont il est titulaire) ou son
+     * matching est le meilleur ; a egalite, le plus petit Poste_ID.
+     *
+     * @param successeurIdentifie vrai si le RH l'a designe successeur de ce poste
+     * @param gapCompetence       competence la plus eloignee du niveau requis, null sans ecart
+     * @param gapNiveaux          niveaux manquants sur cette competence, 0 sans ecart
+     */
+    public record PosteCible(String posteId, String nomPoste, String direction, String criticite,
+                             BigDecimal scoreMatching, String readiness, String readinessLibelle,
+                             boolean successeurIdentifie, String gapCompetence, int gapNiveaux) {
     }
 
     /** @param neufBox null si le collaborateur n'etait pas place ce trimestre-la */

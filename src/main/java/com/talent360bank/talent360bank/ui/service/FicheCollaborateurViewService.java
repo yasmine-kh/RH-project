@@ -22,6 +22,7 @@ import com.talent360bank.talent360bank.repository.CompetenceCollaborateurReposit
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.ParametreRepository;
 import com.talent360bank.talent360bank.repository.PerformanceRepository;
+import com.talent360bank.talent360bank.repository.PosteRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
 import com.talent360bank.talent360bank.repository.SuccesseurIdentifieRepository;
@@ -31,6 +32,7 @@ import com.talent360bank.talent360bank.service.CalculService;
 import com.talent360bank.talent360bank.service.CompetenceCollaborateurService;
 import com.talent360bank.talent360bank.service.EntreesVigilance;
 import com.talent360bank.talent360bank.service.NeufBoxService;
+import com.talent360bank.talent360bank.service.PosteCibleService;
 import com.talent360bank.talent360bank.service.PosteCritiqueService;
 import com.talent360bank.talent360bank.service.ScoreService;
 import com.talent360bank.talent360bank.service.SuccessionService;
@@ -40,6 +42,7 @@ import com.talent360bank.talent360bank.service.VivierThematiqueService;
 import com.talent360bank.talent360bank.service.enums.SignalVigilance;
 import com.talent360bank.talent360bank.service.enums.StatutValidationComite;
 import com.talent360bank.talent360bank.service.resultat.GapCompetence;
+import com.talent360bank.talent360bank.service.resultat.PlusGrandGap;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import com.talent360bank.talent360bank.service.resultat.ResultatVigilance;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur;
@@ -53,6 +56,7 @@ import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.EvaluationAut
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.HistoriqueTrimestre;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Identite;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.ManagerFiche;
+import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.PosteCible;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.RaisonVigilance;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Succession;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Talent;
@@ -68,6 +72,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -77,8 +82,8 @@ import java.util.stream.Collectors;
  *
  * <p>REGLE : aucun calcul ici. Scores, categories et case 9-box sont ceux
  * enregistres par ScoreService et NeufBoxService ; talent, gap de competence,
- * vigilance et matching viennent des methodes du moteur (TalentService,
- * CompetenceCollaborateurService, VigilanceService, SuccessionService).
+ * vigilance, matching et poste cible viennent des methodes du moteur (TalentService,
+ * CompetenceCollaborateurService, VigilanceService, SuccessionService, PosteCibleService).
  *
  * <p><strong>Donnees manquantes.</strong> Un bloc sans donnees reste vide
  * (null ou liste vide) et une phrase s'ajoute a donneesManquantes ; seuls un
@@ -104,6 +109,7 @@ public class FicheCollaborateurViewService {
     private final ValidationComiteRepository validationComiteRepository;
     private final AppartenanceVivierRepository appartenanceVivierRepository;
     private final SuccesseurIdentifieRepository successeurIdentifieRepository;
+    private final PosteRepository posteRepository;
     private final CompetenceCollaborateurRepository competenceCollaborateurRepository;
     private final Matrice9BoxRepository matrice9BoxRepository;
     private final ScoreService scoreService;
@@ -114,6 +120,7 @@ public class FicheCollaborateurViewService {
     private final SuccessionService successionService;
     private final CompetenceCollaborateurService competenceCollaborateurService;
     private final VivierThematiqueService vivierThematiqueService;
+    private final PosteCibleService posteCibleService;
     private final EntreesVigilance entreesVigilance;
 
     public FicheCollaborateurViewService(CollaborateurRepository collaborateurRepository,
@@ -125,6 +132,7 @@ public class FicheCollaborateurViewService {
                                          ValidationComiteRepository validationComiteRepository,
                                          AppartenanceVivierRepository appartenanceVivierRepository,
                                          SuccesseurIdentifieRepository successeurIdentifieRepository,
+                                         PosteRepository posteRepository,
                                          CompetenceCollaborateurRepository competenceCollaborateurRepository,
                                          Matrice9BoxRepository matrice9BoxRepository,
                                          ScoreService scoreService,
@@ -135,6 +143,7 @@ public class FicheCollaborateurViewService {
                                          SuccessionService successionService,
                                          CompetenceCollaborateurService competenceCollaborateurService,
                                          VivierThematiqueService vivierThematiqueService,
+                                         PosteCibleService posteCibleService,
                                          EntreesVigilance entreesVigilance) {
         this.collaborateurRepository = collaborateurRepository;
         this.trimestreRepository = trimestreRepository;
@@ -145,6 +154,7 @@ public class FicheCollaborateurViewService {
         this.validationComiteRepository = validationComiteRepository;
         this.appartenanceVivierRepository = appartenanceVivierRepository;
         this.successeurIdentifieRepository = successeurIdentifieRepository;
+        this.posteRepository = posteRepository;
         this.competenceCollaborateurRepository = competenceCollaborateurRepository;
         this.matrice9BoxRepository = matrice9BoxRepository;
         this.scoreService = scoreService;
@@ -155,6 +165,7 @@ public class FicheCollaborateurViewService {
         this.successionService = successionService;
         this.competenceCollaborateurService = competenceCollaborateurService;
         this.vivierThematiqueService = vivierThematiqueService;
+        this.posteCibleService = posteCibleService;
         this.entreesVigilance = entreesVigilance;
     }
 
@@ -212,6 +223,7 @@ public class FicheCollaborateurViewService {
                 engagement(d),
                 vigilance(d),
                 successions(d),
+                posteCible(d),
                 historique(d),
                 autoEvaluation(d),
                 List.copyOf(d.manquantes));
@@ -552,6 +564,7 @@ public class FicheCollaborateurViewService {
                 .stream()
                 .filter(PosteCritiqueService::estCritique)
                 .toList();
+        d.postesSuccesseur = postes;
         if (postes.isEmpty() || d.parametre == null) {
             return List.of();
         }
@@ -565,15 +578,53 @@ public class FicheCollaborateurViewService {
             for (Poste poste : postes) {
                 ResultatMatching matching = successionService.evaluer(d.collaborateur, poste, d.score, d.potentiel,
                         d.competences, d.parametre, d.trimestre.getDateReference());
+                PlusGrandGap gap = ecart(matching.plusGrandGap());
                 successions.add(new Succession(poste.getPosteId(), poste.getNomPoste(), poste.getDirection(),
                         poste.getCriticite(), matching.scoreMatching(), matching.readiness().name(),
-                        matching.readiness().getLibelle()));
+                        matching.readiness().getLibelle(), gap == null ? null : gap.competence(),
+                        gap == null ? 0 : gap.ecart()));
             }
         } catch (DonneesIncompletesException e) {
             d.manque("Matching succession : " + e.getMessage());
             return List.of();
         }
         return List.copyOf(successions);
+    }
+
+    /**
+     * Poste critique ou le matching du collaborateur est le meilleur
+     * (PosteCibleService), sur les donnees deja lues plus les postes (une requete).
+     * Null sans reglages ni score complet : le manque est deja dit par ces blocs.
+     */
+    private PosteCible posteCible(Donnees d) {
+        if (d.parametre == null || d.score == null || d.score.getScorePerformance() == null
+                || d.score.getScorePotentiel() == null) {
+            return null;
+        }
+        try {
+            Set<String> identifies = d.postesSuccesseur.stream().map(Poste::getPosteId).collect(Collectors.toSet());
+            return posteCibleService.meilleurPoste(d.collaborateur, d.score, d.potentiel, d.competences,
+                            posteRepository.findAllAvecCompetences(), identifies, d.parametre,
+                            d.trimestre.getDateReference())
+                    .map(cible -> {
+                        Poste poste = cible.poste();
+                        ResultatMatching matching = cible.matching();
+                        PlusGrandGap gap = ecart(matching.plusGrandGap());
+                        return new PosteCible(poste.getPosteId(), poste.getNomPoste(), poste.getDirection(),
+                                poste.getCriticite(), matching.scoreMatching(), matching.readiness().name(),
+                                matching.readiness().getLibelle(), cible.successeurIdentifie(),
+                                gap == null ? null : gap.competence(), gap == null ? 0 : gap.ecart());
+                    })
+                    .orElse(null);
+        } catch (DonneesIncompletesException e) {
+            d.manque("Poste cible : " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** Le plus grand gap s'il y a un vrai ecart, null sinon (aucun ecart, ou poste sans exigence). */
+    private static PlusGrandGap ecart(PlusGrandGap gap) {
+        return gap != null && gap.aUnEcart() ? gap : null;
     }
 
     // --- historique ------------------------------------------------------------
@@ -640,6 +691,8 @@ public class FicheCollaborateurViewService {
         Potentiel potentiel;
         Potentiel potentielAuto;
         List<CompetenceCollaborateur> competences;
+        /** Postes critiques ou il est successeur identifie, poses par le bloc succession. */
+        List<Poste> postesSuccesseur = List.of();
         /** Score du questionnaire d'engagement, pose par le bloc engagement (lu avant la vigilance). */
         BigDecimal engagement;
         CasesNeufBox cases;

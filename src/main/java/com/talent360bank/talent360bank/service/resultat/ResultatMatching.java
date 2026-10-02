@@ -13,9 +13,18 @@ import java.math.BigDecimal;
  * <p>Le detail est conserve parce qu'un score global seul ne se defend pas
  * devant un comite : il faut pouvoir dire si le candidat est ecarte pour ses
  * competences ou pour son anciennete.
+ *
+ * @param plusGrandGap competence la plus eloignee du niveau requis (09_SUCCESSION!M),
+ *                     null si le poste n'exige aucune competence chiffree
  */
 public record ResultatMatching(Collaborateur candidat, BigDecimal scoreMatching,
-                               NiveauReadiness readiness, DetailMatching detail) {
+                               NiveauReadiness readiness, DetailMatching detail, PlusGrandGap plusGrandGap) {
+
+    /** Sans plus grand gap connu (resultat construit hors du moteur). */
+    public ResultatMatching(Collaborateur candidat, BigDecimal scoreMatching,
+                            NiveauReadiness readiness, DetailMatching detail) {
+        this(candidat, scoreMatching, readiness, detail, null);
+    }
 
     /**
      * Sous-scores des six criteres, chacun sur 100.

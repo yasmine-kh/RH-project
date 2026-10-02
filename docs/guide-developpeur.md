@@ -315,9 +315,11 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Talents | `GET .../talents[/{id}]`, `GET .../hauts-potentiels[/{id}]` |
 | Relief pool | `GET .../vivier-releve` (calculated), `POST .../vivier-releve` (save) |
 | Succession | `GET /api/postes/{posteId}/candidats[?limite=]`, `GET /api/postes/{posteId}/candidats/{id}` |
-| Critical positions | `GET /api/postes-critiques`, `.../alertes`, `.../synthese`, `.../{posteId}` |
+| Critical positions | `GET /api/postes-critiques`, `.../alertes`, `.../synthese`, `.../{posteId}`. Each position lists **all** its evaluated successors (`successeurs`, best matching first), each with `plusGrandGap` |
+| Target posts | `GET /api/trimestres/{annee}/{numero}/postes-cibles`: one entry per active employee with a complete score, by matricule ([below](#target-post-and-pool-summaries)) |
 | Committee | `GET /api/comite-talent`, `GET /api/comite-talent/talents-valides` |
 | Thematic pools | `GET /api/viviers-thematiques`, `GET /api/viviers-thematiques/{code}` |
+| Pool summaries | `GET /api/viviers/synthese?annee=&numero=`: the 5 thematic pools then the relief pool ([below](#target-post-and-pool-summaries)) |
 | Vigilance | `GET .../vigilance[?minimum=MODEREE]` (every active employee with at least one vigilance input, with or without a score: same rule as the fiche and the views, `EntreesVigilance`), `GET .../vigilance/{id}` |
 | Skills | `GET /api/collaborateurs/{id}/competences[?annee=&numero=]` |
 | Dashboard | `GET /api/dashboard/synthese` |
@@ -363,7 +365,8 @@ One call returns everything HR sees for **one** employee in **one** quarter:
 | `competences` | [{`competenceId`, `nom`, `categorie`, `niveauRequis`, `niveauActuel`, `gap`, `statut` (`MAITRISE` / `A_DEVELOPPER` / `PRIORITAIRE`) + `statutLibelle`}], by skill id | empty list |
 | `engagement` | questionnaire score /100 | no questionnaire |
 | `vigilance` | `indice` /100, `niveau` (`FAIBLE` / `MODEREE` / `ELEVEE`) + `niveauLibelle`, `raisons`: [{`code`, `libelle`, `points`}] (the points add up to `indice`) | no settings for the quarter, or **no vigilance input at all** (no engagement questionnaire, no vigilance declaration, no evaluation): then `donneesManquantes` says "Aucune donnée de vigilance pour ce trimestre" instead of showing a misleading 0 / FAIBLE. One input is enough for the index to be calculated as usual |
-| `successions` | critical positions where the employee is an identified successor: [{`posteId`, `nomPoste`, `direction`, `criticite`, `scoreMatching`, `readiness` + `readinessLibelle`}] | empty list |
+| `successions` | critical positions where the employee is an identified successor: [{`posteId`, `nomPoste`, `direction`, `criticite`, `scoreMatching`, `readiness` + `readinessLibelle`, `gapCompetence` (skill furthest from the required level, `09_SUCCESSION!M`; null when there is no gap), `gapNiveaux` (missing levels, 0 when none)}] | empty list |
+| `posteCible` | the **target post**: the critical position with the employee's best matching (see [below](#target-post-and-pool-summaries)): {`posteId`, `nomPoste`, `direction`, `criticite`, `scoreMatching`, `readiness` + `readinessLibelle`, `successeurIdentifie` (true if HR named them successor of that post), `gapCompetence`, `gapNiveaux`} | no settings, or no complete score for the quarter |
 | `historique` | earlier quarters, most recent first: [{`annee`, `numero`, `libelle`, `scorePerformance`, `scorePotentiel`, `neufBox` {`numero`, `libelle`} or null (not placed, or no settings that quarter)}] | empty list |
 | `autoEvaluation` | the self-evaluation against the manager's, per axis: `performance` / `potentiel` = {`score` (self-evaluation score, same formula), `categorie` + `categorieLibelle`, `scoreManager` (manager's evaluation, same formula), `ecart` (= `score` − `scoreManager`: positive when the employee rates themselves higher), `criteres`: [{`code`, `libelle`, `note`, `noteManager`, `ecart`, `poids`}]}; an axis is null without a self-evaluation on it | no self-evaluation for the quarter. `scoreManager` / `noteManager` / `ecart` are null without a manager evaluation |
 | `donneesManquantes` | sentences, e.g. "Pas d'évaluation de potentiel pour ce trimestre" | empty list |
@@ -397,7 +400,9 @@ Shortened example (BP005, dataset T3 2026):
                               { "code": "FORMATION_NON_FAITE", "libelle": "Formation prevue non realisee", "points": 5.00 } ] },
   "successions": [ { "posteId": "PST01", "nomPoste": "Directeur regional", "direction": "Reseau Retail",
                      "criticite": "Tres elevee", "scoreMatching": 84.92, "readiness": "MOINS_1_AN",
-                     "readinessLibelle": "< 1 an" } ],
+                     "readinessLibelle": "< 1 an", "gapCompetence": null, "gapNiveaux": 0 } ],
+  "posteCible": { "posteId": "PST01", "nomPoste": "Directeur regional", "...": "...",
+                  "successeurIdentifie": true, "gapCompetence": null, "gapNiveaux": 0 },
   "historique": [],
   "autoEvaluation": null,
   "donneesManquantes": []
@@ -405,6 +410,16 @@ Shortened example (BP005, dataset T3 2026):
 ```
 
 Tests: `FicheCollaborateurViewServiceTest` (H2: complete record checked against the engine services, missing potential, incomplete settings, two-quarter history, unknown matricule), `FicheCollaborateurControllerTest` (JSON contract, 404, 401), `FicheCollaborateurDatasetTest` (BP005 against the workbook, skipped without it).
+
+### Target post and pool summaries
+
+Both are engine services (Jas) with a JSON endpoint; the screens (Ima) only display them.
+
+- **Largest gap** (`SuccessionService.plusGrandGap`, carried by every `ResultatMatching` as `plusGrandGap`): among the skills the position requires, the one where the candidate misses the most levels, `max(0, required − current)`, with the same data as the skills sub-score (missing skill = default level of the scale). **Ties: the first skill in the position's order** (07_POSTES required skills 1 to 5), exactly like `INDEX/MATCH` in `09_SUCCESSION!M`. So when there is no gap at all, the workbook (and the engine) still return the first skill, with `ecart = 0`: show "no gap" in that case (`aUnEcart()` is false; the view models already give `gapCompetence = null`).
+- **Target post** (`PosteCibleService`): for each active employee with a complete score, the matching is computed on **every** critical position except the one they hold, with the quarter's `Parametre` and `dateReference`; the best one is the target post (tie: smallest Poste_ID). `successeurIdentifie` says whether HR named them successor there (09_SUCCESSION). The workbook has no target post. `postesCibles(trimestre)` reads the database in 6 queries whatever the population; `meilleurPoste(...)` works on loaded data (used by the fiche).
+- **Pool summaries** (`VivierSyntheseService`): one `SyntheseVivier` per thematic pool (in `VivierThematique` order) then the relief pool (`code = RELEVE`, `releve = true`; its members are also in a thematic pool): `effectif`, `nbTalents`, `nbHautsPotentiels`, `nbReadyNow` (members Ready Now on at least one critical position where they are an identified successor, counted once), `performanceMoyenne` / `potentielMoyen` (2 decimals, known values only), `nbPostesCouverts` (critical positions with at least one member among their successors), `gapsIdentifies` [{`competenceId`, `competence`, `nombre`}]: the largest gaps of the members' successions with a real gap (one per position/successor pair), most frequent first. The home dashboard's pool table uses `resumerThematiques` on data it has already read, so its figures and its query count are unchanged.
+
+Tests: `SuccessionViviersDatasetTest` (the workbook: `09!M` on all 44 rows, every successor of PST01 and PST13, every pool summary against `10_TALENTS` / `09_SUCCESSION`, target posts of BP001, BP003, BP019), `PosteCibleServiceTest`, `VivierSyntheseServiceTest`, `SuccessionServiceTest` (largest gap), `PosteCibleEtVivierSyntheseControllerTest` (JSON contract), `SansSessionOuverteIntegrationTest` (fixed number of queries).
 
 ### Vue manager
 
@@ -711,6 +726,9 @@ All values below are the **defaults** of `Parametre.parDefaut`, identical to `00
 | **Relief pool** | `TalentService`, `VivierReleveService` | Talent **or** high potential. Saving replaces only the engine's rows (`origine = MOTEUR`); imported or HR-entered rows are never touched or duplicated. |
 | **Succession matching** | `SuccessionService` | Weighted average of 6 criteria: skills 25, performance 20, potential 20, experience 15, leadership 10, mobility 10. Skills: 100 − 20 per missing level for each required skill, floored at 0; a missing skill is assumed at level 3. Experience: 8 points per year of seniority, capped at 100; seniority is measured at the quarter's `dateReference` (`ROUND(days / 365.25, 1)`, as in the workbook), so a quarter gives the same result whatever day it is computed. The current holder is excluded. |
 | **Readiness** | `SuccessionService` | Matching ≥ 90 Ready Now, ≥ 80 < 1 year, ≥ 65 1–2 years, else > 2 years. |
+| **Largest gap** | `SuccessionService.plusGrandGap` | The required skill with the most missing levels; tie → first skill of the position (as `09_SUCCESSION!M`). |
+| **Target post** | `PosteCibleService` | The critical position (not held) with the employee's best matching; tie → smallest Poste_ID. |
+| **Pool summaries** | `VivierSyntheseService` | Per thematic pool and for the relief pool: headcount, talents, high potentials, Ready Now, averages, positions covered, most frequent largest gaps. Counts only. |
 | **Critical positions** | `PosteCritiqueService` | A position flagged "Oui". Fewer than 1 identified successor → **ALERT**; otherwise the best successor's matching gives "Ready Now" (≥ 90), "< 1 year" (≥ 80) or "Partielle". Coverage rate = positions not in alert ÷ critical positions. |
 | **Talent Committee** | `ValidationComiteService` | Validated talent = proposed talent **and** committee decision "Oui". A decision not entered counts as "En attente". |
 | **Thematic pools** | `VivierThematiqueService` | Every employee goes into the pool of their direction (Commercial, Digital, Expertise, Management, Risques), talent or not. The mapping is data, supplied by a source. |
@@ -1075,6 +1093,7 @@ git push -u origin feature/my-change
 - Quarter reference date (`Trimestre.dateReference`): seniority no longer depends on today's date (audit C4).
 - Vigilance list covers every active employee with a vigilance input, scored or not (audit C8). No N+1 in the recalculation or the main pages, LAZY entités, `open-in-view=false` (audit 3.3, 3.4).
 - Real home dashboard (no hard-coded figure, checked against `00_DASHBOARD`), displayed quarter = most recent with scores and `?trimestre=` on every screen (audit 2.3, B5).
+- Largest gap per successor (`09_SUCCESSION!M`), every successor of each critical position, pool summaries (`/api/viviers/synthese`) and target post per employee (`/api/trimestres/{a}/{n}/postes-cibles`, fiche `posteCible`), checked against the workbook.
 - Self-evaluation and manager evaluation stored side by side (`source` on `Performance` / `Potentiel`), official score blended by `PonderationSources` (default manager only), fiche `autoEvaluation` and manager view `autoVsManager` (audit R1d).
 
 ### Left, by owner
@@ -1092,7 +1111,8 @@ git push -u origin feature/my-change
 - Screens still to build: Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)). `/import` needs an entry in the sidebar (Ima).
 - Import (Dou): lock `POST /api/imports` like the page does (B6); avoid the empty quarter left by a failed import (B5); fill `ImportExcel.utilisateur` (the history's "Utilisateur" column stays empty until then).
 - Serve Bootstrap and its icons locally, so the app works offline.
-- `/viviers` shows only saved pools; the thematic pools are available from the API.
+- `/viviers` shows only saved pools; the five thematic pools and the relief pool, with their figures, are in `GET /api/viviers/synthese` (`VivierSyntheseService`).
+- `/postes-critiques`: `PosteCritiqueRow.successeurs` lists every successor (matching, readiness, largest gap); the fiche has `posteCible`.
 - Page tests for `/`, `/9box`, `/viviers`.
 
 **Jas — engine and platform**

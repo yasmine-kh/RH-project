@@ -11,6 +11,7 @@ import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Evaluation;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.HistoriqueTrimestre;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Identite;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.ManagerFiche;
+import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.PosteCible;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.RaisonVigilance;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Succession;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.Talent;
@@ -71,7 +72,9 @@ class FicheCollaborateurControllerTest {
                         List.of(new RaisonVigilance("SANS_MOBILITE_4_ANS", "Aucun mouvement depuis 4 ans",
                                 new BigDecimal("20.00")))),
                 List.of(new Succession("PST01", "Directeur d'agence", "Reseau Retail", "Haute",
-                        new BigDecimal("72.35"), "ENTRE_1_ET_2_ANS", "1-2 ans")),
+                        new BigDecimal("72.35"), "ENTRE_1_ET_2_ANS", "1-2 ans", "Leadership", 2)),
+                new PosteCible("PST08", "Directeur Conformite", "Conformite", "Elevee", new BigDecimal("74.10"),
+                        "ENTRE_1_ET_2_ANS", "1-2 ans", false, "Conformite", 2),
                 List.of(new HistoriqueTrimestre(2026, 2, "T2 2026", new BigDecimal("63.00"),
                         new BigDecimal("74.00"), new CaseNeufBox(2, "À développer"))),
                 null,
@@ -103,6 +106,13 @@ class FicheCollaborateurControllerTest {
                 .andExpect(jsonPath("$.engagement").value(76.00))
                 .andExpect(jsonPath("$.vigilance.raisons[0].points").value(20.00))
                 .andExpect(jsonPath("$.successions[0].readinessLibelle").value("1-2 ans"))
+                .andExpect(jsonPath("$.successions[0].gapCompetence").value("Leadership"))
+                .andExpect(jsonPath("$.successions[0].gapNiveaux").value(2))
+                .andExpect(jsonPath("$.posteCible.posteId").value("PST08"))
+                .andExpect(jsonPath("$.posteCible.scoreMatching").value(74.10))
+                .andExpect(jsonPath("$.posteCible.readiness").value("ENTRE_1_ET_2_ANS"))
+                .andExpect(jsonPath("$.posteCible.successeurIdentifie").value(false))
+                .andExpect(jsonPath("$.posteCible.gapCompetence").value("Conformite"))
                 .andExpect(jsonPath("$.historique[0].neufBox.libelle").value("À développer"))
                 .andExpect(jsonPath("$.donneesManquantes[0]").value("Pas d'évaluation de potentiel pour ce trimestre"))
                 // Blocs absents : presents en JSON avec la valeur null, pour un contrat stable.

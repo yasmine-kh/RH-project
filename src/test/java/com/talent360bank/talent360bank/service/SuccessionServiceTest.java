@@ -20,6 +20,7 @@ import com.talent360bank.talent360bank.repository.PosteRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
+import com.talent360bank.talent360bank.service.resultat.PlusGrandGap;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -175,6 +176,80 @@ class SuccessionServiceTest {
         assertThatThrownBy(() -> successionService.readinessPour(
                 new BigDecimal("90.00"), parametre.getSeuilsReadiness()))
                 .isInstanceOf(DonneesIncompletesException.class);
+    }
+
+    // --- plus grand gap (09_SUCCESSION!M) ---------------------------------------
+
+    @Test
+    void le_plus_grand_gap_est_la_competence_qui_manque_le_plus_de_niveaux() {
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
+
+        // C001 : 3 sur 4 exige (1 niveau) ; C002 : 1 sur 3 exige (2 niveaux).
+        PlusGrandGap gap = successionService.plusGrandGap(poste("P001"), List.of(
+                skill(candidat, competenceA, 3), skill(candidat, competenceB, 1)), bareme());
+
+        assertThat(gap).isEqualTo(new PlusGrandGap("C002", "Management d'equipe", 3, 1, 2));
+        assertThat(gap.aUnEcart()).isTrue();
+    }
+
+    @Test
+    void a_egalite_le_plus_grand_gap_est_la_premiere_competence_du_poste() {
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
+
+        // Un niveau manquant de chaque cote : MATCH du classeur garde la premiere.
+        PlusGrandGap gap = successionService.plusGrandGap(poste("P001"), List.of(
+                skill(candidat, competenceA, 3), skill(candidat, competenceB, 2)), bareme());
+
+        assertThat(gap.competenceId()).isEqualTo("C001");
+        assertThat(gap.ecart()).isEqualTo(1);
+    }
+
+    @Test
+    void sans_ecart_le_plus_grand_gap_est_la_premiere_competence_avec_un_ecart_nul() {
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
+
+        // Comme le classeur (BP019 sur PST01 -> "Leadership") : un niveau au-dessus de
+        // l'exigence ne donne pas d'ecart negatif qui ferait gagner une autre competence.
+        PlusGrandGap gap = successionService.plusGrandGap(poste("P001"), List.of(
+                skill(candidat, competenceA, 5), skill(candidat, competenceB, 3)), bareme());
+
+        assertThat(gap.competenceId()).isEqualTo("C001");
+        assertThat(gap.ecart()).isZero();
+        assertThat(gap.aUnEcart()).isFalse();
+    }
+
+    @Test
+    void une_competence_absente_compte_au_niveau_par_defaut_dans_le_plus_grand_gap() {
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
+
+        // C001 absente, supposee au niveau 3 (bareme) pour 4 exige : 1 niveau.
+        PlusGrandGap gap = successionService.plusGrandGap(poste("P001"), List.of(
+                skill(candidat, competenceB, 3)), bareme());
+
+        assertThat(gap).isEqualTo(new PlusGrandGap("C001", "Analyse de risque", 4, 3, 1));
+    }
+
+    @Test
+    void un_poste_sans_competence_chiffree_n_a_pas_de_plus_grand_gap() {
+        Poste poste = new Poste();
+        poste.setPosteId("P002");
+
+        assertThat(successionService.plusGrandGap(poste, List.of(), bareme())).isNull();
+    }
+
+    @Test
+    void le_matching_porte_le_plus_grand_gap_sans_changer_son_score() {
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
+        List<CompetenceCollaborateur> competences = List.of(
+                skill(candidat, competenceA, 2), skill(candidat, competenceB, 3));
+
+        ResultatMatching resultat = successionService.evaluer(candidat, poste("P001"),
+                score(candidat, "80.00", "75.00"), potentiel(candidat, "70", "60"), competences, parametre,
+                REFERENCE);
+
+        assertThat(resultat.plusGrandGap()).isEqualTo(new PlusGrandGap("C001", "Analyse de risque", 4, 2, 2));
+        assertThat(resultat.detail().competences()).isEqualByComparingTo(
+                successionService.scoreCompetences(poste("P001"), competences, bareme()));
     }
 
     // --- couverture des competences ------------------------------------------
