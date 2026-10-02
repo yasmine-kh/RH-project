@@ -18,53 +18,63 @@
 
     <!--
       Selecteur de profil : des vues que le RH ouvre, pas des connexions (un seul compte RH).
-      Options lues une fois par requete (ProfilsAdvice). Sans JavaScript, le formulaire marche
-      tel quel (bouton Ouvrir) ; profil.js masque le second champ pour RH / Comite et choisit sa liste.
-      Le profil affiche est celui de la session ; Entite ouvre une page RH (ce n'est pas un profil).
+      Le profil choisi change le menu tout de suite et reste sur la page (retour) ; Collaborateur
+      et Manager affichent ensuite le champ de la personne a choisir. Options lues une fois
+      par requete (ProfilsAdvice). Sans JavaScript, le bouton Appliquer envoie le formulaire ;
+      profil.js l'envoie des qu'un profil ou une personne de la liste est choisi.
     -->
     <form th:if="${profils != null}" method="get" action="/profil" class="sidebar-profil" id="profil-form"
           th:with="courant=${profilActif != null} ? ${profilActif.type} : 'RH'">
         <input type="hidden" name="trimestre" th:if="${trimestre != null}" th:value="${trimestre.valeur}">
+        <input type="hidden" name="retour" th:if="${pageCourante != null}" th:value="${pageCourante}">
         <label for="profil-type" class="sidebar-profil-label">Profil</label>
         <select id="profil-type" name="profil" class="form-select form-select-sm">
             <option th:each="type : ${profils.types()}"
                     th:value="${type.valeur}" th:text="${type.libelle}"
                     th:selected="${type.valeur == courant}">RH</option>
         </select>
-        <div class="sidebar-profil-cible" id="profil-cible-bloc">
-            <input type="search" id="profil-cible" name="cible" class="form-control form-control-sm mt-2"
-                   autocomplete="off" placeholder="Matricule, nom ou entité"
-                   th:value="${profilActif != null and profilActif.matricule != null} ? ${profilActif.matricule} : ''"
-                   th:attr="list=${courant == 'MANAGER'} ? 'profils-managers'
-                           : (${courant == 'ENTITE'} ? 'profils-entites' : 'profils-collaborateurs')">
-            <button type="submit" class="btn btn-sm btn-light mt-2 w-100">Ouvrir</button>
+        <div class="sidebar-profil-cible" id="profil-cible-bloc"
+             th:if="${courant == 'MANAGER' or courant == 'COLLABORATEUR'}">
+            <label for="profil-cible" class="sidebar-profil-label mt-2"
+                   th:text="|Choisir ${profilActif.personneAChoisir()}|">Choisir un manager</label>
+            <input type="search" id="profil-cible" name="cible" class="form-control form-control-sm"
+                   autocomplete="off" placeholder="Matricule ou nom"
+                   th:value="${profilActif.matricule != null} ? ${profilActif.matricule} : ''"
+                   th:attr="list=${courant == 'MANAGER'} ? 'profils-managers' : 'profils-collaborateurs'">
+            <datalist id="profils-collaborateurs" th:if="${courant == 'COLLABORATEUR'}">
+                <option th:each="choix : ${profils.collaborateurs}" th:value="${choix.valeur}"
+                        th:label="${choix.libelle}" th:text="${choix.libelle}">Nom</option>
+            </datalist>
+            <datalist id="profils-managers" th:if="${courant == 'MANAGER'}">
+                <option th:each="choix : ${profils.managers}" th:value="${choix.valeur}"
+                        th:label="${choix.libelle}" th:text="${choix.libelle}">Nom</option>
+            </datalist>
         </div>
-        <datalist id="profils-collaborateurs">
-            <option th:each="choix : ${profils.collaborateurs}" th:value="${choix.valeur}" th:label="${choix.libelle}"
-                    th:text="${choix.libelle}">Nom</option>
-        </datalist>
-        <datalist id="profils-managers">
-            <option th:each="choix : ${profils.managers}" th:value="${choix.valeur}" th:label="${choix.libelle}"
-                    th:text="${choix.libelle}">Nom</option>
-        </datalist>
-        <datalist id="profils-entites">
-            <option th:each="choix : ${profils.entites}" th:value="${choix.valeur}" th:label="${choix.libelle}"
-                    th:text="${choix.libelle}">Entite</option>
-        </datalist>
+        <button type="submit" class="btn btn-sm btn-light mt-2 w-100" id="profil-appliquer">Appliquer</button>
     </form>
     <script th:if="${profils != null}" th:src="@{/js/profil.js}" defer></script>
 
     <!-- Bandeau du profil choisi (absent en vue RH), avec le retour a la vue RH. -->
     <div class="sidebar-bandeau" th:if="${profilActif != null and !profilActif.estRh()}">
         <div class="sidebar-bandeau-texte" th:text="|Vue : ${profilActif.libelle()}|">Vue : Manager - Nom Prenom</div>
+        <div class="sidebar-bandeau-aide" th:if="${profilActif.demandeUnePersonne() and profilActif.matricule == null}"
+             th:text="|Choisissez ${profilActif.personneAChoisir()} pour ouvrir le menu.|">Choisissez un manager</div>
         <a class="btn btn-sm btn-light w-100 mt-2" href="/profil?profil=RH">Revenir à la vue RH</a>
     </div>
 
+    <!-- Entree grisee (lien null) : le profil attend d'abord une personne. -->
     <nav class="sidebar-nav">
-        <a th:each="element : ${menu}" th:href="${element.lien}" class="nav-item"
-           th:classappend="${element.page != null and element.page == active} ? 'active'">
-            <i th:class="'bi ' + ${element.icone}"></i><span th:text="${element.libelle}">Accueil</span>
-        </a>
+        <th:block th:each="element : ${menu}">
+            <a th:if="${element.active()}" th:href="${element.lien}" class="nav-item"
+               th:classappend="${element.page != null and element.page == active} ? 'active'">
+                <i th:class="'bi ' + ${element.icone}"></i><span th:text="${element.libelle}">Accueil</span>
+            </a>
+            <span th:unless="${element.active()}" class="nav-item nav-item-grisee" aria-disabled="true"
+                  th:title="${element.indication}">
+                <i th:class="'bi ' + ${element.icone}"></i><span th:text="${element.libelle}">Collaborateurs</span>
+                <small class="nav-item-indication" th:text="${element.indication}">choisir un manager</small>
+            </span>
+        </th:block>
     </nav>
 </div>
 

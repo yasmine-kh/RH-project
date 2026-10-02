@@ -100,7 +100,8 @@ class ProfilsMenuDatasetTest {
         return trouves;
     }
 
-    private static final List<String> MENU_RH = List.of("Accueil", "Dashboard DG", "Collaborateurs", "9-Box", "Viviers",
+    private static final List<String> MENU_RH = List.of("Accueil", "Dashboard DG", "Collaborateurs", "Managers",
+            "Organigramme", "9-Box", "Viviers",
             "Postes critiques", "Compétences", "Comite Talent", "Fiche collaborateur", "Alertes", "Notifications",
             "Campagne", "Import", "Parametres");
 
@@ -169,6 +170,101 @@ class ProfilsMenuDatasetTest {
         assertThat(rh).doesNotContain("Revenir à la vue RH");
     }
 
+    private static final List<String> MENU_MANAGER = List.of("Campagne d'évaluation", "Collaborateurs",
+            "Matrice 9-Box", "Talent Passport", "Alertes", "Notifications");
+
+    @Test
+    void choisir_manager_sans_personne_montre_tout_de_suite_le_menu_manager_grise() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        // Le selecteur renvoie la page courante : on y reste, seul le menu change.
+        mockMvc.perform(get("/profil").param("profil", "MANAGER").param("cible", "")
+                        .param("retour", "/9box?trimestre=2026-3").session(session))
+                .andExpect(redirectedUrl("/9box?trimestre=2026-3"));
+        ProfilActif profil = (ProfilActif) session.getAttribute(ProfilActif.SESSION);
+        assertThat(profil.type()).isEqualTo("MANAGER");
+        assertThat(profil.matricule()).isNull();
+
+        String html = page("/9box?trimestre=2026-3", session);
+        String nav = nav(html);
+        assertThat(extraire(LIBELLE, nav)).containsExactlyElementsOf(MENU_MANAGER);
+        // Les entrees qui demandent un manager sont grisees, sans lien ; jamais la liste /managers.
+        assertThat(Pattern.compile("nav-item-grisee").matcher(nav).results().count()).isEqualTo(4);
+        assertThat(extraire(LIEN, nav)).containsExactly("/fiche-collaborateur", "/notifications?trimestre=2026-3");
+        assertThat(nav).contains("choisir un manager").doesNotContain("href=\"/managers");
+        assertThat(html).contains("Vue : Manager<", "Choisir un manager", "<datalist id=\"profils-managers\">",
+                        "name=\"retour\" value=\"/9box?trimestre=2026-3\"")
+                .doesNotContain("<datalist id=\"profils-collaborateurs\">");
+
+        // Un manager choisi : chaque entree ouvre sa page filtree, le bandeau donne son nom.
+        mockMvc.perform(get("/profil?profil=MANAGER&cible=BP026&trimestre=2026-3").session(session))
+                .andExpect(redirectedUrl("/managers/BP026?trimestre=2026-3"));
+        ProfilActif bp026 = (ProfilActif) session.getAttribute(ProfilActif.SESSION);
+        String choisi = page("/9box?trimestre=2026-3", session);
+        assertThat(extraire(LIBELLE, nav(choisi))).containsExactlyElementsOf(MENU_MANAGER);
+        assertThat(nav(choisi)).doesNotContain("nav-item-grisee");
+        assertThat(extraire(LIEN, nav(choisi))).contains("/managers/BP026?trimestre=2026-3#evaluations",
+                "/managers/BP026?trimestre=2026-3#equipe", "/managers/BP026?trimestre=2026-3#neufbox",
+                "/managers/BP026?trimestre=2026-3#alertes");
+        assertThat(choisi).contains("Vue : Manager — " + bp026.nom());
+
+        // Un autre manager : meme profil, autre personne.
+        Matcher option = Pattern.compile("<datalist id=\"profils-managers\">.*?<option value=\"(BP(?!026\")[^\"]+)\"",
+                Pattern.DOTALL).matcher(choisi);
+        assertThat(option.find()).isTrue();
+        mockMvc.perform(get("/profil?profil=MANAGER&cible=" + option.group(1)).session(session))
+                .andExpect(redirectedUrl("/managers/" + option.group(1)));
+        ProfilActif autre = (ProfilActif) session.getAttribute(ProfilActif.SESSION);
+        assertThat(autre.type()).isEqualTo("MANAGER");
+        assertThat(autre.matricule()).isEqualTo(option.group(1));
+        assertThat(extraire(LIEN, nav(page("/", session)))).contains("/managers/" + option.group(1) + "#equipe");
+
+        // Revenir a la vue RH remet profil et personne a zero.
+        mockMvc.perform(get("/profil?profil=RH").session(session)).andExpect(redirectedUrl("/"));
+        assertThat(session.getAttribute(ProfilActif.SESSION)).isEqualTo(ProfilActif.RH);
+    }
+
+    @Test
+    void choisir_collaborateur_sans_personne_grise_son_menu_jusqu_au_choix() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        mockMvc.perform(get("/profil?profil=COLLABORATEUR&retour=/alertes").session(session))
+                .andExpect(redirectedUrl("/alertes"));
+        String html = page("/alertes", session);
+        assertThat(extraire(LIBELLE, nav(html)))
+                .containsExactly("Mon profil", "Mon engagement", "Campagne d'évaluation", "Notifications");
+        assertThat(extraire(LIEN, nav(html))).isEmpty();
+        assertThat(html).contains("Choisir un collaborateur", "choisir un collaborateur", "Vue : Collaborateur<",
+                "<datalist id=\"profils-collaborateurs\">");
+
+        // Choisir de nouveau le meme profil sans personne garde la personne deja choisie.
+        mockMvc.perform(get("/profil?profil=COLLABORATEUR&cible=BP001").session(session));
+        mockMvc.perform(get("/profil?profil=COLLABORATEUR&retour=/alertes").session(session));
+        assertThat(((ProfilActif) session.getAttribute(ProfilActif.SESSION)).matricule()).isEqualTo("BP001");
+        // Sans JavaScript, passer a Manager renvoie aussi l'ancien matricule : seul le profil change.
+        mockMvc.perform(get("/profil?profil=MANAGER&cible=BP001&retour=/alertes").session(session))
+                .andExpect(redirectedUrl("/alertes"));
+        assertThat(session.getAttribute(ProfilActif.SESSION)).isEqualTo(ProfilActif.sansPersonne("MANAGER"));
+    }
+
+    @Test
+    void le_selecteur_n_a_plus_de_profil_entite_et_le_retour_reste_dans_l_application() throws Exception {
+        String html = page("/", new MockHttpSession());
+        Matcher types = Pattern.compile("<option value=\"([A-Z]+)\"").matcher(
+                html.substring(html.indexOf("id=\"profil-type\""), html.indexOf("</select>")));
+        List<String> valeurs = new ArrayList<>();
+        while (types.find()) {
+            valeurs.add(types.group(1));
+        }
+        assertThat(valeurs).containsExactly("RH", "COLLABORATEUR", "MANAGER", "COMITE");
+        assertThat(html).doesNotContain("profils-entites", "value=\"ENTITE\"");
+        // RH : pas de personne a choisir.
+        assertThat(html).doesNotContain("id=\"profil-cible\"", "Choisir un");
+
+        for (String retour : List.of("//exemple.com", "https://exemple.com", "/profil?profil=RH", "/api/trimestres")) {
+            mockMvc.perform(get("/profil").param("profil", "MANAGER").param("retour", retour)
+                    .session(new MockHttpSession())).andExpect(redirectedUrl("/"));
+        }
+    }
+
     @Test
     void une_entite_reste_une_page_rh_et_une_personne_inconnue_ne_change_pas_le_profil() throws Exception {
         MockHttpSession session = new MockHttpSession();
@@ -188,11 +284,14 @@ class ProfilsMenuDatasetTest {
         mockMvc.perform(get("/profil?profil=MANAGER&cible=BP026").session(manager));
         MockHttpSession collaborateur = new MockHttpSession();
         mockMvc.perform(get("/profil?profil=COLLABORATEUR&cible=BP001").session(collaborateur));
+        MockHttpSession managerSansPersonne = new MockHttpSession();
+        mockMvc.perform(get("/profil?profil=MANAGER").session(managerSansPersonne));
 
         for (String url : List.of("/alertes", "/9box", "/collaborateurs")) {
             long requetesRh = requetes(url, rh);
             assertThat(requetes(url, manager)).as(url).isEqualTo(requetesRh);
             assertThat(requetes(url, collaborateur)).as(url).isEqualTo(requetesRh);
+            assertThat(requetes(url, managerSansPersonne)).as(url).isEqualTo(requetesRh);
         }
     }
 

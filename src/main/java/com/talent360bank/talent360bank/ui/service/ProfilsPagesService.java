@@ -8,7 +8,6 @@ import com.talent360bank.talent360bank.ui.model.Choix;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.PosteCibleLigne;
 import com.talent360bank.talent360bank.ui.model.MatriceNeufBox;
 import com.talent360bank.talent360bank.ui.model.VueEntite;
-import com.talent360bank.talent360bank.ui.model.VueEntite.NoeudEntite;
 import com.talent360bank.talent360bank.ui.model.VueManager;
 import com.talent360bank.talent360bank.ui.model.VueManager.ManagerResume;
 import org.springframework.stereotype.Service;
@@ -85,10 +84,5 @@ public class ProfilsPagesService {
     /** Les managers et la taille de leur equipe, pour la page de choix. */
     public List<ManagerResume> managers(Trimestre trimestre) {
         return vueManagerViewService.listerManagers(trimestre.getAnnee(), trimestre.getNumero());
-    }
-
-    /** L'organigramme, pour la page de choix. */
-    public List<NoeudEntite> entites() {
-        return vueEntiteViewService.listerEntites();
     }
 }

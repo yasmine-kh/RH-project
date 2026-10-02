@@ -1,40 +1,36 @@
 // Selecteur de profil de la sidebar (fragments/sidebar.html), sans bibliotheque.
-// RH et Comite ouvrent leur page des le choix ; Collaborateur, Manager et Entite
-// montrent le champ de recherche avec la bonne liste, puis ouvrent le choix.
+// Choisir un profil l'applique tout de suite (le serveur garde la page courante) ;
+// pour Collaborateur et Manager, choisir une personne de la liste ouvre sa page.
+// Sans JavaScript, le bouton Appliquer fait la meme chose.
 (function () {
     var form = document.getElementById('profil-form');
     if (!form) {
         return;
     }
     var type = document.getElementById('profil-type');
-    var bloc = document.getElementById('profil-cible-bloc');
     var cible = document.getElementById('profil-cible');
-    var listes = {COLLABORATEUR: 'profils-collaborateurs', MANAGER: 'profils-managers', ENTITE: 'profils-entites'};
-
-    function afficher() {
-        var liste = listes[type.value];
-        bloc.style.display = liste ? '' : 'none';
-        if (liste) {
-            cible.setAttribute('list', liste);
-        }
+    var appliquer = document.getElementById('profil-appliquer');
+    if (appliquer && !cible) {
+        appliquer.style.display = 'none';
     }
 
     type.addEventListener('change', function () {
-        cible.value = '';
-        afficher();
-        if (!listes[type.value]) {
-            form.submit();
-        } else {
-            cible.focus();
+        // Changer de profil efface la personne : elle se choisit ensuite dans le nouveau profil.
+        if (cible) {
+            cible.value = '';
         }
+        form.submit();
     });
-    // Une option choisie dans la liste ouvre directement la page.
-    cible.addEventListener('change', function () {
-        var liste = document.getElementById(cible.getAttribute('list'));
-        var connue = Array.prototype.some.call(liste.options, function (o) { return o.value === cible.value; });
-        if (connue) {
-            form.submit();
-        }
-    });
-    afficher();
+    if (cible) {
+        // Une option choisie dans la liste ouvre directement la page.
+        cible.addEventListener('change', function () {
+            var liste = document.getElementById(cible.getAttribute('list'));
+            var connue = liste && Array.prototype.some.call(liste.options, function (o) {
+                return o.value === cible.value;
+            });
+            if (connue) {
+                form.submit();
+            }
+        });
+    }
 })();

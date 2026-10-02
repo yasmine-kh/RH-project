@@ -56,6 +56,13 @@ public class ProfilsAdvice {
     }
 
     /** Le menu du profil choisi ; liens pour le trimestre demande ({@code ?trimestre=}). */
+    /** La page courante (chemin et parametres), pour que le selecteur de profil y revienne. */
+    @ModelAttribute("pageCourante")
+    public String pageCourante(HttpServletRequest requete) {
+        String requeteTexte = requete.getQueryString();
+        return requete.getRequestURI() + (requeteTexte == null ? "" : "?" + requeteTexte);
+    }
+
     @ModelAttribute("menu")
     public List<ElementMenu> menu(HttpSession session, HttpServletRequest requete) {
         String trimestre = requete.getParameter("trimestre");

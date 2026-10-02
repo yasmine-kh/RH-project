@@ -49,7 +49,7 @@ class PagesSansTrimestreTest {
         String page = mockMvc.perform(get("/")).andExpect(status().isOk()).andReturn()
                 .getResponse().getContentAsString(StandardCharsets.UTF_8);
         List<String> liens = List.of("href=\"/\"", "href=\"/dashboard-dg\"", "href=\"/collaborateurs\"",
-                "href=\"/9box\"", "href=\"/viviers\"", "href=\"/postes-critiques\"", "href=\"/competences\"",
+                "href=\"/managers\"", "href=\"/entites\"", "href=\"/9box\"", "href=\"/viviers\"", "href=\"/postes-critiques\"", "href=\"/competences\"",
                 "href=\"/comite-talent\"", "href=\"/fiche-collaborateur\"", "href=\"/alertes\"",
                 "href=\"/notifications\"", "href=\"/campagne\"", "href=\"/import\"", "href=\"/parametres\"");
         int precedent = -1;

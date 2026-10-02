@@ -3,6 +3,7 @@ package com.talent360bank.talent360bank.ui.controller;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.ui.model.ProfilActif;
 import com.talent360bank.talent360bank.ui.service.LiensPages;
+import com.talent360bank.talent360bank.ui.service.OrganigrammeViewService;
 import com.talent360bank.talent360bank.ui.service.ProfilsPagesService;
 import com.talent360bank.talent360bank.ui.service.ProfilsService;
 import jakarta.servlet.http.HttpSession;
@@ -31,41 +32,58 @@ public class ProfilsPagesController {
     private final TrimestreCourantService trimestreCourant;
     private final ProfilsPagesService pages;
     private final ProfilsService profilsService;
+    private final OrganigrammeViewService organigrammeService;
 
     public ProfilsPagesController(TrimestreCourantService trimestreCourant, ProfilsPagesService pages,
-                                  ProfilsService profilsService) {
+                                  ProfilsService profilsService, OrganigrammeViewService organigrammeService) {
         this.trimestreCourant = trimestreCourant;
         this.pages = pages;
         this.profilsService = profilsService;
+        this.organigrammeService = organigrammeService;
     }
 
     /**
      * Le selecteur de profil. Le profil choisi est garde en session : seul le menu
      * de la sidebar change, toutes les pages restent accessibles.
      * <ul>
-     *   <li>RH : profil RH (le bouton "Revenir a la vue RH"), vers l'accueil ;</li>
+     *   <li>RH : profil RH, personne effacee ("Revenir a la vue RH"), vers l'accueil ;</li>
      *   <li>Comite : profil Comite, vers le Comite Talent ;</li>
-     *   <li>Collaborateur / Manager avec une personne : ce profil (nom lu une fois), vers sa fiche
-     *   ou sa vue manager ; sans personne, ou inconnue : profil inchange, vers la page de choix
-     *   (la fiche ou la vue diront qu'elle est introuvable) ;</li>
-     *   <li>Entite : reste une page RH (profil RH), vers la vue de l'entite.</li>
+     *   <li>Collaborateur / Manager sans personne : le profil s'applique tout de suite (menu
+     *   grise jusqu'au choix), on reste sur la page ({@code retour}) ; la personne deja
+     *   choisie pour ce profil est gardee ;</li>
+     *   <li>Collaborateur / Manager avec une personne : ce profil et cette personne (nom lu une
+     *   fois), vers sa fiche ou sa vue manager ; une personne inconnue ne change rien (la page
+     *   dira qu'elle est introuvable).</li>
      * </ul>
+     * Entite n'est plus un profil ; l'ancien lien {@code profil=ENTITE} ouvre la vue de
+     * l'entite en vue RH.
+     *
+     * @param retour page courante (chemin relatif de l'application), pour rester dessus
      */
     @GetMapping("/profil")
     public String profil(@RequestParam(required = false) String profil, @RequestParam(required = false) String cible,
                          @RequestParam(name = TrimestreCourantService.PARAMETRE, required = false) String trimestre,
+                         @RequestParam(required = false) String retour,
                          HttpSession session) {
         String choix = cible == null || cible.isBlank() ? null : cible.trim().split("\\s+")[0];
         String t = trimestre == null || trimestre.isBlank() ? null : trimestre.trim();
         String type = profil == null ? "RH" : profil.trim().toUpperCase(Locale.ROOT);
+        Object enSession = session.getAttribute(ProfilActif.SESSION);
+        ProfilActif actuel = enSession instanceof ProfilActif p ? p : ProfilActif.RH;
+        if (choix != null && !type.equals(actuel.type()) && choix.equals(actuel.matricule())) {
+            // Sans JavaScript, le champ garde la personne du profil precedent : on change seulement de profil.
+            choix = null;
+        }
         String cibleUrl = switch (type) {
             case "COLLABORATEUR", "MANAGER" -> {
-                if (choix != null) {
-                    profilsService.profil(type, choix).ifPresent(p -> session.setAttribute(ProfilActif.SESSION, p));
+                if (choix == null) {
+                    if (!type.equals(actuel.type())) {
+                        session.setAttribute(ProfilActif.SESSION, ProfilActif.sansPersonne(type));
+                    }
+                    yield pageRetour(retour);
                 }
-                yield "COLLABORATEUR".equals(type)
-                        ? (choix == null ? avecTrimestre("/fiche-collaborateur", null) : LiensPages.fiche(choix, t))
-                        : (choix == null ? avecTrimestre("/managers", t) : LiensPages.vueManager(choix, t));
+                profilsService.profil(type, choix).ifPresent(p -> session.setAttribute(ProfilActif.SESSION, p));
+                yield "COLLABORATEUR".equals(type) ? LiensPages.fiche(choix, t) : LiensPages.vueManager(choix, t);
             }
             case "ENTITE" -> {
                 session.setAttribute(ProfilActif.SESSION, ProfilActif.RH);
@@ -81,6 +99,15 @@ public class ProfilsPagesController {
             }
         };
         return "redirect:" + cibleUrl;
+    }
+
+    /** Une page de l'application seulement (chemin relatif), jamais une adresse externe ni /profil. */
+    static String pageRetour(String retour) {
+        if (retour == null || !retour.startsWith("/") || retour.startsWith("//") || retour.contains("\\")
+                || retour.startsWith("/profil") || retour.startsWith("/api")) {
+            return "/";
+        }
+        return retour;
     }
 
     @GetMapping("/managers")
@@ -108,7 +135,7 @@ public class ProfilsPagesController {
         return "vue-manager";
     }
 
-    /** Sans {@code code} : l'organigramme a parcourir ; avec : la vue de cette entite. */
+    /** Sans {@code code} : l'organigramme (cartes par direction) ; avec : la vue de cette entite. */
     @GetMapping("/entites")
     public String entites(@RequestParam(required = false) String code,
                           @RequestParam(name = TrimestreCourantService.PARAMETRE, required = false) String trimestre,
@@ -116,7 +143,7 @@ public class ProfilsPagesController {
         if (code == null || code.isBlank()) {
             Trimestre choisi = selectionner(trimestre, model, "entites");
             if (choisi != null) {
-                model.addAttribute("entites", pages.entites());
+                model.addAttribute("organigramme", organigrammeService.organigramme(choisi));
             }
             return "entites";
         }

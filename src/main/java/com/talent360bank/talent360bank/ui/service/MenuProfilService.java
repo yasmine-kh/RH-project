@@ -11,7 +11,8 @@ import java.util.List;
  * (docs/prototype/index.html, ROLES et NAV_DEF). Aucune requete : tout vient du
  * profil garde en session. Chaque entree mene a une page existante, filtree sur
  * la personne ou l'equipe quand la page le permet ; sinon a la page la plus
- * proche (voir docs/guide-developpeur.md).
+ * proche (voir docs/guide-developpeur.md). Tant qu'aucune personne n'est choisie, les
+ * entrees qui en dependent sont grisees ("choisir un manager").
  */
 public final class MenuProfilService {
 
@@ -36,6 +37,8 @@ public final class MenuProfilService {
                 new ElementMenu("Accueil", "bi-house", lien("/", t), "accueil"),
                 new ElementMenu("Dashboard DG", "bi-speedometer2", lien("/dashboard-dg", t), "dashboard-dg"),
                 new ElementMenu("Collaborateurs", "bi-person-lines-fill", lien("/collaborateurs", t), "collaborateurs"),
+                new ElementMenu("Managers", "bi-diagram-2", lien("/managers", t), "managers"),
+                new ElementMenu("Organigramme", "bi-diagram-3", lien("/entites", t), "entites"),
                 new ElementMenu("9-Box", "bi-grid-3x3", lien("/9box", t), "9box"),
                 new ElementMenu("Viviers", "bi-people", lien("/viviers", t), "viviers"),
                 new ElementMenu("Postes critiques", "bi-exclamation-triangle", lien("/postes-critiques", t),
@@ -56,6 +59,14 @@ public final class MenuProfilService {
      * entite ; Notifications = ses alertes.
      */
     private static List<ElementMenu> collaborateur(ProfilActif p, String t) {
+        if (p.matricule() == null) {
+            String indication = "choisir un collaborateur";
+            return List.of(
+                    ElementMenu.grisee("Mon profil", "bi-person-vcard", indication),
+                    ElementMenu.grisee("Mon engagement", "bi-heart", indication),
+                    ElementMenu.grisee("Campagne d'évaluation", "bi-clipboard-check", indication),
+                    ElementMenu.grisee("Notifications", "bi-envelope", indication));
+        }
         String fiche = LiensPages.fiche(p.matricule(), t);
         UriComponentsBuilder campagne = UriComponentsBuilder.fromPath("/campagne");
         if (t != null) {
@@ -83,6 +94,17 @@ public final class MenuProfilService {
      * sections de la Vue manager.
      */
     private static List<ElementMenu> manager(ProfilActif p, String t) {
+        if (p.matricule() == null) {
+            // Talent Passport et Notifications ne dependent pas du manager : actives tout de suite.
+            String indication = "choisir un manager";
+            return List.of(
+                    ElementMenu.grisee("Campagne d'évaluation", "bi-clipboard-check", indication),
+                    ElementMenu.grisee("Collaborateurs", "bi-person-lines-fill", indication),
+                    ElementMenu.grisee("Matrice 9-Box", "bi-grid-3x3", indication),
+                    new ElementMenu("Talent Passport", "bi-person-vcard", "/fiche-collaborateur", "fiche-collaborateur"),
+                    ElementMenu.grisee("Alertes", "bi-bell", indication),
+                    new ElementMenu("Notifications", "bi-envelope", lien("/notifications", t), "notifications"));
+        }
         String vue = LiensPages.vueManager(p.matricule(), t);
         return List.of(
                 new ElementMenu("Campagne d'évaluation", "bi-clipboard-check", vue + "#evaluations", null),
