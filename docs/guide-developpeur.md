@@ -321,7 +321,7 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Thematic pools | `GET /api/viviers-thematiques`, `GET /api/viviers-thematiques/{code}` |
 | Pool summaries | `GET /api/viviers/synthese?annee=&numero=`: the 5 thematic pools then the relief pool ([below](#target-post-and-pool-summaries)) |
 | Vigilance | `GET .../vigilance[?minimum=MODEREE]` (every active employee with at least one vigilance input, with or without a score: same rule as the fiche and the views, `EntreesVigilance`), `GET .../vigilance/{id}` |
-| Skills | `GET /api/collaborateurs/{id}/competences[?annee=&numero=]` |
+| Skills | `GET /api/collaborateurs/{id}/competences[?annee=&numero=]` (one employee); `GET /api/trimestres/{annee}/{numero}/competences[?entite=&vivier=&poste=&ordre=&top=]` (Compétences module, [below](#competences-module)) |
 | Dashboard | `GET /api/dashboard/synthese` |
 | DG dashboard | `GET /api/dashboard/dg?annee=&numero=[&limite=8]` ([below](#collaborateurs-list-and-dg-dashboard)) |
 | Employee list | `GET /api/trimestres/{annee}/{numero}/collaborateurs` with optional `entite`, `case`, `talent`, `vivier`, `readiness`, `vigilance`, `q`, `tri`, `ordre`, `page`, `taille` ([below](#collaborateurs-list-and-dg-dashboard)) |
@@ -445,6 +445,21 @@ Two read-only views (Jas) built from the engine's results, for the Collaborateur
 - Without settings, `erreur` explains it and only the cards that do not depend on them are present.
 
 Tests: `CollaborateursDgDatasetTest` (the workbook: counts per 9-box case vs `00_DASHBOARD`, talents and validated talents, pools, vigilance, entité subtree, sort and pagination, every critical position's successors / Ready Now / best successor vs 08 and 09, top talents order, same cards as the home dashboard), `ListeCollaborateursViewServiceTest` (filters, sort, pagination, invalid criteria, top-talents order), `ListeCollaborateursEtDgControllerTest` (JSON contract, 400, 404, 401), `SansSessionOuverteIntegrationTest` (fixed number of queries).
+
+### Compétences module
+
+`service/CompetenceSyntheseService.synthese(trimestre, criteres)` → `service/resultat/SyntheseCompetences`; `controller/CompetenceSyntheseController` at `GET /api/trimestres/{annee}/{numero}/competences`. Engine (Jas); the screen (Ima) only displays.
+
+- **Target level = `06_EMPLOYEE_SKILLS!F`**, the employee's own target for each skill, exactly as in the workbook: gap = target − current (`06!G`), status with the quarter's threshold (`06!H`, `CompetenceCollaborateurService.evaluer`). It does **not** come from a position: in the dataset, no employee's targets equal the requirements of the position matching their job (0 of 47), and the holders of critical positions have target 5 where the position requires 3 or 4. The positions' requirements (`07_POSTES`) are only used in the critical-position block, as in `09_SUCCESSION`.
+- **Population:** active employees (like `00_DASHBOARD` G10), filtered by `entite` (code, with its subtree), `vivier` (thematic code or `RELEVE`) and `poste` (Poste_ID of a critical position: its identified successors that have a matching), combined with AND. Unknown `vivier` / `poste` or `top` outside 1–50 → 400.
+- `competences[]`: one row per skill of the reference list (even with nobody evaluated), sorted by `gapMoyen` (`ordre=desc` by default, `asc` possible; unknown values last, ties by skill id): `nbEvalues`, `niveauActuelMoyen`, `niveauCibleMoyen`, `gapMoyen` (2 decimals), `nbAvecGap` (status À développer or Prioritaire), `pourcentageAvecGap` (1 decimal), `nbPrioritaires`, `repartition` [{`niveau` 1–5, `nombre`}] of the current level.
+- `topGaps[]`: the `top` skills (default 5) with the largest average gap, whatever `ordre`. `nbGapsPrioritaires`: total Prioritaire gaps of the population (= `00_DASHBOARD` G10 = 141 without filters).
+- `postesCritiques[]` (all, or the one in `poste`): `exigences[]` in the position's order (`competence`, `niveauRequis` from `07_POSTES`, `niveauMoyenSuccesseurs`, `nbSuccesseursSousLeNiveau`), from `SuccessionService.ecartsExigences` (the per-skill step of the skills sub-score, columns N–R of `09_SUCCESSION`; `plusGrandGap` is now built from it); `gapsFrequents[]`: the successors' largest gaps (`09!M`) with a real gap, most frequent first.
+- **One employee's skills** (current, target, gap, status) already exist: the fiche's `competences` block and `GET /api/collaborateurs/{id}/competences`. Nothing new was needed there.
+- **Not derivable from the data:** which skills are "critical for the bank" (the prototype's 🔴 flag) and the skills required by the post each employee actually holds (employees are not linked to a `07_POSTES` row, only holders of critical positions are).
+- **Queries:** a fixed number (12 without filter, 14 with a pool filter) whatever the population.
+
+Tests: `CompetencesDatasetTest` (the workbook: averages, gaps, statuses and distribution of all 25 skills vs `06`, G10 = 141, filters by entité / pool / critical position vs `01` / `10` / `09`, PST01 requirements vs `07` and successors under the level vs `09!N–R`, frequent gaps vs `09!M`, BP001 and BP019 in their fiche vs `06`), `CompetenceSyntheseServiceTest`, `SuccessionServiceTest` (`ecartsExigences`), `CompetenceSyntheseControllerTest` (JSON contract, 400, 404, 401), `SansSessionOuverteIntegrationTest` (fixed number of queries).
 
 ### Vue manager
 
@@ -751,6 +766,7 @@ All values below are the **defaults** of `Parametre.parDefaut`, identical to `00
 | **Relief pool** | `TalentService`, `VivierReleveService` | Talent **or** high potential. Saving replaces only the engine's rows (`origine = MOTEUR`); imported or HR-entered rows are never touched or duplicated. |
 | **Succession matching** | `SuccessionService` | Weighted average of 6 criteria: skills 25, performance 20, potential 20, experience 15, leadership 10, mobility 10. Skills: 100 − 20 per missing level for each required skill, floored at 0; a missing skill is assumed at level 3. Experience: 8 points per year of seniority, capped at 100; seniority is measured at the quarter's `dateReference` (`ROUND(days / 365.25, 1)`, as in the workbook), so a quarter gives the same result whatever day it is computed. The current holder is excluded. |
 | **Readiness** | `SuccessionService` | Matching ≥ 90 Ready Now, ≥ 80 < 1 year, ≥ 65 1–2 years, else > 2 years. |
+| **Skill gaps per skill** | `CompetenceSyntheseService` | Per skill of the reference list: averages of the current level, the target level (`06!F`) and the gap, number and % with a gap, Prioritaire count, distribution by level. Counts only. |
 | **Largest gap** | `SuccessionService.plusGrandGap` | The required skill with the most missing levels; tie → first skill of the position (as `09_SUCCESSION!M`). |
 | **Target post** | `PosteCibleService` | The critical position (not held) with the employee's best matching; tie → smallest Poste_ID. |
 | **Pool summaries** | `VivierSyntheseService` | Per thematic pool and for the relief pool: headcount, talents, high potentials, Ready Now, averages, positions covered, most frequent largest gaps. Counts only. |
@@ -1118,6 +1134,7 @@ git push -u origin feature/my-change
 - Quarter reference date (`Trimestre.dateReference`): seniority no longer depends on today's date (audit C4).
 - Vigilance list covers every active employee with a vigilance input, scored or not (audit C8). No N+1 in the recalculation or the main pages, LAZY entités, `open-in-view=false` (audit 3.3, 3.4).
 - Real home dashboard (no hard-coded figure, checked against `00_DASHBOARD`), displayed quarter = most recent with scores and `?trimestre=` on every screen (audit 2.3, B5).
+- Compétences module (`/api/trimestres/{a}/{n}/competences`: per skill, top gaps, what each critical position's successors lack), checked against `06`, `07`, `09` and G10.
 - Employee list (filters, sort, pagination: `/api/trimestres/{a}/{n}/collaborateurs`) and DG dashboard (`/api/dashboard/dg`), checked against the workbook.
 - Largest gap per successor (`09_SUCCESSION!M`), every successor of each critical position, pool summaries (`/api/viviers/synthese`) and target post per employee (`/api/trimestres/{a}/{n}/postes-cibles`, fiche `posteCible`), checked against the workbook.
 - Self-evaluation and manager evaluation stored side by side (`source` on `Performance` / `Potentiel`), official score blended by `PonderationSources` (default manager only), fiche `autoEvaluation` and manager view `autoVsManager` (audit R1d).
