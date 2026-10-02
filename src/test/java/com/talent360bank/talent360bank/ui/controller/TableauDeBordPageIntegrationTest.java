@@ -265,12 +265,14 @@ class TableauDeBordPageIntegrationTest {
         assertThat(tableau.alertes()).extracting(AlerteVue::type, AlerteVue::severite, AlerteVue::matricule)
                 .containsExactly(
                         tuple(TypeAlerte.POSTE_SANS_SUCCESSEUR, SeveriteAlerte.CRITIQUE, "PB"),
+                        // PA a exactement un successeur : regle "Un seul successeur", un cran sous Critique.
+                        tuple(TypeAlerte.UN_SEUL_SUCCESSEUR, SeveriteAlerte.ELEVEE, "PA"),
                         tuple(TypeAlerte.VIGILANCE_ELEVEE, SeveriteAlerte.ELEVEE, "D04"),
                         tuple(TypeAlerte.EVALUATION_MANAGER_MANQUANTE, SeveriteAlerte.ELEVEE, "D06"),
                         tuple(TypeAlerte.GAPS_COMPETENCES_PRIORITAIRES, SeveriteAlerte.MOYENNE, "D01"));
         assertThat(tableau.alertes().get(0).direction()).isEqualTo("Risques");
-        assertThat(tableau.alertes().get(1).message()).contains("60");
-        assertThat(tableau.nbAlertes()).isEqualTo(4);
+        assertThat(tableau.alertes().get(2).message()).contains("60");
+        assertThat(tableau.nbAlertes()).isEqualTo(5);
 
         Map<String, VivierTableau> viviers = tableau.viviers().stream()
                 .collect(Collectors.toMap(VivierTableau::code, v -> v));

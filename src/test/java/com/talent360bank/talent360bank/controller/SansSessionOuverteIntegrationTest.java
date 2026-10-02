@@ -97,7 +97,9 @@ class SansSessionOuverteIntegrationTest {
             "/api/comite-talent" + PARAMS, "/api/viviers-thematiques" + PARAMS,
             "/api/postes-critiques" + PARAMS, "/api/viviers/synthese" + PARAMS, T + "/postes-cibles",
             T + "/collaborateurs", T + "/collaborateurs?talent=false&tri=PERFORMANCE&page=1&taille=5",
-            "/api/dashboard/dg" + PARAMS, T + "/competences", T + "/competences?vivier=RELEVE&ordre=asc&top=3");
+            "/api/dashboard/dg" + PARAMS, T + "/competences", T + "/competences?vivier=RELEVE&ordre=asc&top=3",
+            "/api/notifications", T + "/campagne",
+            T + "/campagne?entite=" + Entite.code(null, TypeEntite.DIRECTION, "Direction A"));
 
     @Autowired
     private MockMvc mockMvc;
@@ -176,7 +178,7 @@ class SansSessionOuverteIntegrationTest {
                 "/api/postes/PA/candidats" + PARAMS, "/api/postes/PA/candidats/A02" + PARAMS,
                 "/api/dashboard/synthese" + PARAMS, "/api/viviers/synthese" + PARAMS, T + "/postes-cibles",
                 T + "/collaborateurs?q=a&case=1&vigilance=FAIBLE", "/api/dashboard/dg" + PARAMS + "&limite=3",
-                T + "/competences?vivier=COMMERCIAL&poste=PA"));
+                T + "/competences?vivier=COMMERCIAL&poste=PA", "/api/notifications/badge"));
         for (String url : urls) {
             mockMvc.perform(get(url)).andExpect(status().isOk());
         }
@@ -250,6 +252,9 @@ class SansSessionOuverteIntegrationTest {
                 + " recalcul=" + recalculPetit + "/" + recalculGrand);
         assertThat(grande).isEqualTo(petite);
         assertThat(recalculGrand).isEqualTo(recalculPetit);
+        // Badge de la cloche : apres un calcul des notifications, le trimestre seul (deux requetes).
+        requetes("/api/notifications");
+        assertThat(requetes("/api/notifications/badge")).isEqualTo(2);
         // Vue manager, auto-evaluations comprises : l'equipe de B01 (14) se lit comme celle de A01 (5).
         assertThat(requetes(T + "/managers/B01/vue")).isEqualTo(requetes(T + "/managers/A01/vue"));
     }

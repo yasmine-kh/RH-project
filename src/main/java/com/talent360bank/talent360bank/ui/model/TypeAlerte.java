@@ -9,10 +9,12 @@ public enum TypeAlerte {
 
     POSTE_SANS_SUCCESSEUR("Poste critique sans successeur"),
     POSTE_SOUS_MINIMUM("Successeurs insuffisants"),
+    UN_SEUL_SUCCESSEUR("Un seul successeur"),
     VIGILANCE_ELEVEE("Vigilance élevée"),
     EVALUATION_MANAGER_MANQUANTE("Évaluation du manager manquante"),
     ECART_AUTO_MANAGER("Écart auto-évaluation / manager"),
     TALENT_SANS_DECISION("Talent sans décision du Comité"),
+    NOUVEAU_TALENT("Nouveau talent identifié"),
     GAPS_COMPETENCES_PRIORITAIRES("Compétences en gap prioritaire");
 
     private final String libelle;

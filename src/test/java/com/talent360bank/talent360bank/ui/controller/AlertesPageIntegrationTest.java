@@ -235,9 +235,12 @@ class AlertesPageIntegrationTest {
                 .containsExactly(tuple("CRITIQUE", 1), tuple("ELEVEE", 5), tuple("MOYENNE", 3));
         assertThat(vue.parType()).extracting(AlertesView.Compteur::code, AlertesView.Compteur::nombre)
                 .containsExactly(tuple("POSTE_SANS_SUCCESSEUR", 1), tuple("POSTE_SOUS_MINIMUM", 1),
+                        tuple("UN_SEUL_SUCCESSEUR", 0),
                         tuple("VIGILANCE_ELEVEE", 1), tuple("EVALUATION_MANAGER_MANQUANTE", 3),
                         tuple("ECART_AUTO_MANAGER", 1), tuple("TALENT_SANS_DECISION", 1),
-                        tuple("GAPS_COMPETENCES_PRIORITAIRES", 1));
+                        tuple("NOUVEAU_TALENT", 0), tuple("GAPS_COMPETENCES_PRIORITAIRES", 1));
+        // Un seul trimestre : pas de nouveau talent, et la page le dit.
+        assertThat(vue.informations()).anyMatch(information -> information.contains("aucun trimestre précédent"));
         assertThat(vue.total()).isEqualTo(9);
         assertThat(vue.alertes()).hasSize(3);
     }
