@@ -51,9 +51,19 @@
                             <div class="col-md-4"><strong>Anciennete :</strong>
                                 <span th:text="${id.anciennete != null ? id.anciennete + ' ans' : '-'}"></span></div>
                             <div class="col-md-8"><strong>Entite :</strong>
-                                <span th:text="${id.entite != null ? #strings.listJoin(id.entite.chemin, ' > ') : '-'}"></span></div>
+                                <span th:if="${#lists.isEmpty(cheminEntite)}">-</span>
+                                <!-- Fil d'Ariane : chaque niveau ouvre sa Vue entite. -->
+                                <th:block th:each="niveau, etat : ${cheminEntite}"><a
+                                        th:href="@{/entites(code=${niveau.valeur}, trimestre=${trimestreFiche})}"
+                                        th:text="${niveau.libelle}">Direction</a><span th:if="${!etat.last}"> &gt; </span></th:block></div>
                             <div class="col-md-4"><strong>Manager :</strong>
-                                <span th:text="${id.manager != null ? id.manager.nom + ' (' + id.manager.matricule + ')' : '-'}"></span></div>
+                                <th:block th:if="${id.manager != null}">
+                                    <a th:href="@{/managers/{m}(m=${id.manager.matricule}, trimestre=${trimestreFiche})}"
+                                       th:text="|${id.manager.nom} (${id.manager.matricule})|">Manager</a>
+                                    <a class="small d-block" th:href="@{/managers/{m}(m=${id.manager.matricule}, trimestre=${trimestreFiche})}">
+                                        Voir l'équipe de son manager</a>
+                                </th:block>
+                                <span th:if="${id.manager == null}">-</span></div>
                         </div>
                     </div>
                 </div>

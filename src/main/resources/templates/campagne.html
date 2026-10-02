@@ -32,7 +32,9 @@
         <th:block th:if="${vue != null}">
             <nav class="mt-3 small" aria-label="Niveau">
                 <a th:href="@{/campagne(trimestre=${trimestre.valeur})}">Toute la banque</a>
-                <span th:if="${vue.entite != null}" th:text="| / ${vue.entite.libelle}|"> / Reseau Retail</span>
+                <th:block th:if="${vue.entite != null}"> / <a
+                        th:href="@{/entites(code=${vue.entite.code}, trimestre=${trimestre.valeur})}"
+                        th:text="${vue.entite.libelle}">Reseau Retail</a></th:block>
             </nav>
 
             <div class="card shadow-sm mt-3">
@@ -72,6 +74,8 @@
                                th:text="${ligne.libelle}">Reseau Retail</a>
                             <span th:unless="${ligne.code != null and (vue.entite == null or ligne.code != vue.entite.code)}"
                                   th:text="${ligne.libelle}">Sans direction</span>
+                            <a th:if="${ligne.code != null}" class="small ms-1" title="Vue entité"
+                               th:href="@{/entites(code=${ligne.code}, trimestre=${trimestre.valeur})}"><i class="bi bi-diagram-3"></i> vue</a>
                         </td>
                         <td class="text-end" th:text="${ligne.nbActifs}">47</td>
                         <td class="text-end" th:text="${ligne.nbEvalues}">47</td>
@@ -88,7 +92,7 @@
                             <span class="text-muted" th:if="${#lists.isEmpty(ligne.managers)}">-</span>
                             <div class="small" th:each="manager : ${ligne.managers}">
                                 <a th:if="${manager.matricule != null}"
-                                   th:href="@{/fiche-collaborateur(matricule=${manager.matricule}, trimestre=${trimestre.valeur})}"
+                                   th:href="@{/managers/{m}(m=${manager.matricule}, trimestre=${trimestre.valeur})}"
                                    th:text="${manager.nom}">Manager</a>
                                 <span th:if="${manager.matricule == null}" th:text="${manager.nom}">Sans manager</span>
                                 <span th:text="|: ${manager.nbManquants}|">: 2</span>

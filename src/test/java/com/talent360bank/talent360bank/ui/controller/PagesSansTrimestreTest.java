@@ -35,7 +35,8 @@ class PagesSansTrimestreTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"/", "/dashboard-dg", "/collaborateurs", "/9box", "/viviers", "/postes-critiques",
-            "/competences", "/comite-talent", "/alertes", "/notifications", "/campagne"})
+            "/competences", "/comite-talent", "/alertes", "/notifications", "/campagne", "/managers",
+            "/managers/BP001", "/entites", "/entites?code=DIR:RESEAU_RETAIL/DEP:NORD"})
     void sans_trimestre_la_page_invite_a_importer(String url) throws Exception {
         String page = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn()
                 .getResponse().getContentAsString(StandardCharsets.UTF_8);

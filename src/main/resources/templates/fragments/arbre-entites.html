@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Un noeud de l'organigramme et ses enfants, recursivement (page /entites). -->
+<th:block th:fragment="noeud(n)">
+    <a th:href="@{/entites(code=${n.code}, trimestre=${trimestre.valeur})}" th:text="${n.libelle}">Entite</a>
+    <span class="text-muted small" th:text="|(${n.effectif})|">(10)</span>
+    <ul th:if="${not #lists.isEmpty(n.enfants)}">
+        <li th:each="enfant : ${n.enfants}"><th:block th:insert="~{fragments/arbre-entites :: noeud(${enfant})}"></th:block></li>
+    </ul>
+</th:block>
+
+</body>
+</html>

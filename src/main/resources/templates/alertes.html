@@ -126,8 +126,16 @@
                     <td>
                         <span th:text="${alerte.sujet}">Nom</span>
                         <span class="text-muted small d-block" th:text="${alerte.matricule}">BP001</span>
+                        <span class="small d-block" th:if="${alerte.managerMatricule != null}">Manager :
+                            <a th:href="@{/managers/{m}(m=${alerte.managerMatricule}, trimestre=${trimestre.valeur})}"
+                               th:text="${alerte.managerNom}">Manager</a></span>
                     </td>
-                    <td th:text="${alerte.entite} ?: '-'">Agence</td>
+                    <td>
+                        <a th:if="${alerte.entiteCode != null}"
+                           th:href="@{/entites(code=${alerte.entiteCode}, trimestre=${trimestre.valeur})}"
+                           th:text="${alerte.entite}">Agence</a>
+                        <span th:if="${alerte.entiteCode == null}" th:text="${alerte.entite} ?: '-'">-</span>
+                    </td>
                     <td th:text="${alerte.direction} ?: '-'">Direction</td>
                     <td th:text="${alerte.message}">Message</td>
                     <td><a th:href="${alerte.lien}" th:text="${alerte.lienLibelle}">Fiche collaborateur</a></td>

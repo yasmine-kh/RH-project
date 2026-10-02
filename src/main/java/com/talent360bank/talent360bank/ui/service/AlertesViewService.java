@@ -191,6 +191,8 @@ public class AlertesViewService {
         alertes.addAll(nouveauxTalents(trimestre, decisions, liens, informations));
         alertes.addAll(gapsCompetences(trimestre, parMatricule, liens));
 
+        // Le manager de chaque collaborateur concerne, pour le lien vers sa Vue manager (charge ci-dessus).
+        alertes.replaceAll(alerte -> avecManager(alerte, parMatricule.get(alerte.matricule())));
         alertes.sort(Comparator.comparing(AlerteVue::severite).thenComparing(AlerteVue::type));
         return new ResultatAlertes(List.copyOf(alertes), List.copyOf(informations));
     }
@@ -248,7 +250,8 @@ public class AlertesViewService {
                             + (couverture.meilleurSuccesseur() == null ? ""
                             : " (" + couverture.meilleurSuccesseur().candidat().getNomComplet() + ", "
                             + couverture.meilleurSuccesseur().readiness().getLibelle() + ")"),
-                            liens.posteCritique(poste.getPosteId()), "Postes critiques"));
+                            liens.posteCritique(poste.getPosteId()), "Postes critiques", code(poste.getEntite()),
+                            null, null));
                 }
                 continue;
             }
@@ -260,7 +263,7 @@ public class AlertesViewService {
                     aucun ? "Aucun successeur identifié"
                             : couverture.nbSuccesseurs() + " successeur(s) identifié(s), minimum "
                             + (minimum == null ? "non configuré" : minimum),
-                    liens.posteCritique(poste.getPosteId()), "Postes critiques"));
+                    liens.posteCritique(poste.getPosteId()), "Postes critiques", code(poste.getEntite()), null, null));
         }
         return alertes;
     }
@@ -413,7 +416,24 @@ public class AlertesViewService {
     private static AlerteVue alerte(TypeAlerte type, SeveriteAlerte severite, Collaborateur collaborateur,
                                     String message, String lien, String lienLibelle) {
         return new AlerteVue(type, severite, collaborateur.getNomComplet(), collaborateur.getIdCollaborateur(),
-                libelle(collaborateur.getEntite()), collaborateur.getDirection(), message, lien, lienLibelle);
+                libelle(collaborateur.getEntite()), collaborateur.getDirection(), message, lien, lienLibelle,
+                code(collaborateur.getEntite()), null, null);
+    }
+
+    /** L'alerte avec le manager du collaborateur concerne ; inchangee pour un poste ou sans manager. */
+    private static AlerteVue avecManager(AlerteVue alerte, Collaborateur collaborateur) {
+        if (collaborateur == null || collaborateur.getManager() == null
+                || collaborateur.getManager().getCollaborateur() == null) {
+            return alerte;
+        }
+        Collaborateur manager = collaborateur.getManager().getCollaborateur();
+        return new AlerteVue(alerte.type(), alerte.severite(), alerte.sujet(), alerte.matricule(), alerte.entite(),
+                alerte.direction(), alerte.message(), alerte.lien(), alerte.lienLibelle(), alerte.entiteCode(),
+                manager.getIdCollaborateur(), manager.getNomComplet());
+    }
+
+    private static String code(Entite entite) {
+        return entite == null ? null : entite.getCode();
     }
 
     /**

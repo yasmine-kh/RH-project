@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Organigramme</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('entites')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Organigramme</h1>
+            <p class="text-muted">Choisir une entité pour ouvrir sa vue (effectif entre parenthèses, sous-arbre compris).</p>
+        </header>
+
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
+        <div class="card shadow-sm" th:if="${entites != null}">
+            <div class="card-body">
+                <p class="text-muted mb-0" th:if="${#lists.isEmpty(entites)}">Aucune entité importée.</p>
+                <ul class="mb-0">
+                    <li th:each="noeud : ${entites}"><th:block th:insert="~{fragments/arbre-entites :: noeud(${noeud})}"></th:block></li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+</div>
+
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

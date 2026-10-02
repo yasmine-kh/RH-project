@@ -354,9 +354,10 @@ class TableauDeBordPageIntegrationTest {
         assertThat(t2.neufBox()).isEmpty();
         mockMvc.perform(get("/").param("trimestre", "2026-2")).andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("pas encore calcule")));
+        // Aucun nom dans la matrice de T2 (le selecteur de profil de la sidebar liste, lui, tout le monde).
         mockMvc.perform(get("/9box").param("trimestre", "2026-2")).andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString("PrenomD01"))));
+                        org.hamcrest.Matchers.containsString("class=\"matrice9-nom\""))));
         // Postes critiques (ecran d'Ima) : T1 par defaut, T2 sans reglages vide sans erreur.
         mockMvc.perform(get("/postes-critiques")).andExpect(status().isOk())
                 .andExpect(view().name("postes-critiques"))

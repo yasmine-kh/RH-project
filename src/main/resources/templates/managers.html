@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Managers</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <div th:replace="~{fragments/sidebar :: sidebar('managers')}"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Managers</h1>
+            <p class="text-muted" th:if="${managers != null}"
+               th:text="|${#lists.size(managers)} manager(s) - choisir une équipe|">20 managers</p>
+        </header>
+
+        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+
+        <div class="table-responsive" th:if="${managers != null and not #lists.isEmpty(managers)}">
+            <table class="table table-hover bg-white rounded shadow-sm">
+                <thead><tr><th>Manager</th><th>Fonction</th><th>Entité</th><th class="text-end">Équipe directe</th></tr></thead>
+                <tbody>
+                <tr th:each="manager : ${managers}">
+                    <td><a th:href="@{/managers/{matricule}(matricule=${manager.matricule}, trimestre=${trimestre.valeur})}"
+                           th:text="|${manager.prenom} ${manager.nom}|">Manager</a>
+                        <span class="text-muted small d-block" th:text="${manager.matricule}">BP026</span></td>
+                    <td th:text="${manager.fonction} ?: '-'">Fonction</td>
+                    <td>
+                        <a th:if="${manager.entite != null}"
+                           th:href="@{/entites(code=${manager.entite.code}, trimestre=${trimestre.valeur})}"
+                           th:text="${manager.entite.libelle}">Agence</a>
+                        <span th:if="${manager.entite == null}">-</span>
+                    </td>
+                    <td class="text-end" th:text="${manager.tailleEquipe}">5</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+</div>
+
+<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

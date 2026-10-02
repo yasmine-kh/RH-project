@@ -73,6 +73,14 @@
                             <strong th:text="${alerte.type.libelle}">Type</strong>
                             <span th:text="|- ${alerte.sujet}|">- Sujet</span>
                             <div class="small text-muted" th:text="${alerte.message}">Message</div>
+                            <div class="small">
+                                <a th:if="${alerte.entiteCode != null}"
+                                   th:href="@{/entites(code=${alerte.entiteCode}, trimestre=${trimestre.valeur})}"
+                                   th:text="${alerte.entite}">Agence</a>
+                                <th:block th:if="${alerte.managerMatricule != null}"> - Manager :
+                                    <a th:href="@{/managers/{m}(m=${alerte.managerMatricule}, trimestre=${trimestre.valeur})}"
+                                       th:text="${alerte.managerNom}">Manager</a></th:block>
+                            </div>
                         </div>
                         <a class="small text-nowrap" th:href="${alerte.lien}" th:text="${alerte.lienLibelle}">Fiche</a>
                     </div>

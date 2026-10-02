@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Talent 360 Bank - Page introuvable</title>
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<!-- Page autonome (sans sidebar) : rendue par ProfilsAdvice pour une ressource introuvable. -->
+<main class="container" style="max-width: 620px; margin-top: 10vh;">
+    <h1 class="h3 mb-3"><i class="bi bi-search"></i> Page introuvable</h1>
+    <p>Ce que vous cherchez n'existe pas (ou plus) : matricule, entité ou trimestre inconnu.</p>
+    <p class="text-muted" th:if="${message != null}" th:text="${message}">Aucun collaborateur BP999</p>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+        <a href="/" class="btn btn-primary"><i class="bi bi-house"></i> Accueil</a>
+        <a href="/collaborateurs" class="btn btn-outline-secondary">Collaborateurs</a>
+        <a href="/managers" class="btn btn-outline-secondary">Managers</a>
+        <a href="/entites" class="btn btn-outline-secondary">Entités</a>
+    </div>
+</main>
+
+</body>
+</html>
