@@ -3,10 +3,10 @@
 <body>
 
 <!--
-  Matrice 9-Box commune (page 9-Box, accueil, dashboard DG). Parametre m = MatriceNeufBox.
+  Matrice 9-Box commune (page 9-Box, accueil, dashboard DG, vue manager, vue entite). Parametre m = MatriceNeufBox.
   Potentiel en X (faible a gauche -> eleve a droite), Performance en Y (faible en bas -> elevee en haut) :
   case 9 "Talent cle" en haut a droite, case 1 en bas a gauche. Les cases arrivent deja dans cet ordre.
-  Noms : seulement si m.avecNoms, au plus MatriceNeufBox.NOMS_MAX par case, caches sur telephone.
+  Jamais de noms dans les cases : chaque case entiere est un lien (detail sur la page 9-Box, liste ailleurs).
 -->
 <div th:fragment="matrice(m)" class="matrice9-bloc">
     <div class="matrice9">
@@ -15,23 +15,18 @@
             <th:block th:each="c, etat : ${m.cases}">
                 <div class="matrice9-niveau-y" th:if="${etat.index % 3 == 0}"
                      th:text="${c.niveauPerformance == 3} ? 'Élevée' : (${c.niveauPerformance == 2} ? 'Moyenne' : 'Faible')">Elevee</div>
-                <div class="matrice9-case" th:classappend="${c.numero == 9} ? 'matrice9-talent-cle' : ''"
-                     th:attr="data-case=${c.numero}">
-                    <a class="matrice9-entete" th:href="${c.lienListe}">
+                <a class="matrice9-case"
+                   th:classappend="|${c.numero == 9 ? 'matrice9-talent-cle' : ''} ${m.caseSelectionnee != null and c.numero == m.caseSelectionnee ? 'matrice9-selectionnee' : ''}|"
+                   th:href="${c.lien}"
+                   th:attr="data-case=${c.numero},aria-current=${m.caseSelectionnee != null and c.numero == m.caseSelectionnee} ? 'true' : null"
+                   th:title="|${c.libelle} : ${c.nombre} collaborateur(s)|">
+                    <span class="matrice9-entete">
                         <span class="matrice9-numero" th:text="${c.numero}">9</span>
                         <span class="matrice9-libelle" th:text="${c.libelle}">Talent cle</span>
-                    </a>
-                    <div class="matrice9-chiffres">
-                        <span class="matrice9-compte" th:text="${c.nombre}">10</span>
-                        <span class="matrice9-part" th:if="${c.pourcentage != null}" th:text="|${c.pourcentage} %|">10.0 %</span>
-                    </div>
-                    <div class="matrice9-noms d-none d-md-flex" th:if="${m.avecNoms and c.nombre > 0}">
-                        <a class="matrice9-nom" th:each="membre : ${c.membres}" th:href="${membre.lien}"
-                           th:text="${membre.nomComplet}" th:title="${membre.matricule}">Prenom Nom</a>
-                        <a class="matrice9-autres" th:if="${c.nbAutres > 0}" th:href="${c.lienListe}"
-                           th:text="|+${c.nbAutres} autres|">+4 autres</a>
-                    </div>
-                </div>
+                    </span>
+                    <span class="matrice9-compte" th:text="${c.nombre}">10</span>
+                    <span class="matrice9-part" th:text="${c.pourcentage != null} ? |${c.pourcentage} %| : '-'">10.0 %</span>
+                </a>
             </th:block>
             <div></div>
             <div class="matrice9-niveau-x">Faible</div>
@@ -43,7 +38,7 @@
 
     <div class="matrice9-legende small text-muted">
         <span><span class="matrice9-pastille matrice9-talent-cle"></span>Talent clé (performance et potentiel élevés)</span>
-        <span>Cliquer sur une case ouvre la liste de ses collaborateurs</span>
+        <span>Cliquer sur une case pour voir ses collaborateurs</span>
         <span class="matrice9-total"
               th:text="|Total : ${m.total} collaborateur(s) placé(s)| + (${m.nbNonPlaces} > 0 ? |, ${m.nbNonPlaces} non placé(s)| : '')">Total : 100</span>
     </div>

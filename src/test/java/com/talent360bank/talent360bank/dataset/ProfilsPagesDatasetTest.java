@@ -6,7 +6,12 @@ import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.CalculTrimestreService;
 import com.talent360bank.talent360bank.service.ImportService;
 import com.talent360bank.talent360bank.service.TrimestreService;
+import com.talent360bank.talent360bank.service.TalentService;
 import com.talent360bank.talent360bank.ui.model.MatriceNeufBox;
+import com.talent360bank.talent360bank.ui.model.Organigramme;
+import com.talent360bank.talent360bank.ui.model.Organigramme.Branche;
+import com.talent360bank.talent360bank.ui.model.VueEntite.NoeudEntite;
+import com.talent360bank.talent360bank.ui.service.VueEntiteViewService;
 import com.talent360bank.talent360bank.ui.service.ProfilsPagesService.PageVueEntite;
 import com.talent360bank.talent360bank.ui.service.ProfilsPagesService.PageVueManager;
 import org.junit.jupiter.api.BeforeAll;
@@ -16,6 +21,7 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -64,6 +70,10 @@ class ProfilsPagesDatasetTest {
     private CalculTrimestreService calculTrimestreService;
     @Autowired
     private EntiteRepository entiteRepository;
+    @Autowired
+    private VueEntiteViewService vueEntiteViewService;
+    @Autowired
+    private TalentService talentService;
 
     private List<Map<String, String>> collaborateurs;
 
@@ -155,7 +165,7 @@ class ProfilsPagesDatasetTest {
         String html = html(resultat);
         assertThat(html).contains("/entites?code=DIR:RESEAU_RETAIL&amp;trimestre=2026-3");
         // Les cases de la matrice menent a la liste du sous-arbre.
-        assertThat(vue.matrice().cases().get(2).lienListe()).contains("entite=", "case=9");
+        assertThat(vue.matrice().cases().get(2).lien()).contains("/collaborateurs?", "entite=", "case=9");
         // Les entites filles sont cliquables.
         vue.vue().enfants().forEach(enfant -> assertThat(html).contains(enfant.libelle()));
         assertThat(html(page("/entites?trimestre=2026-3"))).contains("/entites?code=DIR:RESEAU_RETAIL");
@@ -188,17 +198,25 @@ class ProfilsPagesDatasetTest {
                 "/entites?code=DIR:RESEAU_RETAIL")) {
             String html = html(page(url));
             assertThat(html).as(url).contains("id=\"profil-form\"", "action=\"/profil\"", "Comité Talent");
-            assertThat(options(html, "profils-collaborateurs")).as(url).isEqualTo(collaborateurs.size());
-            assertThat(options(html, "profils-managers")).as(url).isEqualTo((int) managers);
-            assertThat(options(html, "profils-entites")).as(url).isEqualTo((int) entiteRepository.count());
+            // Vue RH : pas de personne a choisir, donc pas de liste.
+            assertThat(html).as(url).doesNotContain("<datalist", "profils-entites");
         }
-        // Le profil courant est selectionne.
+        // La liste de la personne a choisir n'apparait que pour son profil.
+        MockHttpSession manager = new MockHttpSession();
+        mockMvc.perform(get("/profil?profil=MANAGER").session(manager));
+        MockHttpSession collaborateur = new MockHttpSession();
+        mockMvc.perform(get("/profil?profil=COLLABORATEUR").session(collaborateur));
+        for (String url : List.of("/", "/9box", "/entites")) {
+            String m = mockMvc.perform(get(url).session(manager)).andReturn().getResponse()
+                    .getContentAsString(StandardCharsets.UTF_8);
+            assertThat(options(m, "profils-managers")).as(url).isEqualTo((int) managers);
+            String c = mockMvc.perform(get(url).session(collaborateur)).andReturn().getResponse()
+                    .getContentAsString(StandardCharsets.UTF_8);
+            assertThat(options(c, "profils-collaborateurs")).as(url).isEqualTo(collaborateurs.size());
+        }
+        // Sans profil choisi, la session est en vue RH.
         assertThat(html(page("/managers/" + plusGrandeEquipe().getKey())))
-                .containsPattern("<option value=\"MANAGER\" selected=\"selected\">");
-        assertThat(html(page("/entites?code=DIR:RESEAU_RETAIL")))
-                .containsPattern("<option value=\"ENTITE\" selected=\"selected\">");
-        assertThat(html(page("/fiche-collaborateur?matricule=BP001")))
-                .containsPattern("<option value=\"COLLABORATEUR\" selected=\"selected\">");
+                .containsPattern("<option value=\"RH\" selected=\"selected\">");
     }
 
     private static int options(String html, String liste) {
@@ -225,7 +243,10 @@ class ProfilsPagesDatasetTest {
         mockMvc.perform(get("/profil").param("profil", "ENTITE").param("cible", "DIR:RESEAU_RETAIL/DEP:X")
                         .param("trimestre", "2026-3"))
                 .andExpect(redirectedUrl("/entites?code=DIR:RESEAU_RETAIL/DEP:X&trimestre=2026-3"));
-        mockMvc.perform(get("/profil?profil=MANAGER&trimestre=2026-3")).andExpect(redirectedUrl("/managers?trimestre=2026-3"));
+        // Sans personne : le profil s'applique et on reste sur la page (jamais la liste /managers).
+        mockMvc.perform(get("/profil?profil=MANAGER&trimestre=2026-3&retour=/viviers?trimestre=2026-3"))
+                .andExpect(redirectedUrl("/viviers?trimestre=2026-3"));
+        mockMvc.perform(get("/profil?profil=MANAGER&trimestre=2026-3")).andExpect(redirectedUrl("/"));
     }
 
     // --- liens croises --------------------------------------------------------------------------
@@ -243,5 +264,65 @@ class ProfilsPagesDatasetTest {
         assertThat(alertes).contains("/managers/", "/entites?code=");
         assertThat(html(page("/notifications"))).contains("/entites?code=");
         assertThat(html(page("/campagne"))).contains("/entites?code=DIR:", "Vue entité");
+    }
+
+    // --- organigramme ---------------------------------------------------------------------------
+
+    @Test
+    void l_organigramme_fusionne_les_chaines_a_enfant_unique_sans_changer_les_effectifs() throws Exception {
+        MvcResult resultat = page("/entites?trimestre=2026-3");
+        Organigramme organigramme = modele(resultat, "organigramme");
+        List<NoeudEntite> brut = vueEntiteViewService.listerEntites();
+
+        // Une carte par direction, memes effectifs que l'arbre d'origine.
+        assertThat(organigramme.directions()).hasSameSizeAs(brut);
+        for (int i = 0; i < brut.size(); i++) {
+            assertThat(organigramme.directions().get(i).branche().effectif()).isEqualTo(brut.get(i).effectif());
+        }
+        assertThat(organigramme.directions().stream().mapToInt(d -> d.branche().effectif()).sum())
+                .isEqualTo(brut.stream().mapToInt(NoeudEntite::effectif).sum());
+        // Plus aucune entite a enfant unique de meme effectif ; chaque ligne garde la somme de ses enfants au plus.
+        organigramme.directions().forEach(d -> verifierFusion(d.branche()));
+        // Le classeur a de telles chaines : leurs libelles sont fusionnes.
+        assertThat(lignes(brut)).isGreaterThan(organigramme.directions().stream()
+                .mapToLong(d -> lignes(d.branche())).sum());
+        assertThat(organigramme.directions()).anyMatch(d -> contientFusion(d.branche()));
+
+        // Talents et alertes par direction : comptes sur les listes du trimestre, sans en inventer.
+        assertThat(organigramme.indicateursDisponibles()).isTrue();
+        int talents = organigramme.directions().stream().mapToInt(d -> d.nbTalents()).sum();
+        assertThat(talents).isPositive().isLessThanOrEqualTo(
+                talentService.detecterTalents(trimestreRepository.findByNumeroAndAnnee(3, 2026).orElseThrow()).size());
+        assertThat(organigramme.directions().stream().mapToInt(d -> d.nbAlertes()).sum()).isPositive();
+
+        String html = html(resultat);
+        // Sans JavaScript : tout est ouvert et la recherche est cachee ; organigramme.js replie et filtre.
+        assertThat(html).contains("class=\"organigramme-carte\" open", "class=\"organigramme-noeud\" open",
+                "id=\"organigramme-recherche\"", "/js/organigramme.js");
+        assertThat(html).containsPattern("id=\"organigramme-recherche-bloc\"\\s+hidden");
+        assertThat(html.substring(html.indexOf("<main"))).doesNotContain("<ul", "<li", "href=\"/api/");
+        Branche premiere = organigramme.directions().get(0).branche();
+        assertThat(html).contains("/entites?code=" + premiere.code() + "&amp;trimestre=2026-3",
+                "<strong>" + premiere.effectif() + "</strong> collaborateurs");
+    }
+
+    private static void verifierFusion(Branche b) {
+        assertThat(b.enfants().size() == 1 && b.enfants().get(0).effectif() == b.effectif())
+                .as(b.libelle()).isFalse();
+        assertThat(b.enfants().stream().mapToInt(Branche::effectif).sum()).as(b.libelle())
+                .isLessThanOrEqualTo(b.effectif());
+        b.enfants().forEach(ProfilsPagesDatasetTest::verifierFusion);
+    }
+
+    private static boolean contientFusion(Branche b) {
+        return b.libelle().contains(" / ") || b.enfants().stream().anyMatch(ProfilsPagesDatasetTest::contientFusion);
+    }
+
+    private static long lignes(Branche b) {
+        return 1 + b.enfants().stream().mapToLong(ProfilsPagesDatasetTest::lignes).sum();
+    }
+
+    private static long lignes(List<NoeudEntite> noeuds) {
+        return noeuds.stream().mapToLong(n -> 1 + lignes(n.enfants())).sum();
     }
 }

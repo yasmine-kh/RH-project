@@ -56,7 +56,8 @@ class LiensEtMatriceDatasetTest {
 
     private static final Path FICHIER = Path.of("docs/data/TALENT_360_BANK_Dataset_V1.xlsx");
     private static final Pattern HREF = Pattern.compile("href=\"([^\"]*)\"");
-    private static final Pattern CASE = Pattern.compile("data-case=\"(\\d)\"");
+    /** Le numero de chaque case de la matrice (pas des panneaux de detail). */
+    private static final Pattern CASE = Pattern.compile("class=\"matrice9-case[^\"]*\"[^>]*data-case=\"(\\d)\"");
 
     /** Chaque ecran, avec des filtres qui font apparaitre des liens de chaque sorte. */
     private static final List<String> PAGES = List.of(
@@ -195,33 +196,69 @@ class LiensEtMatriceDatasetTest {
 
     @Test
     @Order(4)
-    void une_case_de_plus_de_6_montre_6_noms_et_plus_n_autres() throws Exception {
+    void les_cases_n_ont_pas_de_noms_et_le_detail_de_talent_cle_liste_ses_10_collaborateurs() throws Exception {
         MvcResult resultat = page("/9box");
         MatriceNeufBox matrice = (MatriceNeufBox) resultat.getModelAndView().getModel().get("matrice");
         CaseMatrice talentCle = matrice.cases().get(2);
-        assertThat(talentCle.nombre()).isGreaterThan(MatriceNeufBox.NOMS_MAX);
-        assertThat(talentCle.membres()).hasSize(MatriceNeufBox.NOMS_MAX);
-        assertThat(talentCle.nbAutres()).isEqualTo(talentCle.nombre() - MatriceNeufBox.NOMS_MAX);
-        assertThat(talentCle.lienListe()).isEqualTo("/collaborateurs?trimestre=2026-3&case=9");
+        assertThat(matrice.caseSelectionnee()).isEqualTo(9);
+        assertThat(talentCle.nombre()).isEqualTo(10);
+        assertThat(talentCle.membres()).hasSize(10);
+        assertThat(talentCle.lien()).isEqualTo("/9box?trimestre=2026-3&case=9#detail");
 
         String html = html(resultat);
-        assertThat(html).contains("+" + talentCle.nbAutres() + " autres");
-        assertThat(liens(html)).contains("/collaborateurs?trimestre=2026-3&case=9");
-        // La liste ainsi ouverte a bien l'effectif de la case.
-        assertThat(html(page("/collaborateurs?trimestre=2026-3&case=9"))).contains("10 collaborateur(s) sur 100");
+        // Aucune case ne contient de nom : seulement numero, libelle, effectif et %.
+        Matcher cellules = Pattern.compile("<a class=\"matrice9-case[^\"]*\"(.*?)</a>", Pattern.DOTALL).matcher(html);
+        int nbCellules = 0;
+        while (cellules.find()) {
+            nbCellules++;
+            String cellule = cellules.group(1);
+            for (CaseMatrice c : matrice.cases()) {
+                for (MatriceNeufBox.Membre membre : c.membres()) {
+                    assertThat(cellule).doesNotContain(membre.nomComplet()).doesNotContain(membre.matricule());
+                }
+            }
+        }
+        assertThat(nbCellules).isEqualTo(9);
+        assertThat(html).contains("matrice9-selectionnee", "id=\"detail\"");
 
-        // Une case a 6 ou moins : tous les noms, pas de "+N autres".
-        CaseMatrice petite = matrice.cases().stream().filter(c -> c.nombre() > 0 && c.nombre() <= 6)
-                .findFirst().orElseThrow();
-        assertThat(petite.membres()).hasSize(petite.nombre());
-        assertThat(petite.nbAutres()).isZero();
+        // Panneau ouvert = Talent cle : ses 10 collaborateurs, chacun vers sa fiche.
+        Matcher debut = Pattern.compile("class=\"neufbox-panneau\"\\s+data-case=\"9\"").matcher(html);
+        assertThat(debut.find()).isTrue();
+        String panneau = html.substring(debut.start());
+        panneau = panneau.substring(0, panneau.indexOf("</table>"));
+        for (MatriceNeufBox.Membre membre : talentCle.membres()) {
+            assertThat(panneau).contains("/fiche-collaborateur?matricule=" + membre.matricule() + "&amp;trimestre=2026-3");
+        }
+        assertThat(html).containsPattern("class=\"neufbox-panneau\"\\s+data-case=\"8\"\\s+hidden");
+        assertThat(html).doesNotContainPattern("class=\"neufbox-panneau\"\\s+data-case=\"9\"\\s+hidden");
 
-        // L'accueil et le dashboard DG utilisent le meme composant, sans les noms.
+        // Sans JavaScript : chaque case est un lien qui recharge la page sur cette case.
+        assertThat(liens(html)).contains("/9box?trimestre=2026-3&case=1#detail", "/9box?trimestre=2026-3&case=9#detail");
+        MatriceNeufBox case1 = (MatriceNeufBox) page("/9box?trimestre=2026-3&case=1").getModelAndView()
+                .getModel().get("matrice");
+        assertThat(case1.caseSelectionnee()).isEqualTo(1);
+        assertThat(case1.selection().membres()).hasSize(case1.selection().nombre());
+
+        // Recherche et tri du panneau, cote serveur.
+        @SuppressWarnings("unchecked")
+        Map<Integer, List<MatriceNeufBox.Membre>> parPerformance = (Map<Integer, List<MatriceNeufBox.Membre>>)
+                page("/9box?case=9&tri=PERFORMANCE").getModelAndView().getModel().get("panneaux");
+        assertThat(parPerformance.get(9)).extracting(MatriceNeufBox.Membre::performance)
+                .isSortedAccordingTo(java.util.Comparator.reverseOrder());
+        String unNom = talentCle.membres().get(0).matricule();
+        @SuppressWarnings("unchecked")
+        Map<Integer, List<MatriceNeufBox.Membre>> recherche = (Map<Integer, List<MatriceNeufBox.Membre>>)
+                page("/9box?case=9&q=" + unNom).getModelAndView().getModel().get("panneaux");
+        assertThat(recherche.get(9)).extracting(MatriceNeufBox.Membre::matricule).containsExactly(unNom);
+
+        // Ailleurs, la matrice compacte : effectifs seuls, une case mene a la liste de la case.
         for (String url : List.of("/", "/dashboard-dg")) {
             String autre = html(page(url));
             assertThat(autre).contains("data-case=\"9\"", "matrice9-talent-cle")
-                    .doesNotContain("matrice9-nom\"");
+                    .doesNotContain("neufbox-panneau");
+            assertThat(liens(autre)).contains("/collaborateurs?trimestre=2026-3&case=9");
         }
+        assertThat(html(page("/collaborateurs?trimestre=2026-3&case=9"))).contains("10 collaborateur(s) sur 100");
     }
 
     @Test
@@ -233,6 +270,7 @@ class LiensEtMatriceDatasetTest {
         collaborateur.setPrenom("<img src=x onerror=alert(1)>");
         collaborateurRepository.save(collaborateur);
 
+        // Le nom n'apparait que dans le panneau (et la liste du selecteur), echappe.
         String html = html(page("/9box"));
         assertThat(html).doesNotContain("<img src=x onerror=alert(1)>")
                 .contains("&lt;img src=x onerror=alert(1)&gt;");

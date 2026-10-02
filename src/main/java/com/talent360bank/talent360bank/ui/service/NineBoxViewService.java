@@ -71,36 +71,45 @@ public class NineBoxViewService {
     }
 
     /**
-     * La matrice du composant commun (fragments/matrice9box.html), avec les noms
-     * de chaque case, par nom : memes deux lectures que {@link #buildGrid}.
+     * La matrice de la page 9-Box : effectifs par case et, pour le panneau de
+     * detail, tous les membres de chaque case (nom, entite, scores), par nom.
+     * Memes deux lectures que {@link #buildGrid}. Un clic sur une case ouvre son
+     * detail ({@code /9box?case=N#detail}).
      *
-     * @param trimestre trimestre affiche, null s'il n'en existe aucun : les 9 cases sont alors vides
+     * @param trimestre        trimestre affiche, null s'il n'en existe aucun : les 9 cases sont alors vides
+     * @param caseSelectionnee case dont le detail est ouvert (1 a 9)
      */
-    public MatriceNeufBox buildMatrice(Trimestre trimestre) {
+    public MatriceNeufBox buildMatrice(Trimestre trimestre, int caseSelectionnee) {
         String valeur = trimestre == null ? null : TrimestreCourantService.valeur(trimestre);
-        Map<String, List<Collaborateur>> parCategorie = new HashMap<>();
+        Map<String, List<Score>> parCategorie = new HashMap<>();
         int nonPlaces = 0;
         if (trimestre != null) {
             for (Score score : scoreRepository.findByTrimestreAvecCollaborateur(trimestre)) {
                 if (score.getPositionBox() == null) {
                     nonPlaces++;
                 } else {
-                    parCategorie.computeIfAbsent(score.getPositionBox(), k -> new ArrayList<>())
-                            .add(score.getCollaborateur());
+                    parCategorie.computeIfAbsent(score.getPositionBox(), k -> new ArrayList<>()).add(score);
                 }
             }
         }
         List<MatriceNeufBox.Entree> entrees = new ArrayList<>();
         for (Matrice9Box box : matriceRepository.findAll()) {
             List<MatriceNeufBox.Membre> membres = parCategorie.getOrDefault(box.getCategorie(), List.of()).stream()
-                    .sorted(Comparator.comparing(Collaborateur::getNom).thenComparing(Collaborateur::getPrenom)
-                            .thenComparing(Collaborateur::getIdCollaborateur))
-                    .map(c -> new MatriceNeufBox.Membre(c.getIdCollaborateur(), c.getPrenom() + " " + c.getNom(),
-                            MatriceNeufBox.lienFiche(c.getIdCollaborateur(), valeur)))
+                    .sorted(Comparator.comparing((Score s) -> s.getCollaborateur().getNom())
+                            .thenComparing(s -> s.getCollaborateur().getPrenom())
+                            .thenComparing(s -> s.getCollaborateur().getIdCollaborateur()))
+                    .map(s -> {
+                        Collaborateur c = s.getCollaborateur();
+                        return new MatriceNeufBox.Membre(c.getIdCollaborateur(), c.getPrenom() + " " + c.getNom(),
+                                MatriceNeufBox.lienFiche(c.getIdCollaborateur(), valeur),
+                                c.getEntite() == null ? null : c.getEntite().getLibelle(),
+                                s.getScorePerformance(), s.getScorePotentiel());
+                    })
                     .toList();
             entrees.add(new MatriceNeufBox.Entree(box.getNiveauPerformance(), box.getNiveauPotentiel(),
                     box.getCategorie(), membres.size(), membres));
         }
-        return MatriceNeufBox.construire(entrees, nonPlaces, true, valeur);
+        return MatriceNeufBox.construire(entrees, nonPlaces, numero -> MatriceNeufBox.lienDetail(valeur, numero),
+                caseSelectionnee);
     }
 }
