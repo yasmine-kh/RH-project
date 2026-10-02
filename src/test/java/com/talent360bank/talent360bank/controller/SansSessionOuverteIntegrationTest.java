@@ -97,7 +97,7 @@ class SansSessionOuverteIntegrationTest {
             "/api/comite-talent" + PARAMS, "/api/viviers-thematiques" + PARAMS,
             "/api/postes-critiques" + PARAMS, "/api/viviers/synthese" + PARAMS, T + "/postes-cibles",
             T + "/collaborateurs", T + "/collaborateurs?talent=false&tri=PERFORMANCE&page=1&taille=5",
-            "/api/dashboard/dg" + PARAMS);
+            "/api/dashboard/dg" + PARAMS, T + "/competences", T + "/competences?vivier=RELEVE&ordre=asc&top=3");
 
     @Autowired
     private MockMvc mockMvc;
@@ -175,7 +175,8 @@ class SansSessionOuverteIntegrationTest {
                 "/api/postes-critiques/synthese" + PARAMS, "/api/postes-critiques/PA" + PARAMS,
                 "/api/postes/PA/candidats" + PARAMS, "/api/postes/PA/candidats/A02" + PARAMS,
                 "/api/dashboard/synthese" + PARAMS, "/api/viviers/synthese" + PARAMS, T + "/postes-cibles",
-                T + "/collaborateurs?q=a&case=1&vigilance=FAIBLE", "/api/dashboard/dg" + PARAMS + "&limite=3"));
+                T + "/collaborateurs?q=a&case=1&vigilance=FAIBLE", "/api/dashboard/dg" + PARAMS + "&limite=3",
+                T + "/competences?vivier=COMMERCIAL&poste=PA"));
         for (String url : urls) {
             mockMvc.perform(get(url)).andExpect(status().isOk());
         }

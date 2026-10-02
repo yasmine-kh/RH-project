@@ -20,6 +20,7 @@ import com.talent360bank.talent360bank.repository.PosteRepository;
 import com.talent360bank.talent360bank.repository.PotentielRepository;
 import com.talent360bank.talent360bank.repository.ScoreRepository;
 import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
+import com.talent360bank.talent360bank.service.resultat.EcartExigence;
 import com.talent360bank.talent360bank.service.resultat.PlusGrandGap;
 import com.talent360bank.talent360bank.service.resultat.ResultatMatching;
 import org.junit.jupiter.api.BeforeEach;
@@ -227,6 +228,17 @@ class SuccessionServiceTest {
                 skill(candidat, competenceB, 3)), bareme());
 
         assertThat(gap).isEqualTo(new PlusGrandGap("C001", "Analyse de risque", 4, 3, 1));
+    }
+
+    @Test
+    void les_ecarts_par_exigence_suivent_l_ordre_du_poste_avec_le_niveau_par_defaut() {
+        Collaborateur candidat = collaborateur("E001", StatutCollaborateur.ACTIF, 5);
+
+        // C001 absente (niveau par defaut 3) sur 4 exige ; C002 a 5 sur 3 exige : pas d'ecart negatif.
+        assertThat(successionService.ecartsExigences(poste("P001"), List.of(skill(candidat, competenceB, 5)),
+                bareme())).containsExactly(
+                new EcartExigence("C001", "Analyse de risque", 4, 3, 1),
+                new EcartExigence("C002", "Management d'equipe", 3, 5, 0));
     }
 
     @Test
