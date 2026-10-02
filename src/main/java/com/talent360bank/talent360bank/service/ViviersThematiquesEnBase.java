@@ -36,7 +36,7 @@ public class ViviersThematiquesEnBase implements VivierThematiqueSource {
         if (direction == null || direction.isBlank()) {
             return Optional.empty();
         }
-        return repository.findByDirection(direction.trim()).map(RattachementVivier::getVivier);
+        return repository.findByDirectionLibelle(direction.trim()).map(RattachementVivier::getVivier);
     }
 
     /**

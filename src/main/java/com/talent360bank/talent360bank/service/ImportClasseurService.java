@@ -638,7 +638,7 @@ public class ImportClasseurService {
                 validationComiteRepository.findByTrimestreAvecCollaborateur(trimestre),
                 validation -> validation.getCollaborateur().getIdCollaborateur());
         Map<String, RattachementVivier> rattachements = indexer(rattachementRepository.findAll(),
-                RattachementVivier::getDirection);
+                rattachement -> rattachement.getDirection().getLibelle());
         Map<String, VivierThematique> vusDansLaFeuille = new HashMap<>();
         Set<String> presents = new HashSet<>();
 
@@ -670,7 +670,15 @@ public class ImportClasseurService {
             if (vivier != null) {
                 RattachementVivier rattachement = rattachements.get(direction);
                 if (rattachement == null) {
-                    rattachements.put(direction, rattachementRepository.save(new RattachementVivier(direction, vivier)));
+                    // 1. Generation du code normalise pour la direction
+                    String codeDirection = Entite.code(null, TypeEntite.DIRECTION, direction);
+
+                    // 2. Recherche par code ou creation si absente
+                    Entite entiteObjet = entiteRepository.findByCode(codeDirection)
+                            .orElseGet(() -> entiteRepository.save(new Entite(direction, TypeEntite.DIRECTION, null)));
+
+                    // 3. Sauvegarde du rattachement avec l'objet Entite
+                    rattachements.put(direction, rattachementRepository.save(new RattachementVivier(entiteObjet, vivier)));
                 } else {
                     rattachement.setVivier(vivier);
                 }

@@ -2,7 +2,8 @@ package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.entity.Competence;
 import com.talent360bank.talent360bank.service.CompetenceService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,8 +12,11 @@ import java.util.List;
 @RequestMapping("/api/competences")
 public class CompetenceController {
 
-    @Autowired
-    private CompetenceService competenceService;
+    private final CompetenceService competenceService;
+
+    public CompetenceController(CompetenceService competenceService) {
+        this.competenceService = competenceService;
+    }
 
     @GetMapping
     public List<Competence> listerTous() {
@@ -20,12 +24,14 @@ public class CompetenceController {
     }
 
     @PostMapping
-    public Competence creer(@RequestBody Competence competence) {
+    public Competence creer(@Valid @RequestBody Competence competence) {
         return competenceService.enregistrer(competence);
     }
 
+    // Soft Delete (B11) : Archivage / Desactivation via le service
     @DeleteMapping("/{id}")
-    public void supprimer(@PathVariable String id) {
+    public ResponseEntity<Void> supprimer(@PathVariable String id) {
         competenceService.supprimer(id);
+        return ResponseEntity.noContent().build();
     }
 }

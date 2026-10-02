@@ -2,30 +2,25 @@ package com.talent360bank.talent360bank.entity;
 
 import com.talent360bank.talent360bank.service.enums.VivierThematique;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 
 /**
- * Vivier thematique d'une direction (10_TALENTS, colonnes Direction et Vivier
- * thematique). Les noms de direction sont une donnee de l'import, pas une
- * regle du moteur.
+ * Vivier thématique d'une direction (10_TALENTS, colonnes Direction et Vivier thématique).
  */
 @Entity
 @Table(name = "rattachement_vivier", uniqueConstraints = @UniqueConstraint(
         name = "uk_rattachement_vivier_direction",
-        columnNames = {"direction"}))
+        columnNames = {"entite_id"}))
 public class RattachementVivier {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idRattachement;
 
-    /** Meme longueur que Collaborateur.direction. */
-    @NotBlank
-    @Size(max = 100)
-    @Column(nullable = false, length = 100)
-    private String direction;
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "entite_id", nullable = false)
+    private Entite direction;
 
     @NotNull
     @Enumerated(EnumType.STRING)
@@ -35,7 +30,7 @@ public class RattachementVivier {
     public RattachementVivier() {
     }
 
-    public RattachementVivier(String direction, VivierThematique vivier) {
+    public RattachementVivier(Entite direction, VivierThematique vivier) {
         this.direction = direction;
         this.vivier = vivier;
     }
@@ -44,11 +39,11 @@ public class RattachementVivier {
         return idRattachement;
     }
 
-    public String getDirection() {
+    public Entite getDirection() {
         return direction;
     }
 
-    public void setDirection(String direction) {
+    public void setDirection(Entite direction) {
         this.direction = direction;
     }
 
