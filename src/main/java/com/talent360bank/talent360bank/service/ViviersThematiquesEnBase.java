@@ -49,10 +49,11 @@ public class ViviersThematiquesEnBase implements VivierThematiqueSource {
     public Map<String, VivierThematique> viviersParDirection(Collection<String> directions) {
         Map<String, VivierThematique> parCle = new HashMap<>();
         for (RattachementVivier rattachement : repository.findAll()) {
-            if (rattachement.getDirection() != null) {
-                parCle.put(cle(rattachement.getDirection()), rattachement.getVivier());
+            if (rattachement.getDirection() != null && rattachement.getDirection().getLibelle() != null) {
+                parCle.put(cle(rattachement.getDirection().getLibelle()), rattachement.getVivier());
             }
         }
+
         Map<String, VivierThematique> viviers = new HashMap<>();
         for (String direction : directions) {
             if (direction != null && !direction.isBlank()) {

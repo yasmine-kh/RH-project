@@ -83,20 +83,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * CompetenceCollaborateurService) pour le trimestre affiche, et quelques
  * valeurs sont verifiees a la main. Choix du trimestre sur tous les ecrans :
  * ?trimestre=, trimestre ouvert mais vide, trimestre inconnu.
- *
- * <p>Population de T1 2026 (reglages par defaut : talent 85/85, haut potentiel
- * pot 85 et perf 75, vigilance moderee 30, elevee 60) :
- * <ul>
- *   <li>D01 95/95, D02 95/95 : talents ; comite Oui pour D01, Non pour D02 ;</li>
- *   <li>D03 80/90 : haut potentiel sans etre talent ;</li>
- *   <li>D04 60/60, engagement 20 + deux faits (sans mobilite, mobilite non
- *   traitee) : 25 + 20 + 15 = 60, vigilance ELEVEE ;</li>
- *   <li>D05 70/70, engagement 40 + formation non faite : 25 + 5 = 30, MODEREE ;</li>
- *   <li>D06 actif sans aucune donnee : pas de vigilance ;</li>
- *   <li>D07 INACTIF, note et questionnaire a 100 : hors de tous les chiffres.</li>
- * </ul>
- * D01, D02, D04 en Reseau Retail (vivier Commercial), D03, D05 en Risques
- * (vivier Risques). Deux postes critiques : PA (successeur D01), PB (aucun).
  */
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:tableau-de-bord-page;DB_CLOSE_DELAY=-1;MODE=MySQL")
 @AutoConfigureMockMvc
@@ -156,8 +142,8 @@ class TableauDeBordPageIntegrationTest {
         parametreRepository.save(Parametre.parDefaut(t1));
         Entite retail = entiteRepository.save(new Entite("Reseau Retail", TypeEntite.DIRECTION, null));
         Entite risques = entiteRepository.save(new Entite("Risques", TypeEntite.DIRECTION, null));
-        rattachementRepository.save(new RattachementVivier("Reseau Retail", VivierThematique.COMMERCIAL));
-        rattachementRepository.save(new RattachementVivier("Risques", VivierThematique.RISQUES));
+        rattachementRepository.save(new RattachementVivier(retail, VivierThematique.COMMERCIAL));
+        rattachementRepository.save(new RattachementVivier(risques, VivierThematique.RISQUES));
         competence = new Competence();
         competence.setCompetenceId("C01");
         competence.setNom("Credit");

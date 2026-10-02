@@ -7,13 +7,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Collection;
 
 public interface QuestionnaireEngagementRepository extends JpaRepository<QuestionnaireEngagement, Integer> {
 
     Optional<QuestionnaireEngagement> findByCollaborateurAndTrimestre(Collaborateur collaborateur, Trimestre trimestre);
+
+    //  Méthode utile à rajouter pour vérifier l'existence rapidement
+    boolean existsByCollaborateurAndTrimestre(Collaborateur collaborateur, Trimestre trimestre);
 
     @Query("select q from QuestionnaireEngagement q join fetch q.collaborateur where q.trimestre = :trimestre")
     List<QuestionnaireEngagement> findByTrimestreAvecCollaborateur(@Param("trimestre") Trimestre trimestre);
@@ -22,5 +25,5 @@ public interface QuestionnaireEngagementRepository extends JpaRepository<Questio
     @Query("select q from QuestionnaireEngagement q join fetch q.collaborateur "
             + "where q.trimestre = :trimestre and q.collaborateur.idCollaborateur in :ids")
     List<QuestionnaireEngagement> findByTrimestreEtCollaborateurs(@Param("trimestre") Trimestre trimestre,
-                                                                 @Param("ids") Collection<String> ids);
+                                                                  @Param("ids") Collection<String> ids);
 }

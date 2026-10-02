@@ -85,12 +85,23 @@ public class DossierImportService {
     private List<Path> scannerEtFiltrerFichiers(Path dossierPath, List<String> erreurs) throws IOException {
         List<Path> resultat = new ArrayList<>();
 
-        try (Stream<Path> stream = Files.list(dossierPath)) {
+        // Résolution réelle du dossier parent pour la comparaison B2 (Anti-Path Traversal)
+        Path dossierPathReel = dossierPath.toRealPath();
+
+        try (Stream<Path> stream = Files.list(dossierPathReel)) {
             List<Path> tousLesFichiers = stream.toList();
 
             for (Path path : tousLesFichiers) {
-                // S7: Securisation via toRealPath et filtrage des fichiers verrous (~$)
+                // S7 & B2: Sécurisation via toRealPath
                 Path realPath = path.toRealPath();
+
+                // CONTRAINTE B2 : Vérifier que le fichier réel ne s'échappe pas du dossier autorisé
+                if (!realPath.startsWith(dossierPathReel)) {
+                    log.warn("Tentative d'accès hors du dossier autorisé (Path Traversal détecté) : {}", realPath);
+                    erreurs.add("Fichier ignoré pour des raisons de sécurité : " + path.getFileName());
+                    continue;
+                }
+
                 String nom = realPath.getFileName().toString();
 
                 if (Files.isDirectory(realPath)) {
@@ -103,7 +114,7 @@ public class DossierImportService {
                 }
 
                 if (Files.size(realPath) > TAILLE_MAX_FICHIER_OCTETS) {
-                    erreurs.add("Fichier trop volumineux ignoration (>10Mo) : " + nom);
+                    erreurs.add("Fichier trop volumineux ignoré (>10Mo) : " + nom);
                     continue;
                 }
 

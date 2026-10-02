@@ -6,7 +6,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "questionnaire_engagement")
+// 1. L'ANNOTATION @Table EST PLACÉE ICI, JUSTE AU-DESSUS DE LA CLASSE :
+@Table(name = "questionnaire_engagement", uniqueConstraints = @UniqueConstraint(
+        name = "uk_engagement_collaborateur_trimestre",
+        columnNames = {"id_collaborateur", "id_trimestre"}))
 public class QuestionnaireEngagement {
 
     @Id
@@ -22,12 +25,14 @@ public class QuestionnaireEngagement {
     private String statut;
 
     @NotNull(message = "Le collaborateur est obligatoire")
-    @ManyToOne
+    // 2. LE (fetch = FetchType.LAZY) EST AJOUTÉ DIRECTEMENT SUR L'ANNOTATION @ManyToOne :
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_collaborateur", nullable = false)
     private Collaborateur collaborateur;
 
     @NotNull(message = "Le trimestre est obligatoire")
-    @ManyToOne
+    // ICI AUSSI :
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_trimestre", nullable = false)
     private Trimestre trimestre;
     // ... tes attributs existants ...

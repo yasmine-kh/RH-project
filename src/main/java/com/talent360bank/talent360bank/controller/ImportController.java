@@ -27,14 +27,14 @@ public class ImportController {
 
     private final ImportService importService;
     private final CampagneService campagneService;
-    private final DossierImportService dossierImportService;
+
 
     public ImportController(ImportService importService,
                             CampagneService campagneService,
                             DossierImportService dossierImportService) {
         this.importService = importService;
         this.campagneService = campagneService;
-        this.dossierImportService = dossierImportService;
+
     }
 
     /**
@@ -50,19 +50,6 @@ public class ImportController {
         HttpStatus statut = resultat.importation().statut() == StatutImport.ECHEC
                 ? HttpStatus.UNPROCESSABLE_ENTITY : HttpStatus.OK;
         return ResponseEntity.status(statut).body(ImportResponse.de(resultat));
-    }
-
-    /**
-     * Lance le balayage et l'import automatique du dossier configure dans application.properties.
-     */
-    @PostMapping("/dossier")
-    public ResponseEntity<RapportDossierImport> lancerImportDossier(
-            @RequestParam(defaultValue = "2026") int annee,
-            @RequestParam(defaultValue = "1") int numero,
-            @RequestParam(defaultValue = "false") boolean simulation) throws IOException {
-
-        RapportDossierImport rapport = dossierImportService.importerDossier(annee, numero, simulation);
-        return ResponseEntity.ok(rapport);
     }
 
     /**
