@@ -1,6 +1,6 @@
 # Charger les données du jeu de test
 
-Ce guide explique comment remplir la base avec le classeur `TALENT_360_BANK_Dataset_V1.xlsx`, depuis l'application : **un seul appel importe le classeur et lance le calcul** (scores, 9-Box, vivier de relève). Après ça, tous les écrans affichent de vraies données.
+Ce guide explique comment remplir la base avec le classeur `TALENT_360_BANK_Dataset_V1.xlsx` : **un seul envoi importe le classeur et lance le calcul** (scores, 9-Box, vivier de relève), depuis la page **Import** de l'application ([section 3](#3-charger-les-données)) ou par l'API. Après ça, tous les écrans affichent de vraies données.
 
 Le client envoie **un nouveau classeur à chaque campagne** (nouveau trimestre), et peut renvoyer un **fichier corrigé** pour le même trimestre : voir la [section 6](#6-nouvelle-campagne-ou-fichier-corrigé).
 
@@ -40,11 +40,36 @@ Les tables sont créées au premier démarrage. L'application écoute sur http:/
 
 ## 3. Charger les données
 
+Deux façons, qui font exactement le même traitement (import, puis calcul) : la page **Import** (pour le RH, ci-dessous) ou l'API ([plus bas](#par-lapi-curl)).
+
+### Importer depuis l'application
+
+1. Se connecter avec le compte RH, puis ouvrir **http://localhost:8080/import**. (La page n'a pas encore d'entrée dans le menu de gauche : taper l'adresse.)
+2. **Classeur (.xlsx)** : choisir `TALENT_360_BANK_Dataset_V1.xlsx`. Seuls les `.xlsx` sont acceptés, 10 Mo au maximum (un fichier plus gros est refusé avant l'envoi, avec un message).
+3. **Année** et **Trimestre** : le formulaire propose le trimestre qui suit le dernier existant (sans aucun trimestre, celui d'aujourd'hui). Pour le jeu de données : **2026** et **T3**. Un classeur daté d'un autre trimestre est refusé.
+4. **Date de référence** (facultative) : la date à laquelle le trimestre est évalué (ancienneté). Vide = dernier jour du trimestre. Pour le jeu de données : **15/09/2026**, la date du classeur.
+5. **Simulation** (conseillé la première fois) : cocher pour contrôler le fichier **sans rien enregistrer**. Le bilan montre ce que ferait l'import : lignes par feuille, lignes refusées, collaborateurs qui passeraient INACTIF.
+6. **Calculer après l'import** : coché par défaut. Le décocher n'importe que les données ; le calcul se relance ensuite par l'API (`POST /api/trimestres/2026/3/calcul`).
+7. Cliquer sur **Importer**. Le bouton se désactive pendant l'import (quelques secondes pour le jeu de données).
+8. Lire le **bilan** affiché au-dessus du formulaire :
+   - le **statut** : `SUCCES` (tout est importé), `PARTIEL` (des lignes ont été écartées, le reste est en base), `ECHEC` (rien n'est importé, la cause est affichée) ;
+   - les **lignes importées par feuille** (et celles retirées d'un fichier corrigé) ;
+   - les **lignes écartées** : la feuille, le **numéro de ligne Excel** et le motif. Corriger le classeur à ces lignes, puis réimporter ;
+   - les collaborateurs **passés INACTIF** (absents de `01_COLLABORATEURS`) ou remis ACTIF ;
+   - le **calcul** : nombre de scores, de placements 9-Box et de membres du vivier de relève ; ou la cause si le calcul a échoué (l'import reste enregistré).
+9. Après un import calculé, cliquer sur **Voir le tableau de bord T3 2026** (`/?trimestre=2026-3`).
+
+Sous le formulaire, **Derniers imports** liste les 20 derniers envois (date, fichier, trimestre, statut, lignes, erreurs), le plus récent en premier. Les simulations n'y figurent pas. La colonne Utilisateur reste vide tant que l'import n'enregistre pas le compte qui l'a lancé.
+
+Un seul import ou calcul à la fois par trimestre : si un calcul du même trimestre tourne déjà, la page affiche « Un calcul est déjà en cours » et n'importe rien. Réessayer quand il est terminé.
+
+### Par l'API (curl)
+
 Toute écriture (POST, PUT, DELETE) doit porter l'en-tête **`X-Talent360`** (n'importe quelle valeur non vide, on envoie `1`). Sans lui : `403 en_tete_manquant`. Voir [`requetes-ecriture.md`](requetes-ecriture.md).
 
 Le jeu de données porte le trimestre **T3 2026** : `annee=2026`, `numero=3`.
 
-### Windows (PowerShell)
+#### Windows (PowerShell)
 
 Dans PowerShell 5.1, `curl` est un alias d'`Invoke-WebRequest` : écrire **`curl.exe`** (livré avec Windows 10 et 11). Lancer les commandes depuis la racine du projet.
 
@@ -88,7 +113,7 @@ Invoke-RestMethod http://localhost:8080/api/imports
 Invoke-RestMethod "http://localhost:8080/api/dashboard/synthese?annee=2026&numero=3"
 ```
 
-### Git Bash, macOS, Linux
+#### Git Bash, macOS, Linux
 
 ```bash
 # 1. Ouvrir le trimestre
@@ -155,6 +180,8 @@ Les colonnes calculées du classeur (scores, catégories, case 9-Box, indices…
 **Contrôles ligne à ligne.** Notes de 0 à 100, niveaux de compétence de 1 à 5, engagement de 0 à 100, Oui/Non pour les faits de vigilance, décision du comité parmi Oui / Non / En attente, statut parmi Actif / Inactif / Archive. Une ligne en erreur est écartée, les autres sont importées.
 
 ## 5. Lire la réponse de l'import
+
+La page Import affiche ces mêmes informations en clair (section 3). Réponse de l'API :
 
 ```json
 {
@@ -280,3 +307,8 @@ Migrer ces données à la main (SQL) serait possible, mais tout se recharge depu
 | Des collaborateurs dans `desactives` | Ils ne sont plus dans `01_COLLABORATEURS`. Voulu (départs) : rien à faire. Sinon, corriger le fichier et réimporter : ils redeviennent actifs. |
 | `404` sur `/calcul` | Le trimestre n'existe pas : faire l'étape 1 ou 2 d'abord. |
 | Calcul avec beaucoup d'`ignores` | Des notes manquent pour ces collaborateurs : voir les erreurs de l'import. |
+| Page Import : « Seuls les classeurs Excel .xlsx sont acceptés » | Le fichier choisi n'est pas un `.xlsx` (un `.xls` ou `.csv` doit être réenregistré en `.xlsx` depuis Excel). |
+| Page Import : « Fichier trop volumineux » | Plus de 10 Mo. Le classeur du jeu de données fait moins de 300 Ko : vérifier le fichier choisi. |
+| Page Import : « Un calcul est déjà en cours » | Un import ou un calcul du même trimestre tourne déjà (double clic, autre onglet, appel API). Attendre, puis réessayer. |
+| Page Import : « … ouvert par cet import mais ne contient aucune donnée » | L'import a échoué après avoir créé le trimestre (aucune ligne lisible) : le trimestre existe, vide. Les écrans continuent d'afficher le dernier trimestre calculé. Corriger le fichier et réimporter sur le même trimestre. |
+| Page Import : page « Accès refusé » | La page est restée ouverte trop longtemps (session expirée) : se reconnecter et recharger /import. |

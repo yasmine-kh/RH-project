@@ -78,9 +78,10 @@ The rule is simple: **the engine must produce the same results as the workbook.*
 | `/comite-talent` | Working | Chooses a quarter and a committee status; sees the "Talents validés (Comité)" indicator and the table of proposed talents with scores, categories, 9-Box box and a coloured status badge. |
 | `/postes-critiques` | Working | Sees every critical position of the displayed quarter: direction, criticality, holder, number of successors, best candidate and matching score, coverage status (rows in alert highlighted). `PosteCritiqueViewService` → `templates/postes-critiques.html`. |
 | `/alertes` | Working | Alerts of the displayed quarter ([below](#alerts)), computed on the fly by the engine: counters per type and severity, table sorted by severity, filters by type, severity, direction and name. Quarter selector |
+| `/import` | Working | Uploads the dataset workbook (.xlsx) for a quarter, with simulation, "calculate after import" and an optional reference date; sees the report (status, rows per sheet, rejected rows with sheet + Excel row + reason, deactivations, calculation result or error, link to the quarter's dashboard) and the last 20 imports. [Below](#import-page). Not in the sidebar yet |
 | `/parametres` | Placeholder | — (settings are editable through the API only; see [`requetes-ecriture.md`](requetes-ecriture.md)) |
 
-All screens are read-only. Everything else is available through the REST API (`/api/...`), listed in [section 3](#rest-api).
+All screens are read-only except `/import`. Everything else is available through the REST API (`/api/...`), listed in [section 3](#rest-api).
 
 ### Displayed quarter (all screens)
 
@@ -151,6 +152,21 @@ Not implemented, because no data source exists: late development-plan actions (`
 
 `AlertesPageIntegrationTest` (H2) covers each type, the counters, the filters, `?trimestre=`, the 404 and the equality with the dashboard panel; `AlertesDatasetTest` checks the workbook (1 position without successor = E10, 10 high vigilance = E15, 23 alerts in total).
 
+### Import page
+
+`/import` (`ImportPageController` → `ui/service/ImportPageService` → `templates/import.html`, report in `templates/fragments/import-rapport.html`). Step-by-step for RH: [`import-donnees.md`](import-donnees.md#importer-depuis-lapplication).
+
+- **No import logic in the page.** POST `/import` calls `CampagneService.importer` exactly like `POST /api/imports` (same fields: `fichier`, `annee`, `numero`, `simulation`, `calcul`), then shows the result. A normal HTML multipart form; the CSRF token is the hidden field added by `th:action` (no fetch, no `X-Talent360` header).
+- **Checks before the import** (message on the page, nothing called): no file, not `.xlsx`, file over `spring.servlet.multipart.max-file-size`, invalid quarter or date.
+- **Size limit.** The browser checks the size before sending. If a bigger file still reaches the server, Tomcat refuses it before Spring: the CSRF token in the body cannot be read, Spring Security forwards to `/erreur/403`, and the size error is raised there. `TailleImportAdvice` recognises the original URL and redirects to `/import?erreur=taille` (message). Tested on a real server (`ImportPageHttpTest`). A very large file can still end in a connection reset (Tomcat stops reading the upload).
+- **Lock.** The whole upload (import + calculation) runs under `VerrouCalculTrimestre` for that quarter: a second upload, or a recalculation started elsewhere, gets "Un calcul est déjà en cours" instead of running in parallel. API imports (`POST /api/imports`) do **not** take it (AUDIT B6, for Dou).
+- **Reference date.** Set after a successful import with `TrimestreService.modifierDateReference` (nothing stored depends on it, no recalculation).
+- **Empty quarter (AUDIT B5).** Not prevented by the import: format, period and unreadable-file failures stop before the quarter is created, but an import that fails afterwards (no readable row, unexpected error) leaves the new quarter empty. The screens are not affected (the displayed quarter is the latest one **with scores**), and the page warns when it happens. For Dou.
+- **Report** (`ImportPageView.Rapport`) does not depend on the form: the coming folder import can render one per file with the same fragment, from a second form and POST in `ImportPageController`.
+- `th:text` only: sheet names, reasons and messages come from the uploaded file.
+
+Tests: `ImportPageIntegrationTest` (MockMvc, H2: report + calculation, simulation saves nothing, non-xlsx, invalid fields, size, CSRF 403, history, lock, rejected rows with Excel row numbers, unreadable file, empty quarter), `ImportPageHttpTest` (real server: CSRF token in a multipart form, 403 without it, size limit), `ImportPageDatasetTest` (the real workbook, if present).
+
 ### The quarterly workflow
 
 1. **Import** the quarter's data.
@@ -213,7 +229,7 @@ flowchart TB
     subgraph App[Spring Boot application - 127.0.0.1:8080]
         F[ProtectionRequetesFilter + Spring Security<br/>Host check, write header, RH login]
         subgraph UIL[UI - Ima]
-            PC[PagesController, DashboardController,<br/>AlertesController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService, VivierService,<br/>PosteCritiqueViewService, DashboardService,<br/>AlertesViewService, TrimestreCourantService]
+            PC[PagesController, DashboardController,<br/>AlertesController, ImportPageController] --> VS[View services<br/>ComiteTalentViewService,<br/>NineBoxViewService, VivierService,<br/>PosteCritiqueViewService, DashboardService,<br/>AlertesViewService, ImportPageService,<br/>TrimestreCourantService]
             VS --> UM[ui.model rows]
         end
         subgraph API[REST API - Jas / Dou]
@@ -281,9 +297,10 @@ com.talent360bank.talent360bank
 ├── securite                        login and 403 pages, UtilisateurDetailsService
 └── ui
     ├── controller                    PagesController (9-Box, Viviers, Postes critiques, Comité, Paramètres - Ima),
-    │                                 DashboardController, AlertesController (Jas)
-    ├── service (12)                  view services, TrimestreCourantService
-    └── model (16)                    display rows
+    │                                 DashboardController, AlertesController, ImportPageController,
+    │                                 TailleImportAdvice (Jas)
+    ├── service (13)                  view services, TrimestreCourantService
+    └── model (17)                    display rows
 ```
 
 ### REST API
@@ -1006,7 +1023,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**742 test executions in 72 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
+**760 test executions in 75 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
 
 | Folder | What it covers |
 |---|---|
@@ -1072,7 +1089,8 @@ git push -u origin feature/my-change
 **Ima — UI**
 
 - Quarter selector on `/9box` and `/viviers`: the `trimestre` and `trimestres` model attributes are already there ([Displayed quarter](#displayed-quarter-all-screens)).
-- Screens still to build: Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)).
+- Screens still to build: Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)). `/import` needs an entry in the sidebar (Ima).
+- Import (Dou): lock `POST /api/imports` like the page does (B6); avoid the empty quarter left by a failed import (B5); fill `ImportExcel.utilisateur` (the history's "Utilisateur" column stays empty until then).
 - Serve Bootstrap and its icons locally, so the app works offline.
 - `/viviers` shows only saved pools; the thematic pools are available from the API.
 - Page tests for `/`, `/9box`, `/viviers`.

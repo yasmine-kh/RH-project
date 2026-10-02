@@ -28,10 +28,13 @@ import static com.talent360bank.talent360bank.service.ImportClasseurService.*;
  * <p>Contenu de {@link #complet()} : trois collaborateurs TST001 a TST003 (TST003
  * manager des deux autres), deux competences, deux postes dont TSTP01
  * critique, notes, successeurs, decisions du comite, viviers et vigilance.
+ *
+ * <p>Public pour les tests de la page d'import (ui.controller) ; seules les
+ * methodes qu'ils utilisent le sont.
  */
-final class ClasseurDeTest {
+public final class ClasseurDeTest {
 
-    static final String E1 = "TST001";
+    public static final String E1 = "TST001";
     static final String E2 = "TST002";
     static final String E3 = "TST003";
     static final String C1 = "TSTC01";
@@ -78,11 +81,11 @@ final class ClasseurDeTest {
         ENTETES.keySet().forEach(feuille -> feuilles.put(feuille, new ArrayList<>()));
     }
 
-    static ClasseurDeTest vide() {
+    public static ClasseurDeTest vide() {
         return new ClasseurDeTest();
     }
 
-    static ClasseurDeTest complet() {
+    public static ClasseurDeTest complet() {
         return new ClasseurDeTest()
                 .ligne(FEUILLE_COLLABORATEURS, E1, "Alaoui", "Siham", "F", LocalDate.of(1990, 5, 12),
                         LocalDate.of(2015, 3, 1), 11, "Reseau Retail", "Reseau Retail - Nord", "Tanger",
@@ -149,7 +152,7 @@ final class ClasseurDeTest {
     }
 
     /** Remplace une valeur d'une ligne de donnees existante. */
-    ClasseurDeTest cellule(String feuille, int index, int colonne, Object valeur) {
+    public ClasseurDeTest cellule(String feuille, int index, int colonne, Object valeur) {
         Object[] ligne = feuilles.get(feuille).get(index);
         Object[] copie = Arrays.copyOf(ligne, Math.max(ligne.length, colonne + 1));
         copie[colonne] = valeur;
@@ -208,7 +211,7 @@ final class ClasseurDeTest {
     }
 
     /** Numero de ligne Excel de la ligne de donnees d'index donne. */
-    static int ligneExcel(String feuille, int index) {
+    public static int ligneExcel(String feuille, int index) {
         return premiereLigneDonnees(feuille) + index + 1;
     }
 
@@ -216,12 +219,12 @@ final class ClasseurDeTest {
         return fichier("classeur-test.xlsx");
     }
 
-    MockMultipartFile fichier(String nomFichier) {
+    public MockMultipartFile fichier(String nomFichier) {
         return new MockMultipartFile("fichier", nomFichier,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", octets());
     }
 
-    byte[] octets() {
+    public byte[] octets() {
         try (XSSFWorkbook classeur = new XSSFWorkbook(); ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
             feuilles.forEach((nom, lignes) -> ecrireFeuille(classeur.createSheet(nom), nom, lignes));
             classeur.write(sortie);
