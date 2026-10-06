@@ -30,7 +30,42 @@ public class QuestionnaireEngagement {
     @ManyToOne
     @JoinColumn(name = "id_trimestre", nullable = false)
     private Trimestre trimestre;
+    // ... tes attributs existants ...
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source")
+    private SourceEvaluation source;
+
+    /**
+     * Reponses detaillees par item (ex: Q1 -> 4, Q2 -> 5).
+     * Genere automatiquement la table 'questionnaire_engagement_item'.
+     */
+    @ElementCollection
+    @CollectionTable(
+            name = "questionnaire_engagement_item",
+            joinColumns = @JoinColumn(name = "id_questionnaire")
+    )
+    @MapKeyColumn(name = "item_code")
+    @Column(name = "score")
+    private java.util.Map<String, Integer> reponsesItems = new java.util.HashMap<>();
+
+    // --- GETTERS ET SETTERS A AJOUTER ---
+
+    public SourceEvaluation getSource() {
+        return source;
+    }
+
+    public void setSource(SourceEvaluation source) {
+        this.source = source;
+    }
+
+    public java.util.Map<String, Integer> getReponsesItems() {
+        return reponsesItems;
+    }
+
+    public void setReponsesItems(java.util.Map<String, Integer> reponsesItems) {
+        this.reponsesItems = reponsesItems;
+    }
     public QuestionnaireEngagement() {}
 
     public Integer getIdQuestionnaire() { return idQuestionnaire; }
