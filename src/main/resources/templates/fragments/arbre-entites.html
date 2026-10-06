@@ -2,13 +2,29 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<!-- Un noeud de l'organigramme et ses enfants, recursivement (page /entites). -->
+<!--
+  Une ligne de l'organigramme et ses enfants, recursivement (page /entites).
+  Avec enfants : <details open> (tout l'arbre est visible sans JavaScript ;
+  organigramme.js le replie au chargement). Effectif a droite.
+-->
 <th:block th:fragment="noeud(n)">
-    <a th:href="@{/entites(code=${n.code}, trimestre=${trimestre.valeur})}" th:text="${n.libelle}">Entite</a>
-    <span class="text-muted small" th:text="|(${n.effectif})|">(10)</span>
-    <ul th:if="${not #lists.isEmpty(n.enfants)}">
-        <li th:each="enfant : ${n.enfants}"><th:block th:insert="~{fragments/arbre-entites :: noeud(${enfant})}"></th:block></li>
-    </ul>
+    <details th:if="${not #lists.isEmpty(n.enfants)}" class="organigramme-noeud" open
+             th:attr="data-nom=${n.libelle}">
+        <summary class="organigramme-ligne">
+            <a th:href="@{/entites(code=${n.code}, trimestre=${trimestre.valeur})}" th:text="${n.libelle}">Entite</a>
+            <span class="organigramme-effectif" th:text="${n.effectif}">10</span>
+        </summary>
+        <div class="organigramme-enfants">
+            <th:block th:each="enfant : ${n.enfants}">
+                <th:block th:insert="~{fragments/arbre-entites :: noeud(${enfant})}"></th:block>
+            </th:block>
+        </div>
+    </details>
+    <div th:unless="${not #lists.isEmpty(n.enfants)}" class="organigramme-ligne organigramme-feuille"
+         th:attr="data-nom=${n.libelle}">
+        <a th:href="@{/entites(code=${n.code}, trimestre=${trimestre.valeur})}" th:text="${n.libelle}">Entite</a>
+        <span class="organigramme-effectif" th:text="${n.effectif}">10</span>
+    </div>
 </th:block>
 
 </body>

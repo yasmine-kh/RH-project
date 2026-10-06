@@ -72,15 +72,20 @@
                 </div>
             </div>
 
-            <section class="card shadow-sm mt-4">
+            <section class="card shadow-sm mt-4" id="neufbox">
                 <div class="card-header bg-white"><h2 class="h6 mb-0">9-Box de l'équipe</h2></div>
                 <div class="card-body">
                     <div th:replace="~{fragments/matrice9box :: matrice(${page.matrice})}"></div>
                 </div>
             </section>
 
-            <section class="mt-4">
-                <h2 class="h6">Équipe</h2>
+            <section class="mt-4" id="equipe">
+                <h2 class="h6">Équipe
+                    <span class="text-muted small fw-normal" th:if="${caseFiltre != null}"
+                          th:text="|- case ${caseFiltre} de la 9-Box|">- case 9</span>
+                    <a class="small fw-normal ms-2" th:if="${caseFiltre != null}"
+                       th:href="@{/managers/{m}(m=${m.matricule}, trimestre=${trimestre.valeur})} + '#equipe'">toute l'équipe</a>
+                </h2>
                 <p class="text-muted" th:if="${#lists.isEmpty(vue.membres)}">Aucun collaborateur rattaché à ce manager.</p>
                 <div class="table-responsive" th:if="${not #lists.isEmpty(vue.membres)}">
                     <table class="table table-hover bg-white rounded shadow-sm">
@@ -89,7 +94,8 @@
                             <th>9-Box</th><th>Statut</th><th>Readiness (poste cible)</th><th>Vigilance</th></tr>
                         </thead>
                         <tbody>
-                        <tr th:each="membre : ${vue.membres}" th:with="cible=${page.cibles[membre.matricule]}">
+                        <tr th:each="membre : ${vue.membres}" th:with="cible=${page.cibles[membre.matricule]}"
+                            th:if="${caseFiltre == null or (membre.neufBox != null and membre.neufBox.numero == caseFiltre)}">
                             <td>
                                 <a th:href="@{/fiche-collaborateur(matricule=${membre.matricule}, trimestre=${trimestre.valeur})}"
                                    th:text="|${membre.prenom} ${membre.nom}|">Nom</a>
@@ -119,14 +125,26 @@
                 </div>
             </section>
 
-            <section class="mt-4">
-                <h2 class="h6">Alertes et évaluations manquantes</h2>
-                <p class="text-muted" th:if="${#lists.isEmpty(vue.alertes)}">Aucune alerte pour cette équipe.</p>
-                <div class="list-group" th:if="${not #lists.isEmpty(vue.alertes)}">
-                    <div class="list-group-item" th:each="alerte : ${vue.alertes}">
-                        <span class="badge me-1"
-                              th:classappend="${alerte.type == 'VIGILANCE_ELEVEE'} ? 'bg-warning text-dark' : 'bg-secondary'"
-                              th:text="${alerte.type == 'VIGILANCE_ELEVEE'} ? 'Vigilance élevée' : 'Évaluation manquante'">Type</span>
+            <section class="mt-4" id="evaluations">
+                <h2 class="h6">Évaluations manquantes</h2>
+                <p class="text-muted" th:if="${#lists.isEmpty(vue.alertes.?[type == 'EVALUATION_MANQUANTE'])}">
+                    Toute l'équipe a son évaluation du manager ce trimestre.</p>
+                <div class="list-group" th:unless="${#lists.isEmpty(vue.alertes.?[type == 'EVALUATION_MANQUANTE'])}">
+                    <div class="list-group-item" th:each="alerte : ${vue.alertes.?[type == 'EVALUATION_MANQUANTE']}">
+                        <a th:href="@{/fiche-collaborateur(matricule=${alerte.matricule}, trimestre=${trimestre.valeur})}"
+                           th:text="${alerte.nom}">Nom</a>
+                        <span class="small text-muted" th:text="|- ${alerte.message}|">- Message</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-4" id="alertes">
+                <h2 class="h6">Alertes de l'équipe</h2>
+                <p class="text-muted" th:if="${#lists.isEmpty(vue.alertes.?[type != 'EVALUATION_MANQUANTE'])}">
+                    Aucune alerte pour cette équipe.</p>
+                <div class="list-group" th:unless="${#lists.isEmpty(vue.alertes.?[type != 'EVALUATION_MANQUANTE'])}">
+                    <div class="list-group-item" th:each="alerte : ${vue.alertes.?[type != 'EVALUATION_MANQUANTE']}">
+                        <span class="badge me-1 bg-warning text-dark">Vigilance élevée</span>
                         <a th:href="@{/fiche-collaborateur(matricule=${alerte.matricule}, trimestre=${trimestre.valeur})}"
                            th:text="${alerte.nom}">Nom</a>
                         <span class="small text-muted" th:text="|- ${alerte.message}|">- Message</span>

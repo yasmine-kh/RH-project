@@ -8,59 +8,66 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.IntFunction;
 
 /**
  * La matrice 9-Box prete pour le composant d'affichage commun
- * (fragments/matrice9box.html) : la page 9-Box, l'accueil et le dashboard DG.
+ * (fragments/matrice9box.html) : la page 9-Box, l'accueil, le dashboard DG, la
+ * vue manager et la vue entite.
  *
  * <p>Aucun calcul de placement ici : chaque case vient de Matrice9Box et les
  * effectifs des scores deja places par NeufBoxService. Seuls la part de la
- * population, la zone de couleur et les liens sont prepares pour l'ecran.
+ * population, le sens de la case et les liens sont prepares pour l'ecran. Les
+ * cases n'affichent jamais de noms : sur la page 9-Box, les membres de chaque
+ * case vont dans le panneau de detail.
  *
- * @param cases       les 9 cases ligne par ligne : performance elevee en haut, potentiel faible a gauche
- *                    (case 9 en haut a droite, case 1 en bas a gauche)
- * @param total       collaborateurs places dans la matrice
- * @param nbNonPlaces scores du trimestre sans case (placement non lance ou scores incomplets)
- * @param avecNoms    vrai si les cases portent les noms (page 9-Box), faux pour les seuls effectifs
+ * @param cases            les 9 cases ligne par ligne : performance elevee en haut, potentiel faible a gauche
+ *                         (case 9 en haut a droite, case 1 en bas a gauche)
+ * @param total            collaborateurs places dans la matrice
+ * @param nbNonPlaces      scores du trimestre sans case (placement non lance ou scores incomplets)
+ * @param caseSelectionnee case dont le detail est ouvert (page 9-Box), null ailleurs
  */
-public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces, boolean avecNoms) {
-
-    /** Noms affiches au plus par case ; les autres sont dans la liste des collaborateurs de la case. */
-    public static final int NOMS_MAX = 6;
+public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces, Integer caseSelectionnee) {
 
     /**
      * @param numero      1 a 9, (rang performance - 1) x 3 + rang potentiel, comme 04_9BOX!H
      * @param pourcentage effectif / total x 100, 1 decimale ; null si la matrice est vide
-     * @param zone        classe de couleur : excellent, fort, neutre, attention, risque
-     * @param membres     au plus {@link #NOMS_MAX} collaborateurs, par nom ; vide sans noms
-     * @param nbAutres    collaborateurs de la case non listes
-     * @param lienListe   la liste des collaborateurs de cette case, meme trimestre
+     * @param zone        position dans la matrice (excellent, fort, neutre, attention, risque) ; pas une couleur
+     * @param sens        ce que la case veut dire, d'apres la regle de placement (04_9BOX n'a pas de description)
+     * @param membres     tous les collaborateurs de la case, par nom (panneau de la page 9-Box) ; vide ailleurs
+     * @param lien        ou mene un clic sur la case : son detail sur la page 9-Box, la liste des collaborateurs
+     *                    de la case ailleurs (memes filtres) ; null sans lien
      */
     public record CaseMatrice(int numero, String libelle, int niveauPerformance, int niveauPotentiel, int nombre,
-                              BigDecimal pourcentage, String zone, List<Membre> membres, int nbAutres,
-                              String lienListe) {
-    }
-
-    /** @param lien la fiche du collaborateur, meme trimestre */
-    public record Membre(String matricule, String nomComplet, String lien) {
-    }
-
-    /** Une case avant mise en forme : niveaux 1 a 3, libelle et membres (tous). */
-    public record Entree(int niveauPerformance, int niveauPotentiel, String libelle, int nombre, List<Membre> membres) {
-    }
-
-    /** Matrice a partir des cases ; l'ordre d'affichage est refait ici. */
-    public static MatriceNeufBox construire(List<Entree> entrees, int nbNonPlaces, boolean avecNoms, String trimestre) {
-        return construire(entrees, nbNonPlaces, avecNoms, numero -> lienListe(trimestre, null, numero));
+                              BigDecimal pourcentage, String zone, String sens, List<Membre> membres, String lien) {
     }
 
     /**
-     * Comme {@link #construire(List, int, boolean, String)}, avec le lien de la
-     * liste de chaque case donne par l'appelant (null : pas de lien).
+     * @param lien   la fiche du collaborateur, meme trimestre
+     * @param entite libelle de son entite, null si inconnue
      */
-    public static MatriceNeufBox construire(List<Entree> entrees, int nbNonPlaces, boolean avecNoms,
-                                            IntFunction<String> lienListe) {
+    public record Membre(String matricule, String nomComplet, String lien, String entite, BigDecimal performance,
+                         BigDecimal potentiel) {
+    }
+
+    /** Une case avant mise en forme : niveaux 1 a 3, libelle, effectif et membres (vide pour les seuls effectifs). */
+    public record Entree(int niveauPerformance, int niveauPotentiel, String libelle, int nombre, List<Membre> membres) {
+    }
+
+    /** La case ouverte, null s'il n'y en a pas. */
+    public CaseMatrice selection() {
+        return caseSelectionnee == null ? null
+                : cases.stream().filter(c -> c.numero() == caseSelectionnee).findFirst().orElse(null);
+    }
+
+    /**
+     * Matrice a partir des cases ; l'ordre d'affichage est refait ici.
+     *
+     * @param lien lien du clic sur chaque case (par numero), null pour aucun
+     */
+    public static MatriceNeufBox construire(List<Entree> entrees, int nbNonPlaces, IntFunction<String> lien,
+                                            Integer caseSelectionnee) {
         int total = entrees.stream().mapToInt(Entree::nombre).sum();
         List<CaseMatrice> cases = new ArrayList<>();
         for (Entree entree : entrees.stream()
@@ -68,30 +75,42 @@ public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces
                         .thenComparing(Entree::niveauPotentiel))
                 .toList()) {
             int numero = (entree.niveauPerformance() - 1) * 3 + entree.niveauPotentiel();
-            List<Membre> affiches = avecNoms
-                    ? entree.membres().stream().limit(NOMS_MAX).toList()
-                    : List.of();
             cases.add(new CaseMatrice(numero, entree.libelle(), entree.niveauPerformance(), entree.niveauPotentiel(),
                     entree.nombre(),
                     total == 0 ? null : BigDecimal.valueOf(entree.nombre() * 100L)
                             .divide(BigDecimal.valueOf(total), 1, RoundingMode.HALF_UP),
-                    zone(entree.niveauPerformance(), entree.niveauPotentiel()), affiches,
-                    avecNoms ? entree.nombre() - affiches.size() : 0, lienListe.apply(numero)));
+                    zone(entree.niveauPerformance(), entree.niveauPotentiel()),
+                    sens(entree.niveauPerformance(), entree.niveauPotentiel()),
+                    List.copyOf(entree.membres()), lien == null ? null : lien.apply(numero)));
         }
-        return new MatriceNeufBox(List.copyOf(cases), total, nbNonPlaces, avecNoms);
+        return new MatriceNeufBox(List.copyOf(cases), total, nbNonPlaces, caseSelectionnee);
     }
 
-    /** Effectifs seuls, depuis le tableau de bord (aucune requete de plus). */
+    /** Effectifs seuls, depuis le tableau de bord (aucune requete de plus) ; un clic ouvre la liste de la case. */
     public static MatriceNeufBox depuis(List<CaseTableau> cases, int nbNonPlaces, String trimestre) {
         return construire(cases.stream()
-                .map(c -> new Entree(c.niveauPerformance(), c.niveauPotentiel(), c.libelle(), c.nombre(), List.of()))
-                .toList(), nbNonPlaces, false, trimestre);
+                        .map(c -> new Entree(c.niveauPerformance(), c.niveauPotentiel(), c.libelle(), c.nombre(), List.of()))
+                        .toList(), nbNonPlaces,
+                numero -> lienListe(trimestre, null, numero), null);
     }
 
     /**
-     * Zone de couleur selon la somme des deux rangs (2 a 6) : les deux eleves = excellent ;
+     * Effectifs seuls d'un groupe (equipe d'un manager, sous-arbre d'une entite) a partir
+     * de sa synthese par numero de case ; les niveaux se deduisent du numero.
+     *
+     * @param lien lien du clic sur une case, null pour aucun
+     */
+    public static MatriceNeufBox depuisComptes(List<VueManager.CompteCase> comptes, IntFunction<String> lien) {
+        return construire(comptes.stream()
+                .map(c -> new Entree((c.numero() - 1) / 3 + 1, (c.numero() - 1) % 3 + 1, c.libelle(), c.nombre(),
+                        List.of()))
+                .toList(), 0, lien, null);
+    }
+
+    /**
+     * Position de la case selon la somme des deux rangs (2 a 6) : les deux eleves = excellent ;
      * un eleve et un moyen = fort ; au milieu = neutre ; un faible et un moyen = attention ;
-     * les deux faibles = risque. Comme le prototype (talent / high / neutre / watch).
+     * les deux faibles = risque. Une information, pas une couleur d'affichage.
      */
     static String zone(int niveauPerformance, int niveauPotentiel) {
         return switch (niveauPerformance + niveauPotentiel) {
@@ -103,22 +122,12 @@ public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces
         };
     }
 
-    /**
-     * Matrice d'un groupe (equipe d'un manager, sous-arbre d'une entite) a partir
-     * des effectifs par numero de case de sa synthese ; les niveaux se deduisent
-     * du numero ((rang perf - 1) x 3 + rang pot).
-     *
-     * @param membresParCase noms par numero de case ; vide pour les seuls effectifs
-     * @param lienListe      lien de la liste d'une case, null pour aucun
-     */
-    public static MatriceNeufBox depuisComptes(List<VueManager.CompteCase> comptes,
-                                               java.util.Map<Integer, List<Membre>> membresParCase,
-                                               IntFunction<String> lienListe) {
-        boolean avecNoms = !membresParCase.isEmpty();
-        return construire(comptes.stream()
-                .map(c -> new Entree((c.numero() - 1) / 3 + 1, (c.numero() - 1) % 3 + 1, c.libelle(), c.nombre(),
-                        membresParCase.getOrDefault(c.numero(), List.of())))
-                .toList(), 0, avecNoms, lienListe);
+    /** "Performance elevee et potentiel moyen." : la regle de placement de la case, rien de plus. */
+    static String sens(int niveauPerformance, int niveauPotentiel) {
+        Map<Integer, String> performance = Map.of(1, "faible", 2, "moyenne", 3, "élevée");
+        Map<Integer, String> potentiel = Map.of(1, "faible", 2, "moyen", 3, "élevé");
+        return "Performance " + performance.get(niveauPerformance) + " et potentiel "
+                + potentiel.get(niveauPotentiel) + ".";
     }
 
     /** La liste des collaborateurs d'une case, eventuellement limitee a une entite (sous-arbre). */
@@ -128,6 +137,12 @@ public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces
             lien.queryParam("entite", entite);
         }
         return lien.queryParam("case", numero).encode().build().toUriString();
+    }
+
+    /** Le detail d'une case sur la page 9-Box (sans JavaScript, la page se recharge sur cette case). */
+    public static String lienDetail(String trimestre, int numero) {
+        return UriComponentsBuilder.fromPath("/9box").queryParam("trimestre", trimestre).queryParam("case", numero)
+                .fragment("detail").encode().build().toUriString();
     }
 
     /** La fiche d'un collaborateur sur un trimestre (page, jamais l'API). */
