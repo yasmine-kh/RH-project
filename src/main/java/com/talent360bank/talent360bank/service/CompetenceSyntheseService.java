@@ -282,7 +282,7 @@ public class CompetenceSyntheseService {
     static void verifier(Criteres criteres) {
         Objects.requireNonNull(criteres, "criteres");
         if (criteres.top() < 1 || criteres.top() > TOP_MAX) {
-            throw new IllegalArgumentException("Le nombre de competences du top doit etre entre 1 et " + TOP_MAX);
+            throw new IllegalArgumentException("Le nombre de compétences du top doit être entre 1 et " + TOP_MAX);
         }
         if (criteres.vivier() != null) {
             List<String> codes = new ArrayList<>(Arrays.stream(VivierThematique.values())

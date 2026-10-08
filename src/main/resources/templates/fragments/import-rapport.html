@@ -2,15 +2,15 @@
 <html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<!--
+<!--/*
   Bilan d'un import (ImportPageView.Rapport), classes du prototype. Fragment a part pour que
   l'import d'un dossier puisse en afficher un par fichier.
   th:text partout, jamais th:utext : noms de feuilles, motifs et messages
   reprennent le contenu du fichier envoye.
--->
+*/-->
 <div th:fragment="rapport(r)" class="panel" id="rapport">
     <div class="panel-head"><h3>Bilan de l'import</h3>
-        <span><span class="statut-tag" th:text="${r.statut}">SUCCES</span>
+        <span><span class="statut-tag" th:text="${r.statutLibelle()}">Réussi</span>
             <span class="statut-tag" th:if="${r.simulation}">Simulation : rien n'a été enregistré</span>
             <span class="hint" th:text="|${r.nomFichier} - ${r.trimestreLibelle}|">classeur.xlsx - T3 2026</span></span>
     </div>

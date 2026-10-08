@@ -2,10 +2,10 @@ package com.talent360bank.talent360bank.ui.service;
 
 import com.talent360bank.talent360bank.entity.Collaborateur;
 import com.talent360bank.talent360bank.entity.Entite;
-import com.talent360bank.talent360bank.entity.Score;
 import com.talent360bank.talent360bank.entity.TypeEntite;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.CaseNeufBox;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs;
+import com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.Criteres;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.LigneCollaborateur;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.PosteCibleLigne;
@@ -162,24 +162,24 @@ class ListeCollaborateursViewServiceTest {
 
     @Test
     void les_talents_sont_classes_par_performance_plus_potentiel_puis_performance_puis_matricule() {
-        Score a = score("BP010", "90.00", "86.00");   // 176
-        Score b = score("BP011", "86.00", "90.00");   // 176, performance plus faible
-        Score c = score("BP009", "88.00", "88.00");   // 176, performance au milieu
-        Score d = score("BP012", "95.00", "95.00");   // 190
-        Score e = score("BP008", "88.00", "88.00");   // egalite parfaite avec c : matricule
+        // Ordre de la liste des collaborateurs du tableau de bord (TableauDeBordInteractifService.ORDRE).
+        TableauDeBordInteractif.Personne a = personne("BP010", "90.00", "86.00");   // 176
+        TableauDeBordInteractif.Personne b = personne("BP011", "86.00", "90.00");   // 176, performance plus faible
+        TableauDeBordInteractif.Personne c = personne("BP009", "88.00", "88.00");   // 176, performance au milieu
+        TableauDeBordInteractif.Personne d = personne("BP012", "95.00", "95.00");   // 190
+        TableauDeBordInteractif.Personne e = personne("BP008", "88.00", "88.00");   // egalite parfaite avec c : matricule
+        TableauDeBordInteractif.Personne sansScore = personne("BP001", null, null);  // sans score : en dernier
 
-        assertThat(List.of(a, b, c, d, e).stream().sorted(TableauDeBordDgViewService.ORDRE_TOP_TALENTS)
-                .map(s -> s.getCollaborateur().getIdCollaborateur()))
-                .containsExactly("BP012", "BP010", "BP008", "BP009", "BP011");
+        assertThat(List.of(sansScore, a, b, c, d, e).stream().sorted(TableauDeBordInteractifService.ORDRE)
+                .map(TableauDeBordInteractif.Personne::matricule))
+                .containsExactly("BP012", "BP010", "BP008", "BP009", "BP011", "BP001");
     }
 
-    private static Score score(String id, String performance, String potentiel) {
-        Collaborateur collaborateur = new Collaborateur();
-        collaborateur.setIdCollaborateur(id);
-        Score score = new Score();
-        score.setCollaborateur(collaborateur);
-        score.setScorePerformance(new BigDecimal(performance));
-        score.setScorePotentiel(new BigDecimal(potentiel));
-        return score;
+    private static TableauDeBordInteractif.Personne personne(String id, String performance, String potentiel) {
+        return new TableauDeBordInteractif.Personne(id, id, null, null, null, null, null,
+                performance == null ? null : new BigDecimal(performance), null,
+                potentiel == null ? null : new BigDecimal(potentiel), null, null, null, null, true, false, false,
+                false, List.of(), null, null);
     }
+
 }

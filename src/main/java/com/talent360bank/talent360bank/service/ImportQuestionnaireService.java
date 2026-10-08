@@ -78,9 +78,13 @@ public class ImportQuestionnaireService {
     private final ReponseQuestionnaireRepository reponseRepository;
     private final ImportExcelRepository importExcelRepository;
 
+    private final com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant;
+
     public ImportQuestionnaireService(CollaborateurRepository collaborateurRepository,
                                       ReponseQuestionnaireRepository reponseRepository,
-                                      ImportExcelRepository importExcelRepository) {
+                                      ImportExcelRepository importExcelRepository,
+                                      com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant) {
+        this.utilisateurCourant = utilisateurCourant;
         this.collaborateurRepository = collaborateurRepository;
         this.reponseRepository = reponseRepository;
         this.importExcelRepository = importExcelRepository;
@@ -310,6 +314,7 @@ public class ImportQuestionnaireService {
                              String message) {
         ImportExcel journal = new ImportExcel();
         journal.setSource(SOURCE);
+        journal.setUtilisateur(utilisateurCourant.utilisateur().orElse(null));
         journal.setNomFichier(nom);
         journal.setDateImport(LocalDate.now());
         journal.setStatut(statut.name());

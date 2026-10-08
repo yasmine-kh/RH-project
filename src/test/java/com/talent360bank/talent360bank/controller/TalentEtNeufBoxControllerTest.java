@@ -98,7 +98,7 @@ class TalentEtNeufBoxControllerTest {
                 .andExpect(jsonPath("$[0].scorePerformance").value(92.00))
                 .andExpect(jsonPath("$[0].positionBox").value("Talent cle"))
                 .andExpect(jsonPath("$[0].categoriePerformance").value("Exceptionnelle"))
-                .andExpect(jsonPath("$[0].categoriePotentiel").value("Eleve"));
+                .andExpect(jsonPath("$[0].categoriePotentiel").value("Élevé"));
     }
 
     @Test

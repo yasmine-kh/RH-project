@@ -42,7 +42,7 @@ public class VivierThematiqueController {
         VivierThematique vivier = Arrays.stream(VivierThematique.values())
                 .filter(candidat -> candidat.getCode().equalsIgnoreCase(code))
                 .findFirst()
-                .orElseThrow(() -> new RessourceIntrouvableException("Aucun vivier thematique " + code));
+                .orElseThrow(() -> new RessourceIntrouvableException("Aucun vivier thématique " + code));
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         return VivierThematiqueResponse.de(vivier, vivierThematiqueService.getVivier(vivier, trimestre));
     }

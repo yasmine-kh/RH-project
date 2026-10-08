@@ -6,12 +6,12 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Parametres du moteur de calcul (page propre a l'application ; le prototype mentionne un ecran
   Administration) : classes et jetons du prototype (.panel, .form-row, .grid-2). Lecture et
   enregistrement inchanges : le script recopie les valeurs entre le formulaire et l'API parametre,
   qui valide et recalcule.
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('parametres')}"></aside>
 
@@ -28,14 +28,14 @@
                 <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
             </form>
 
-            <!-- Messages (chargement, succes, erreurs) : remplis par le script, en texte seulement. -->
+            <!--/* Messages (chargement, succes, erreurs) : remplis par le script, en texte seulement. */-->
             <div id="message" th:if="${trimestre != null}"></div>
 
-            <!--
+            <!--/*
               Chaque champ porte le nom "bloc.champ" du JSON de ParametreForm : le script
               remplit et relit le formulaire a partir de ces noms, sans rien verifier lui-meme
               (novalidate : toute la validation est faite par l'API).
-            -->
+            */-->
             <form id="form-parametres" novalidate hidden th:if="${trimestre != null}">
                 <div class="panel"><div class="panel-body">
                     <div class="form-row" style="margin-bottom:0;"><label for="libelle">Libellé des réglages</label>
@@ -108,8 +108,8 @@
                         <div class="form-row"><label for="seuilsNeufBoxPotentiel.seuilMoyen">Potentiel : seuil moyen</label><input type="number" step="any" id="seuilsNeufBoxPotentiel.seuilMoyen" name="seuilsNeufBoxPotentiel.seuilMoyen"></div>
                 </div></div>
                 <div class="panel"><div class="panel-head"><h3>Détection des talents</h3></div><div class="panel-body">
-                        <div class="form-row"><label for="seuilsTalent.seuilPerformance">Talent : performance minimum</label><input type="number" step="any" id="seuilsTalent.seuilPerformance" name="seuilsTalent.seuilPerformance"></div>
-                        <div class="form-row"><label for="seuilsTalent.seuilPotentiel">Talent : potentiel minimum</label><input type="number" step="any" id="seuilsTalent.seuilPotentiel" name="seuilsTalent.seuilPotentiel"></div>
+                        <div class="form-row"><label for="seuilsTalent.seuilPerformance">Talent proposé : performance minimum</label><input type="number" step="any" id="seuilsTalent.seuilPerformance" name="seuilsTalent.seuilPerformance"></div>
+                        <div class="form-row"><label for="seuilsTalent.seuilPotentiel">Talent proposé : potentiel minimum</label><input type="number" step="any" id="seuilsTalent.seuilPotentiel" name="seuilsTalent.seuilPotentiel"></div>
                         <div class="form-row"><label for="seuilsTalent.seuilHautPotentielPotentiel">Haut potentiel : potentiel minimum</label><input type="number" step="any" id="seuilsTalent.seuilHautPotentielPotentiel" name="seuilsTalent.seuilHautPotentielPotentiel"></div>
                         <div class="form-row"><label for="seuilsTalent.seuilHautPotentielPerformance">Haut potentiel : performance minimum</label><input type="number" step="any" id="seuilsTalent.seuilHautPotentielPerformance" name="seuilsTalent.seuilHautPotentielPerformance"></div>
                 </div></div>

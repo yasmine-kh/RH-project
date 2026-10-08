@@ -72,7 +72,7 @@ class VigilanceControllerTest {
                 .andExpect(jsonPath("$[0].collaborateur.idCollaborateur").value("E001"))
                 .andExpect(jsonPath("$[0].indice").value(35.00))
                 .andExpect(jsonPath("$[0].niveau").value("MODEREE"))
-                .andExpect(jsonPath("$[0].niveauLibelle").value("Moderee"))
+                .andExpect(jsonPath("$[0].niveauLibelle").value("Modérée"))
                 .andExpect(jsonPath("$[0].aRisque").value(true))
                 .andExpect(jsonPath("$[0].signaux.length()").value(2));
     }

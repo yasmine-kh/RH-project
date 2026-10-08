@@ -6,7 +6,7 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Tableau de bord RH interactif (cartes en haut, graphiques au milieu, listes en bas), style du
   prototype (renderDashRH). Filtrage croise : un clic sur un element d'un graphique filtre toute la page
   (cartes, autres graphiques, listes) ; les filtres se cumulent, s'affichent en puces et restent dans
@@ -15,7 +15,7 @@
   fois (data-donnees, JSON echappe par th:attr). Graphiques : Chart.js, servi localement (vendor/chartjs).
   Aucun chiffre calcule ici : chaque valeur vient du moteur (DashboardService, liste Collaborateurs,
   AlertesViewService). L'ancien tableau de bord DG (/dashboard-dg) renvoie ici.
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('accueil')}"></aside>
 
@@ -26,11 +26,11 @@
 
         <section class="view active" id="view-dashrh" th:with="k=${tableau.kpis}">
 
-            <!-- Trimestre affiche : changer de trimestre recharge la page (sans les filtres). -->
+            <!--/* Trimestre affiche : changer de trimestre recharge la page (sans les filtres). */-->
             <form method="get" action="/" class="filters" th:if="${not #lists.isEmpty(trimestres)}">
                 <select id="trimestre" name="trimestre" data-auto aria-label="Trimestre">
                     <option th:each="option : ${trimestres}" th:value="${option.valeur}"
-                            th:text="${option.hasData} ? ${option.libelle} : ${option.libelle} + ' (pas encore calcule)'"
+                            th:text="${option.hasData} ? ${option.libelle} : ${option.libelle} + ' (pas encore calculé)'"
                             th:selected="${trimestre != null and option.valeur == trimestre.valeur}">T3 2026</option>
                 </select>
                 <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
@@ -40,7 +40,7 @@
                 Aucun trimestre importé pour le moment : il n'y a encore rien à afficher.<br><br>
                 <a href="/import" class="btn">Importer le classeur</a></div></div>
 
-            <!-- Sans reglages, le moteur ne calcule rien : seuls l'effectif et l'engagement, avec la raison. -->
+            <!--/* Sans reglages, le moteur ne calcule rien : seuls l'effectif et l'engagement, avec la raison. */-->
             <th:block th:if="${tableau.erreur != null}">
                 <div class="alert warn"><div class="sev">ATTENTION</div><div class="txt" th:text="${tableau.erreur}">Reglages absents</div></div>
                 <div class="kpi-row">
@@ -48,20 +48,20 @@
                 </div>
             </th:block>
 
-            <!-- Tout ce qui s'affiche est calcule par TableauDeBordInteractifService avant le rendu (valeurs absentes :
-                 "—") ; le template ne fait qu'afficher. -->
+            <!--/* Tout ce qui s'affiche est calcule par TableauDeBordInteractifService avant le rendu (valeurs absentes :
+                 "—") ; le template ne fait qu'afficher. */-->
             <div id="tdb" th:if="${vue != null}" th:attr="data-donnees=${vue.donneesJson}">
 
-                <!-- ===== Cartes : les 10 du prototype (renderDashRH), dans son ordre, 2 rangees de 5. Population, Talents
+                <!--/* ===== Cartes : les 10 du prototype (renderDashRH), dans son ordre, 2 rangees de 5. Population, Talents
                      valides, Hauts potentiels, Viviers actifs et Engagement suivent les filtres (data-filtre) ; Postes
-                     critiques, Couverture, Ready Now, Postes sans releve et Gaps critiques : cartes du moteur, toute la banque. -->
+                     critiques, Couverture, Ready Now, Postes sans releve et Gaps critiques : cartes du moteur, toute la banque. */-->
                 <div class="kpi-row tdb-kpis" id="kpis">
                     <div class="kpi" th:each="c : ${vue.kpis}" th:classappend="${c.classe}"
                          th:attr="data-kpi=${c.code},data-filtre=${c.filtre}">
                         <div class="val" th:text="${c.valeur}">100</div><div class="lbl" th:text="${c.libelle}">👥 Population</div></div>
                 </div>
 
-                <!-- ===== Filtres actifs ===== -->
+                <!--/* ===== Filtres actifs ===== */-->
                 <div class="tdb-filtres" id="tdb-filtres">
                     <span class="tdb-filtres-titre">Filtres</span>
                     <span id="tdb-puces"><a class="puce" th:each="p : ${vue.puces}" th:href="${p.lienRetrait}" th:attr="data-parametre=${p.parametre}"
@@ -70,7 +70,7 @@
                     <a class="btn ghost" id="tdb-reinitialiser" th:href="@{/(trimestre=${trimestre.valeur})}" th:hidden="${#lists.isEmpty(vue.puces)}">Réinitialiser</a>
                 </div>
 
-                <!-- ===== Graphiques ===== -->
+                <!--/* ===== Graphiques ===== */-->
                 <noscript><div class="alert info"><div class="sev">INFO</div><div class="txt">Les graphiques demandent JavaScript ; la matrice, les cartes et les listes restent filtrables par leurs liens.</div></div></noscript>
                 <div class="tdb-graphiques">
                     <div class="panel"><div class="panel-head"><h3>Matrice 9-Box</h3><span class="hint">effectifs · cliquer une case</span></div>
@@ -99,7 +99,7 @@
                         <div class="panel-body"><div class="tdb-graphe"><canvas id="graphe-alerte" aria-label="Alertes par type" role="img"></canvas></div></div></div>
                 </div>
 
-                <!-- ===== Listes ===== -->
+                <!--/* ===== Listes ===== */-->
                 <div class="panel" id="liste-collaborateurs"><div class="panel-head"><h3>Collaborateurs <span class="tdb-compte" id="tdb-nb-collaborateurs" th:text="|(${#lists.size(vue.personnes)})|">(100)</span></h3>
                     <span class="hint">performance + potentiel décroissants</span></div>
                     <div class="panel-body tdb-defile">

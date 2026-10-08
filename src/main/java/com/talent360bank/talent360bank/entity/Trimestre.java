@@ -38,7 +38,7 @@ public class Trimestre {
     private Integer annee;
 
     /** Posee par defaut a la creation ({@link #avantCreation()}), avant la validation. */
-    @NotNull(message = "La date de reference est obligatoire")
+    @NotNull(message = "La date de référence est obligatoire")
     @Column(name = "date_reference", nullable = false)
     private LocalDate dateReference;
 

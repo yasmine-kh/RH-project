@@ -6,13 +6,13 @@
 </head>
 <body class="impression-9box">
 
-<!--
+<!--/*
   Matrice 9-Box : balisage de renderBox9View() du prototype. Un clic sur une case ouvre la modale du
   prototype (prototype.js) et le panneau de detail a cote (neufbox.js : recherche et tri). Sans
   JavaScript, chaque case recharge la page sur ?case=N#detail. Seuils : ceux du trimestre (API parametre).
   Imprimer (neufbox.js, window.print) : seule la liste de la case ouverte, recherche et tri appliques,
   avec le trimestre et la date en tete ; le reste est masque par @media print (app.css, .impression-9box).
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('9box')}"></aside>
 
@@ -38,9 +38,9 @@
                                th:text="|Total : ${matrice.total} collaborateur(s) placé(s)| + (${matrice.nbNonPlaces} > 0 ? |, ${matrice.nbNonPlaces} non placé(s)| : '')">Total : 100</p>
                         </div></div>
 
-                    <!-- Detail : un panneau par case, seul celui de la case ouverte est visible. -->
+                    <!--/* Detail : un panneau par case, seul celui de la case ouverte est visible. */-->
                     <div id="detail">
-                        <!-- En-tete de l'impression seulement (masque a l'ecran). -->
+                        <!--/* En-tete de l'impression seulement (masque a l'ecran). */-->
                         <div class="impression-seule impression-entete">
                             <div class="impression-titre">BP TALENT 360 — Matrice 9-Box</div>
                             <div th:text="|${trimestre.libelle} · imprimé le ${#temporals.format(#temporals.createToday(), 'dd/MM/yyyy')}|">T3 2026 · imprimé le 08/10/2026</div>

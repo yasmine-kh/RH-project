@@ -48,9 +48,9 @@ class NotificationsEtCampagneControllerTest {
     @WithMockUser(roles = "RH")
     void les_notifications_rendent_compteurs_alertes_et_liens() throws Exception {
         when(notificationsService.notifications()).thenReturn(new Notifications("T3 2026", 2,
-                List.of(new Compteur("CRITIQUE", "Critique", 1, "bg-danger"),
-                        new Compteur("ELEVEE", "Élevée", 1, "bg-warning text-dark")),
-                List.of(new Compteur("POSTE_SANS_SUCCESSEUR", "Poste critique sans successeur", 1, null)),
+                List.of(new Compteur("CRITIQUE", "Critique", 1),
+                        new Compteur("ELEVEE", "Élevée", 1)),
+                List.of(new Compteur("POSTE_SANS_SUCCESSEUR", "Poste critique sans successeur", 1)),
                 List.of(new AlerteVue(TypeAlerte.POSTE_SANS_SUCCESSEUR, SeveriteAlerte.CRITIQUE, "Responsable Cybersecurite",
                         "PST13", null, "IT & Digital", "Aucun successeur identifié",
                         "/postes-critiques?trimestre=2026-3#poste-PST13", "Postes critiques")),

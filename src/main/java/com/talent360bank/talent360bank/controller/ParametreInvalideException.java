@@ -13,7 +13,7 @@ public class ParametreInvalideException extends RuntimeException {
     private final transient List<String> violations;
 
     public ParametreInvalideException(List<String> violations) {
-        super("Les reglages sont invalides");
+        super("Les réglages sont invalides");
         this.violations = List.copyOf(violations);
     }
 

@@ -6,10 +6,10 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Organigramme (page propre a l'application) : une carte par direction, au style du prototype ;
   cliquer pour voir ses departements, puis une entite pour ouvrir sa vue. Recherche : organigramme.js.
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('entites')}"></aside>
 
@@ -22,9 +22,9 @@
             <th:block th:if="${organigramme != null}">
                 <div class="empty-state" th:if="${#lists.isEmpty(organigramme.directions)}">Aucune entité importée.</div>
                 <div class="alert info" th:unless="${organigramme.indicateursDisponibles}"><div class="sev">INFO</div>
-                    <div class="txt">Talents et alertes non calculés : réglages du trimestre absents (page Paramètres).</div></div>
+                    <div class="txt">Talents proposés et alertes non calculés : réglages du trimestre absents (page Paramètres).</div></div>
 
-                <!-- Recherche par nom : affichee par organigramme.js (sans JavaScript, tout l'arbre est ouvert). -->
+                <!--/* Recherche par nom : affichee par organigramme.js (sans JavaScript, tout l'arbre est ouvert). */-->
                 <div class="organigramme-recherche" id="organigramme-recherche-bloc" hidden
                      th:unless="${#lists.isEmpty(organigramme.directions)}">
                     <input type="search" id="organigramme-recherche" placeholder="Rechercher une entité…" aria-label="Rechercher une entité" autocomplete="off">
@@ -38,7 +38,7 @@
                             <span class="organigramme-carte-titre" th:text="${b.libelle}">Direction</span>
                             <span class="organigramme-chiffres">
                                 <span><strong th:text="${b.effectif}">120</strong> collaborateurs</span>
-                                <span th:if="${direction.nbTalents != null}"><strong th:text="${direction.nbTalents}">8</strong> talents</span>
+                                <span th:if="${direction.nbTalents != null}"><strong th:text="${direction.nbTalents}">8</strong> talents proposés</span>
                                 <span th:if="${direction.nbAlertes != null}"><strong th:text="${direction.nbAlertes}">3</strong> alertes</span>
                             </span>
                         </summary>

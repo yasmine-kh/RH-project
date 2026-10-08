@@ -51,7 +51,7 @@ public class SeuilsVigilance {
      * n'a pas a s'ordonner avec eux.
      */
     @Transient
-    @AssertTrue(message = "Le seuil eleve doit etre strictement superieur au seuil modere")
+    @AssertTrue(message = "Le seuil élevé doit être strictement supérieur au seuil modéré")
     public boolean isOrdreValide() {
         return Poids.ordreDecroissant(seuilEleve, seuilModere);
     }

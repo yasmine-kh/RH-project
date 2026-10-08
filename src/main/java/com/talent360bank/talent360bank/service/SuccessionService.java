@@ -91,11 +91,11 @@ public class SuccessionService {
     public NiveauReadiness readinessPour(BigDecimal scoreMatching, SeuilsReadiness seuils) {
         Objects.requireNonNull(seuils, "seuils");
         if (scoreMatching == null) {
-            throw new DonneesIncompletesException("Score de matching absent, readiness indeterminable");
+            throw new DonneesIncompletesException("Score de matching absent, readiness indéterminable");
         }
         if (seuils.getSeuilReadyNow() == null || seuils.getSeuilMoins1An() == null
                 || seuils.getSeuilEntre1Et2Ans() == null) {
-            throw new DonneesIncompletesException("Les seuils de readiness ne sont pas configures");
+            throw new DonneesIncompletesException("Les seuils de readiness ne sont pas configurés");
         }
         if (scoreMatching.compareTo(seuils.getSeuilReadyNow()) >= 0) {
             return NiveauReadiness.READY_NOW;
@@ -130,7 +130,7 @@ public class SuccessionService {
         Objects.requireNonNull(poste, "poste");
         if (bareme == null || bareme.getPointsParNiveauManquant() == null
                 || bareme.getNiveauParDefaut() == null) {
-            throw new DonneesIncompletesException("Le bareme des competences n'est pas configure");
+            throw new DonneesIncompletesException("Le barème des compétences n'est pas configuré");
         }
 
         Map<String, Integer> acquis = niveauxActuels(competencesCandidat);
@@ -203,7 +203,7 @@ public class SuccessionService {
                                                BaremeCompetences bareme) {
         Objects.requireNonNull(poste, "poste");
         if (bareme == null || bareme.getNiveauParDefaut() == null) {
-            throw new DonneesIncompletesException("Le bareme des competences n'est pas configure");
+            throw new DonneesIncompletesException("Le barème des compétences n'est pas configuré");
         }
         Map<String, Integer> acquis = niveauxActuels(competencesCandidat);
 
@@ -255,7 +255,7 @@ public class SuccessionService {
         Objects.requireNonNull(candidat, "candidat");
         Objects.requireNonNull(dateReference, "dateReference");
         if (bareme == null || bareme.getPointsParAnnee() == null || bareme.getPlafond() == null) {
-            throw new DonneesIncompletesException("Le bareme d'experience n'est pas configure");
+            throw new DonneesIncompletesException("Le barème d'expérience n'est pas configuré");
         }
 
         BigDecimal anciennete = ancienneteEnAnnees(candidat, dateReference);
@@ -311,7 +311,7 @@ public class SuccessionService {
         PoidsSuccession poids = parametre.getPoidsSuccession();
         if (poids == null) {
             throw new DonneesIncompletesException(
-                    "Les poids du matching succession ne sont pas configures");
+                    "Les poids du matching succession ne sont pas configurés");
         }
 
         ResultatMatching.DetailMatching detail = new ResultatMatching.DetailMatching(
@@ -350,7 +350,7 @@ public class SuccessionService {
         Poste poste = chargerPoste(posteId);
         Score score = scoreRepository.findByCollaborateurAndTrimestre(candidat, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun score calcule pour " + candidat.getIdCollaborateur()
+                        "Aucun score calculé pour " + candidat.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
 
         return evaluer(candidat, poste, score,
@@ -425,7 +425,7 @@ public class SuccessionService {
     @Transactional(readOnly = true)
     public List<ResultatMatching> classerCandidats(String posteId, Trimestre trimestre, int limite) {
         if (limite < 0) {
-            throw new IllegalArgumentException("La limite ne peut pas etre negative");
+            throw new IllegalArgumentException("La limite ne peut pas être négative");
         }
         List<ResultatMatching> classement = classerCandidats(posteId, trimestre);
         return classement.size() <= limite ? classement : List.copyOf(classement.subList(0, limite));
@@ -453,7 +453,7 @@ public class SuccessionService {
 
         if (sommePoids.signum() == 0) {
             throw new DonneesIncompletesException(
-                    "Poids du matching tous nuls, le score de matching est indefini");
+                    "Poids du matching tous nuls, le score de matching est indéfini");
         }
 
         return total.divide(sommePoids, CalculService.PRECISION_SCORE, ARRONDI);

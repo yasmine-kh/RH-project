@@ -100,7 +100,7 @@ public class CalculService {
         Objects.requireNonNull(parametre, "parametre");
 
         PoidsPerformance poids = exiger(parametre.getPoidsPerformance(),
-                "Les poids de performance ne sont pas configures");
+                "Les poids de performance ne sont pas configurés");
 
         return moyennePonderee(
                 new BigDecimal[]{
@@ -124,7 +124,7 @@ public class CalculService {
         Objects.requireNonNull(parametre, "parametre");
 
         PoidsPotentiel poids = exiger(parametre.getPoidsPotentiel(),
-                "Les poids de potentiel ne sont pas configures");
+                "Les poids de potentiel ne sont pas configurés");
 
         return moyennePonderee(
                 new BigDecimal[]{
@@ -171,10 +171,10 @@ public class CalculService {
         if (scoreAuto == null) {
             return scoreManager;
         }
-        PonderationSources poids = exiger(ponderation, "La ponderation des sources d'evaluation n'est pas configuree");
+        PonderationSources poids = exiger(ponderation, "La pondération des sources d'évaluation n'est pas configurée");
         BigDecimal poidsManager = exiger(poids.getPoidsManager(),
-                "Le poids de l'evaluation du manager n'est pas configure");
-        BigDecimal poidsAuto = exiger(poids.getPoidsAuto(), "Le poids de l'auto-evaluation n'est pas configure");
+                "Le poids de l'évaluation du manager n'est pas configuré");
+        BigDecimal poidsAuto = exiger(poids.getPoidsAuto(), "Le poids de l'auto-évaluation n'est pas configuré");
 
         if (poidsAuto.signum() == 0) {
             return scoreManager;
@@ -196,12 +196,12 @@ public class CalculService {
     public CategoriePerformance categoriePerformance(BigDecimal scorePerformance,
                                                      SeuilsCategoriePerformance seuils) {
         if (scorePerformance == null) {
-            throw new DonneesIncompletesException("Score de performance absent, categorie indeterminable");
+            throw new DonneesIncompletesException("Score de performance absent, catégorie indéterminable");
         }
         if (seuils == null || seuils.getSeuilExceptionnelle() == null || seuils.getSeuilElevee() == null
                 || seuils.getSeuilSolide() == null || seuils.getSeuilARenforcer() == null) {
             throw new DonneesIncompletesException(
-                    "Les seuils des categories de performance ne sont pas configures");
+                    "Les seuils des catégories de performance ne sont pas configurés");
         }
         if (scorePerformance.compareTo(seuils.getSeuilExceptionnelle()) >= 0) {
             return CategoriePerformance.EXCEPTIONNELLE;
@@ -232,7 +232,7 @@ public class CalculService {
             return null;
         }
         if (seuils == null || seuils.getSeuilPrioritaire() == null) {
-            throw new DonneesIncompletesException("Le seuil de gap de competence n'est pas configure");
+            throw new DonneesIncompletesException("Le seuil de gap de compétence n'est pas configuré");
         }
         int gap = niveauCible - niveauActuel;
         if (gap <= 0) {
@@ -250,7 +250,7 @@ public class CalculService {
         Objects.requireNonNull(trimestre, "trimestre");
         return parametreRepository.findByTrimestre(trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun parametre configure pour " + decrire(trimestre)));
+                        "Aucun paramètre configuré pour " + decrire(trimestre)));
     }
 
     /**
@@ -265,11 +265,11 @@ public class CalculService {
         for (int i = 0; i < notes.length; i++) {
             if (notes[i] == null) {
                 throw new DonneesIncompletesException(
-                        "Note manquante (critere " + (i + 1) + ") pour le calcul de " + contexte);
+                        "Note manquante (critère " + (i + 1) + ") pour le calcul de " + contexte);
             }
             if (poids[i] == null) {
                 throw new DonneesIncompletesException(
-                        "Poids manquant (critere " + (i + 1) + ") pour le calcul de " + contexte);
+                        "Poids manquant (critère " + (i + 1) + ") pour le calcul de " + contexte);
             }
             total = total.add(notes[i].multiply(poids[i]));
             sommePoids = sommePoids.add(poids[i]);
@@ -277,7 +277,7 @@ public class CalculService {
 
         if (sommePoids.signum() == 0) {
             throw new DonneesIncompletesException(
-                    "Tous les poids de " + contexte + " sont a zero, le score est indefini");
+                    "Tous les poids de " + contexte + " sont à zéro, le score est indéfini");
         }
 
         return total.divide(sommePoids, PRECISION_SCORE, ARRONDI);

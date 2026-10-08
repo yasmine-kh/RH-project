@@ -22,10 +22,10 @@ public enum SignalVigilance {
     SANS_MOBILITE_4_ANS("Aucun mouvement depuis 4 ans",
             PointsVigilance::getPointSansMobilite4Ans, true),
 
-    MOBILITE_NON_TRAITEE("Souhait de mobilite non traite",
+    MOBILITE_NON_TRAITEE("Souhait de mobilité non traité",
             PointsVigilance::getPointMobiliteNonTraitee, true),
 
-    SANS_DEVELOPPEMENT_RECENT("Aucune action de developpement recente",
+    SANS_DEVELOPPEMENT_RECENT("Aucune action de développement récente",
             PointsVigilance::getPointSansDeveloppementRecent, true),
 
     BAISSE_PERFORMANCE("Baisse de performance",
@@ -34,7 +34,7 @@ public enum SignalVigilance {
     FAIBLE_RECONNAISSANCE("Faible reconnaissance",
             PointsVigilance::getPointFaibleReconnaissance, true),
 
-    FORMATION_NON_FAITE("Formation prevue non realisee",
+    FORMATION_NON_FAITE("Formation prévue non réalisée",
             PointsVigilance::getPointFormationNonFaite, true);
 
     private final String libelle;

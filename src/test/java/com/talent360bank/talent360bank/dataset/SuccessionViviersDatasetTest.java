@@ -16,7 +16,6 @@ import com.talent360bank.talent360bank.service.resultat.ResultatPosteCible;
 import com.talent360bank.talent360bank.service.resultat.SyntheseVivier;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur;
 import com.talent360bank.talent360bank.ui.model.PosteCritiqueRow;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordView.VivierTableau;
 import com.talent360bank.talent360bank.ui.service.DashboardService;
 import com.talent360bank.talent360bank.ui.service.FicheCollaborateurViewService;
 import com.talent360bank.talent360bank.ui.service.PosteCritiqueViewService;
@@ -87,6 +86,8 @@ class SuccessionViviersDatasetTest {
     private FicheCollaborateurViewService ficheCollaborateurViewService;
     @Autowired
     private DashboardService dashboardService;
+    @Autowired
+    private com.talent360bank.talent360bank.ui.service.TableauDeBordInteractifService tableauDeBordInteractif;
 
     private LecteurXlsx classeur;
     private Trimestre t3;
@@ -255,21 +256,30 @@ class SuccessionViviersDatasetTest {
 
     @Test
     void le_tableau_de_bord_garde_les_chiffres_des_viviers_thematiques() {
-        List<VivierTableau> lignes = dashboardService.construire(t3).viviers();
+        // Les listes de viviers du tableau de bord ont les membres de l'ecran Viviers.
+        var lignes = tableauDeBordInteractif.construire(t3, dashboardService.construire(t3), java.util.Map.of())
+                .viviers().stream().filter(v -> !"RELEVE".equals(v.code())).toList();
         List<SyntheseVivier> thematiques = vivierSyntheseService.synthese(t3).stream()
                 .filter(synthese -> !synthese.releve()).toList();
 
         assertThat(lignes).hasSize(5);
         for (int i = 0; i < lignes.size(); i++) {
-            VivierTableau ligne = lignes.get(i);
             SyntheseVivier synthese = thematiques.get(i);
-            assertThat(ligne).isEqualTo(new VivierTableau(synthese.code(), synthese.libelle(), synthese.effectif(),
-                    synthese.performanceMoyenne(), synthese.potentielMoyen(), synthese.nbTalents(),
-                    synthese.nbReadyNow(), synthese.nbPostesCouverts()));
+            assertThat(lignes.get(i).code()).isEqualTo(synthese.code());
+            assertThat(lignes.get(i).libelle()).isEqualTo(synthese.libelle());
+            assertThat(lignes.get(i).membres()).hasSize(synthese.effectif());
+            assertThat(lignes.get(i).membres().stream().filter(m -> m.estTalent()).count())
+                    .isEqualTo(synthese.nbTalents());
         }
         // Valeurs d'avant le deplacement dans VivierSyntheseService (Commercial : 47 membres, 6 talents).
-        assertThat(lignes.get(0)).isEqualTo(new VivierTableau("COMMERCIAL", "Vivier Commercial", 47,
-                new BigDecimal("79.12"), new BigDecimal("76.68"), 6, 3, 3));
+        SyntheseVivier commercial = thematiques.get(0);
+        assertThat(commercial.code()).isEqualTo("COMMERCIAL");
+        assertThat(commercial.effectif()).isEqualTo(47);
+        assertThat(commercial.performanceMoyenne()).isEqualByComparingTo("79.12");
+        assertThat(commercial.potentielMoyen()).isEqualByComparingTo("76.68");
+        assertThat(commercial.nbTalents()).isEqualTo(6);
+        assertThat(commercial.nbReadyNow()).isEqualTo(3);
+        assertThat(commercial.nbPostesCouverts()).isEqualTo(3);
     }
 
     // --- 4. poste cible -----------------------------------------------------------

@@ -55,9 +55,18 @@ class TableauDeBordDatasetTest {
     private CalculTrimestreService calculTrimestreService;
     @Autowired
     private DashboardService dashboardService;
+    @Autowired
+    private com.talent360bank.talent360bank.ui.service.TableauDeBordInteractifService tableauDeBordInteractif;
+    @Autowired
+    private com.talent360bank.talent360bank.service.TableauDeBordService tableauDeBordService;
+    @Autowired
+    private com.talent360bank.talent360bank.service.CompetenceCollaborateurService competenceCollaborateurService;
 
     private LecteurXlsx classeur;
     private TableauDeBordView tableau;
+    private com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif accueil;
+    private com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord synthese;
+    private Trimestre t3;
     private Map<String, String> kpis;
 
     static boolean classeurPresent() {
@@ -71,15 +80,16 @@ class TableauDeBordDatasetTest {
         assertThat(importService.importer(fichier, 2026, 3).statut()).isEqualTo(StatutImport.SUCCES);
         trimestreService.modifierDateReference(trimestreRepository.findByNumeroAndAnnee(3, 2026).orElseThrow(),
                 LocalDate.of(2026, 9, 15));
-        Trimestre t3 = trimestreRepository.findByNumeroAndAnnee(3, 2026).orElseThrow();
+        t3 = trimestreRepository.findByNumeroAndAnnee(3, 2026).orElseThrow();
         calculTrimestreService.calculer(t3);
 
         classeur = new LecteurXlsx(FICHIER);
         tableau = dashboardService.construire(t3);
+        accueil = tableauDeBordInteractif.construire(t3, tableau, Map.of());
+        synthese = tableauDeBordService.synthese(t3);
+        // Les cartes telles que la page les affiche (sans filtre), par code.
         kpis = new LinkedHashMap<>();
-        for (KpiCard kpi : tableau.kpis()) {
-            kpis.put(kpi.getLabel(), kpi.getValue());
-        }
+        accueil.kpis().forEach(kpi -> kpis.put(kpi.code(), kpi.valeur()));
     }
 
     private String cellule(int ligne, String colonne) {
@@ -94,30 +104,32 @@ class TableauDeBordDatasetTest {
     void les_chiffres_cles_sont_ceux_de_00_dashboard() {
         assertThat(tableau.erreur()).isNull();
         // E6 Talents valides (Comite), G6 Hauts potentiels proposes, C6 Postes critiques suivis.
-        assertThat(kpis.get("Talents validés par le Comité")).isEqualTo(String.valueOf(entier(6, "E")))
+        assertThat(kpis.get("talentsValides")).isEqualTo(String.valueOf(entier(6, "E")))
                 .isEqualTo("8");
-        assertThat(kpis.get("Hauts potentiels")).isEqualTo(String.valueOf(entier(6, "G"))).isEqualTo("21");
-        assertThat(kpis.get("Postes critiques")).isEqualTo(String.valueOf(entier(6, "C"))).isEqualTo("15");
+        assertThat(kpis.get("hautsPotentiels")).isEqualTo(String.valueOf(entier(6, "G"))).isEqualTo("21");
+        assertThat(kpis.get("postesCritiques")).isEqualTo(String.valueOf(entier(6, "C"))).isEqualTo("15");
         // A10 Taux de couverture succession, arrondi a l'unite dans le classeur (93), au centieme ici.
-        assertThat(new BigDecimal(kpis.get("Couverture succession").replace(" %", ""))
+        assertThat(new BigDecimal(kpis.get("couverture").replace(" %", ""))
                 .setScale(0, RoundingMode.HALF_UP).intValue()).isEqualTo(entier(10, "A")).isEqualTo(93);
         // C10 Successeurs 'Ready Now', E10 Postes sans successeur, G10 Competences en gap 'Prioritaire'.
-        assertThat(kpis.get("Successeurs Ready Now")).isEqualTo(String.valueOf(entier(10, "C"))).isEqualTo("16");
-        assertThat(kpis.get("Postes critiques sans successeur")).isEqualTo(String.valueOf(entier(10, "E")))
+        assertThat(kpis.get("readyNow")).isEqualTo(String.valueOf(entier(10, "C"))).isEqualTo("16");
+        assertThat(kpis.get("postesSansReleve")).isEqualTo(String.valueOf(entier(10, "E")))
                 .isEqualTo("1");
-        assertThat(kpis.get("Compétences en gap prioritaire")).isEqualTo(String.valueOf(entier(10, "G")))
-                .isEqualTo("141");
-        // E15 vigilance elevee + G15 vigilance moderee = a risque.
-        assertThat(kpis.get("À risque (vigilance modérée ou élevée)"))
-                .isEqualTo(String.valueOf(entier(15, "E") + entier(15, "G"))).isEqualTo("45");
-        assertThat(tableau.vigilance().get(2).nombre()).isEqualTo(entier(15, "E"));
-        assertThat(tableau.vigilance().get(1).nombre()).isEqualTo(entier(15, "G"));
+        // G10 : ecran Competences (la carte n'est plus sur le tableau de bord).
+        assertThat(competenceCollaborateurService.compterGapsPrioritaires(t3))
+                .isEqualTo(entier(10, "G")).isEqualTo(141);
+        // E15 vigilance elevee + G15 vigilance moderee = a risque (moteur ; filtre Vigilance de la page).
+        assertThat(synthese.nbARisque()).isEqualTo(entier(15, "E") + entier(15, "G")).isEqualTo(45);
+        assertThat(accueil.personnes().stream().filter(p -> "ELEVEE".equals(p.vigilance())).count())
+                .isEqualTo(entier(15, "E"));
+        assertThat(accueil.personnes().stream().filter(p -> "MODEREE".equals(p.vigilance())).count())
+                .isEqualTo(entier(15, "G"));
         // A6 compte toutes les lignes de 01_COLLABORATEURS ; le tableau de bord, les actifs (colonne O).
         long actifs = classeur.feuille("01_COLLABORATEURS").values().stream()
                 .filter(ligne -> ligne.get("A") != null && ligne.get("A").matches("BP\\d+"))
                 .filter(ligne -> "actif".equals(normaliser(ligne.get("O"))))
                 .count();
-        assertThat(kpis.get("Collaborateurs actifs")).isEqualTo(String.valueOf(actifs));
+        assertThat(kpis.get("population")).isEqualTo(String.valueOf(actifs));
         assertThat(entier(6, "A")).isGreaterThanOrEqualTo((int) actifs);
     }
 
@@ -132,7 +144,7 @@ class TableauDeBordDatasetTest {
             nous.put(normaliser(case9.libelle()), case9.nombre());
         }
         assertThat(nous).isEqualTo(classeur9Box);
-        assertThat(tableau.nbPlaces9Box()).isEqualTo(100);
+        assertThat(synthese.nbPlaces9Box()).isEqualTo(100);
     }
 
     private static String normaliser(String texte) {

@@ -60,7 +60,6 @@ public final class MenuProfilService {
                 new ElementMenu("04", "Collaborateurs", "bi-person-lines-fill", lien("/collaborateurs", t), "collaborateurs"),
                 new ElementMenu("05", "Matrice 9-Box", "bi-grid-3x3", lien("/9box", t), "9box"),
                 new ElementMenu("06", "Compétences & Gaps", "bi-mortarboard", lien("/competences", t), "competences"),
-                new ElementMenu("07", "Carrière & Mobilité", "bi-signpost-split", "/carriere-mobilite", "carriere-mobilite"),
                 new ElementMenu("08", "Engagement & Fidélisation", "bi-heart", "/engagement", "engagement"),
                 new ElementMenu("09", "Viviers", "bi-people", lien("/viviers", t), "viviers"),
                 new ElementMenu("10", "Postes critiques & Succession", "bi-exclamation-triangle",
@@ -78,9 +77,10 @@ public final class MenuProfilService {
 
     /**
      * Prototype : Mon profil, Mon engagement, Campagne d'evaluation, Notifications.
-     * Mon profil = sa fiche ; Mon engagement (questionnaire) et Campagne (auto-evaluation)
-     * sont des formulaires que l'application n'a pas encore : pages en cours de
-     * developpement ; Notifications = ses alertes.
+     * Seul le RH se connecte : pas de formulaire pour le collaborateur. Mon profil = sa
+     * fiche ; Mon engagement = les reponses importees de son questionnaire, sur sa fiche
+     * (#questionnaire) ; Notifications = ses alertes. Pas d'entree Campagne (l'auto-evaluation
+     * n'est pas saisie dans l'application).
      */
     private static List<ElementMenu> collaborateur(ProfilActif p, String t) {
         if (p.matricule() == null) {
@@ -88,7 +88,6 @@ public final class MenuProfilService {
             return List.of(
                     ElementMenu.grisee("·", "Mon profil", "bi-person-vcard", indication),
                     ElementMenu.grisee("·", "Mon engagement", "bi-heart", indication),
-                    ElementMenu.grisee("03", "Campagne d'évaluation", "bi-clipboard-check", indication),
                     ElementMenu.grisee("15", "Notifications", "bi-envelope", indication));
         }
         String fiche = LiensPages.fiche(p.matricule(), t);
@@ -99,8 +98,7 @@ public final class MenuProfilService {
         alertes.queryParam("q", p.matricule());
         return List.of(
                 new ElementMenu("·", "Mon profil", "bi-person-vcard", fiche, "fiche-collaborateur"),
-                new ElementMenu("·", "Mon engagement", "bi-heart", "/mon-engagement", "mon-engagement"),
-                new ElementMenu("03", "Campagne d'évaluation", "bi-clipboard-check", "/auto-evaluation", "auto-evaluation"),
+                new ElementMenu("·", "Mon engagement", "bi-heart", fiche + "#questionnaire", null),
                 new ElementMenu("15", "Notifications", "bi-envelope", alertes.encode().build().toUriString(), "alertes"));
     }
 

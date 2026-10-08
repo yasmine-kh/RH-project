@@ -6,6 +6,6 @@ import java.time.LocalDate;
 
 /** Corps de PUT /api/trimestres/{annee}/{numero}. */
 public record ModificationTrimestreForm(
-        @NotNull(message = "La date de reference est obligatoire (aaaa-mm-jj)")
+        @NotNull(message = "La date de référence est obligatoire (aaaa-mm-jj)")
         LocalDate dateReference) {
 }

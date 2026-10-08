@@ -106,7 +106,7 @@ class ProfilsMenuDatasetTest {
     // Prototype (NAV_DEF, role DRH) : les 15 modules dans l'ordre, puis les pages propres a l'application.
     /** Le "Tableau de bord DG" du prototype est fusionne dans le tableau de bord RH : plus d'entree. */
     private static final List<String> MENU_RH = List.of("Tableau de bord RH",
-            "Campagne d'évaluation", "Collaborateurs", "Matrice 9-Box", "Compétences & Gaps", "Carrière & Mobilité",
+            "Campagne d'évaluation", "Collaborateurs", "Matrice 9-Box", "Compétences & Gaps",
             "Engagement & Fidélisation", "Viviers", "Postes critiques & Succession", "Comité Talent", "Talent Passport",
             "Alertes", "Historique", "Notifications", "Managers", "Organigramme", "Import", "Paramètres");
 
@@ -147,19 +147,19 @@ class ProfilsMenuDatasetTest {
     }
 
     @Test
-    void le_profil_collaborateur_mene_a_sa_fiche_ses_alertes_et_aux_formulaires_en_developpement() throws Exception {
+    void le_profil_collaborateur_mene_a_sa_fiche_ses_reponses_au_questionnaire_et_ses_alertes() throws Exception {
         MockHttpSession session = new MockHttpSession();
         mockMvc.perform(get("/profil?profil=COLLABORATEUR&cible=BP001").session(session))
                 .andExpect(redirectedUrl("/fiche-collaborateur?matricule=BP001"));
         String html = page("/fiche-collaborateur?matricule=BP001", session);
         assertThat(extraire(LIBELLE, nav(html)))
-                .containsExactly("Mon profil", "Mon engagement", "Campagne d'évaluation", "Notifications");
+                .containsExactly("Mon profil", "Mon engagement", "Notifications");
+        // Seul le RH se connecte : pas de formulaire ; "Mon engagement" ouvre les reponses importees de la fiche.
         assertThat(extraire(LIEN, nav(html))).containsExactly("/fiche-collaborateur?matricule=BP001",
-                "/mon-engagement", "/auto-evaluation", "/alertes?q=BP001");
-        // Questionnaire et auto-evaluation : pages en cours de developpement, sans chiffre.
-        assertThat(page("/mon-engagement", session)).contains("En cours de développement",
-                "/fiche-collaborateur?matricule=BP001#questionnaire");
-        assertThat(page("/auto-evaluation", session)).contains("En cours de développement");
+                "/fiche-collaborateur?matricule=BP001#questionnaire", "/alertes?q=BP001");
+        assertThat(html).contains("id=\"questionnaire\"");
+        mockMvc.perform(get("/mon-engagement").session(session)).andExpect(status().isNotFound());
+        mockMvc.perform(get("/auto-evaluation").session(session)).andExpect(status().isNotFound());
         // Le Talent Passport n'a plus de bloc engagement ; les reponses au questionnaire y sont.
         assertThat(html).contains(" — BP001</div>", "id=\"questionnaire\"").doesNotContain("id=\"engagement\"");
     }
@@ -204,7 +204,7 @@ class ProfilsMenuDatasetTest {
                     java.util.stream.IntStream.rangeClosed(1, numeros.size())
                             .mapToObj(i -> String.format("%02d", i)).toList());
         }
-        // RH : 18 entrees, de 01 a 18 ; plus de "02 Tableau de bord DG" ni de "·".
+        // RH : 17 entrees, de 01 a 17 ; plus de "02 Tableau de bord DG" ni de "·".
         assertThat(extraire(NUMERO, nav(page("/", new MockHttpSession())))).hasSize(MENU_RH.size()).last()
                 .isEqualTo(String.format("%02d", MENU_RH.size()));
     }
@@ -269,7 +269,7 @@ class ProfilsMenuDatasetTest {
                 .andExpect(redirectedUrl("/alertes"));
         String html = page("/alertes", session);
         assertThat(extraire(LIBELLE, nav(html)))
-                .containsExactly("Mon profil", "Mon engagement", "Campagne d'évaluation", "Notifications");
+                .containsExactly("Mon profil", "Mon engagement", "Notifications");
         assertThat(extraire(LIEN, nav(html))).isEmpty();
         assertThat(html).contains("Choisir un collaborateur", "choisir un collaborateur", "Choisissez un collaborateur pour ouvrir le menu.",
                 "<select id=\"profil-cible\"", "— un collaborateur —");

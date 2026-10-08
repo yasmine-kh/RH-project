@@ -37,8 +37,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ImportAutreTrimestreDatasetTest {
 
     private static final Path FICHIER = Path.of("docs/data/TALENT_360_BANK_Dataset_V1.xlsx");
-    private static final String MESSAGE = "Le classeur porte une autre periode que T4 2026, rien n'a ete importe : "
-            + "T3 2026 (00_DASHBOARD A2 : \"15/09/2026\"). Verifier le fichier ou le trimestre choisi.";
+    private static final String MESSAGE = "Le classeur porte une autre période que T4 2026, rien n'a été importé : "
+            + "T3 2026 (00_DASHBOARD A2 : \"15/09/2026\"). Vérifier le fichier ou le trimestre choisi.";
 
     @Autowired
     private MockMvc mockMvc;
@@ -77,7 +77,7 @@ class ImportAutreTrimestreDatasetTest {
         assertThat(vue.rapport().nbLignes()).isZero();
         assertThat(vue.rapport().calcul()).isNull();
         assertThat(resultat.getResponse().getContentAsString(StandardCharsets.UTF_8))
-                .contains("autre periode que T4 2026", "00_DASHBOARD A2");
+                .contains("autre période que T4 2026", "00_DASHBOARD A2");
         // Refuse avant toute ecriture : ni trimestre T4, ni collaborateur ; une ligne ECHEC au journal.
         assertThat(trimestreRepository.findByNumeroAndAnnee(4, 2026)).isEmpty();
         assertThat(collaborateurRepository.count()).isZero();

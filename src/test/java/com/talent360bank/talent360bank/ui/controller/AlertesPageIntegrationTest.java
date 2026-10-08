@@ -37,7 +37,6 @@ import com.talent360bank.talent360bank.ui.model.AlerteVue;
 import com.talent360bank.talent360bank.ui.model.AlertesView;
 import com.talent360bank.talent360bank.ui.model.OptionTrimestre;
 import com.talent360bank.talent360bank.ui.model.SeveriteAlerte;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordView;
 import com.talent360bank.talent360bank.ui.model.TypeAlerte;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -248,13 +247,16 @@ class AlertesPageIntegrationTest {
 
     @Test
     @Order(3)
-    void le_panneau_du_tableau_de_bord_montre_les_memes_alertes() throws Exception {
+    void la_liste_du_tableau_de_bord_montre_les_memes_alertes() throws Exception {
         AlertesView alertes = vue(get("/alertes"));
-        TableauDeBordView tableau = (TableauDeBordView) mockMvc.perform(get("/")).andExpect(status().isOk())
-                .andReturn().getModelAndView().getModel().get("tableau");
+        com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif tableau =
+                (com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif) mockMvc.perform(get("/"))
+                        .andExpect(status().isOk()).andReturn().getModelAndView().getModel().get("vue");
 
-        assertThat(tableau.nbAlertes()).isEqualTo(alertes.total()).isEqualTo(9);
-        assertThat(tableau.alertes()).isEqualTo(alertes.alertes().subList(0, TableauDeBordView.ALERTES_AFFICHEES));
+        assertThat(tableau.alertes()).hasSize(alertes.total()).hasSize(9);
+        assertThat(tableau.alertes()).extracting(a -> a.type() + "|" + a.matricule())
+                .containsExactlyElementsOf(alertes.alertes().stream().map(a -> a.type().name() + "|" + a.matricule())
+                        .toList());
     }
 
     // ------------------------------------------------------------ filtres
@@ -306,7 +308,7 @@ class AlertesPageIntegrationTest {
                 .andExpect(model().attribute("trimestre", new OptionTrimestre("2026-1", "T1 2026", 2026, 1, true)));
         AlertesView t2 = vue(get("/alertes").param("trimestre", "2026-2"));
         assertThat(t2.trimestreLibelle()).isEqualTo("T2 2026");
-        assertThat(t2.erreur()).contains("Aucun parametre");
+        assertThat(t2.erreur()).contains("Aucun paramètre");
         assertThat(t2.total()).isZero();
         assertThat(t2.alertes()).isEmpty();
     }

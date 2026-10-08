@@ -71,7 +71,7 @@ public class ProtectionRequetesFilter extends OncePerRequestFilter {
         if (!hotesAutorises.contains(hote)) {
             log.warn("Requete refusee : hote non autorise ({} {})", requete.getMethod(), requete.getRequestURI());
             refuser(reponse, "hote_non_autorise",
-                    "Cette application n'accepte que les requetes adressees a la machine locale");
+                    "Cette application n'accepte que les requêtes adressées à la machine locale");
             return;
         }
 
@@ -81,7 +81,7 @@ public class ProtectionRequetesFilter extends OncePerRequestFilter {
             log.warn("Requete refusee : en-tete {} absent ({} {})", EN_TETE_ECRITURE,
                     requete.getMethod(), requete.getRequestURI());
             refuser(reponse, "en_tete_manquant",
-                    "Les requetes d'ecriture doivent porter l'en-tete " + EN_TETE_ECRITURE);
+                    "Les requêtes d'écriture doivent porter l'en-tête " + EN_TETE_ECRITURE);
             return;
         }
 

@@ -21,10 +21,8 @@ public record AlertesView(String trimestreLibelle, int total, List<Compteur> par
                           List<AlerteVue> alertes, List<String> directions, Filtres filtres,
                           List<String> informations, String erreur) {
 
-    /**
-     * @param badgeClass classe Bootstrap du badge (gravite), null pour un type
-     */
-    public record Compteur(String code, String libelle, int nombre, String badgeClass) {
+    /** Un compteur par type ou par gravite. */
+    public record Compteur(String code, String libelle, int nombre) {
     }
 
     /** Valeurs des filtres ; null = pas de filtre. */

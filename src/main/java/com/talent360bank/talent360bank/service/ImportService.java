@@ -40,6 +40,16 @@ import java.util.stream.Collectors;
 @Service
 public class ImportService {
 
+    /**
+     * Message d'une erreur inattendue (import ou simulation) : simple pour le RH ; le detail
+     * technique (exception) va seulement au journal de l'application.
+     */
+    public static final String MESSAGE_ECHEC = "L'import a échoué. Vérifiez le fichier et réessayez.";
+
+    /** Fichier qui n'est pas un classeur Excel lisible ; la cause technique va au journal. */
+    public static final String MESSAGE_ILLISIBLE = "Fichier illisible : un classeur Excel .xlsx est attendu. "
+            + "Vérifiez le fichier et réessayez.";
+
     /** Valeur de ImportExcel.source pour un classeur TALENT 360 BANK. */
     public static final String SOURCE_CLASSEUR = "CLASSEUR_TALENT_360";
 
@@ -50,13 +60,16 @@ public class ImportService {
 
     private final TrimestreService trimestreService;
     private final ImportClasseurService importClasseurService;
+    private final com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant;
     private final ImportExcelRepository importExcelRepository;
     private final TransactionTemplate transaction;
 
     public ImportService(TrimestreService trimestreService,
                          ImportClasseurService importClasseurService,
                          ImportExcelRepository importExcelRepository,
-                         PlatformTransactionManager transactionManager) {
+                         PlatformTransactionManager transactionManager,
+                         com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant) {
+        this.utilisateurCourant = utilisateurCourant;
         this.trimestreService = trimestreService;
         this.importClasseurService = importClasseurService;
         this.importExcelRepository = importExcelRepository;
@@ -81,7 +94,7 @@ public class ImportService {
     public ResultatImport importer(MultipartFile fichier, int annee, int numero, boolean simulation) {
         TrimestreService.verifier(annee, numero);
         if (fichier == null || fichier.isEmpty()) {
-            throw new IllegalArgumentException("Aucun fichier recu, ou fichier vide");
+            throw new IllegalArgumentException("Aucun fichier reçu, ou fichier vide");
         }
         String nomFichier = nomFichier(fichier);
 
@@ -90,8 +103,7 @@ public class ImportService {
             classeur = WorkbookFactory.create(contenu);
         } catch (Exception e) {
             log.warn("Import {} : fichier illisible ({})", nomFichier, e.getMessage());
-            return echec(nomFichier, null, annee, numero, simulation, List.of(),
-                    "Fichier illisible : un classeur Excel .xlsx est attendu (" + e.getMessage() + ")");
+            return echec(nomFichier, null, annee, numero, simulation, List.of(), MESSAGE_ILLISIBLE);
         }
 
         try {
@@ -99,8 +111,8 @@ public class ImportService {
             if (!ecarts.isEmpty()) {
                 log.warn("Import {} : format non conforme, {} ecart(s)", nomFichier, ecarts.size());
                 return echec(nomFichier, null, annee, numero, simulation, ecarts, "Format du classeur non conforme ("
-                        + ecarts.size() + " ecart(s)) : rien n'a ete importe. Feuilles ou colonnes manquantes, "
-                        + "renommees ou deplacees : voir erreurs");
+                        + ecarts.size() + " écart(s)) : rien n'a été importé. Feuilles ou colonnes manquantes, "
+                        + "renommées ou déplacées : voir les erreurs.");
             }
             String autrePeriode = autrePeriode(nomFichier, classeur, annee, numero);
             if (autrePeriode != null) {
@@ -122,8 +134,7 @@ public class ImportService {
             rapport = importClasseurService.importer(classeur, trimestre);
         } catch (RuntimeException e) {
             log.error("Import {} : erreur inattendue, transaction annulee", nomFichier, e);
-            return echec(nomFichier, trimestre, annee, numero, false, List.of(),
-                    "Erreur inattendue, rien n'a ete importe : " + e.getMessage());
+            return echec(nomFichier, trimestre, annee, numero, false, List.of(), MESSAGE_ECHEC);
         }
         return journaliser(nomFichier, trimestre, annee, numero, rapport);
     }
@@ -138,9 +149,8 @@ public class ImportService {
                 return importClasseurService.importer(classeur, trimestre);
             });
         } catch (RuntimeException e) {
-            log.warn("Simulation {} : erreur inattendue ({})", nomFichier, e.getMessage());
-            return echec(nomFichier, null, annee, numero, true, List.of(),
-                    "Erreur inattendue pendant la simulation : " + e.getMessage());
+            log.error("Simulation {} : erreur inattendue", nomFichier, e);
+            return echec(nomFichier, null, annee, numero, true, List.of(), MESSAGE_ECHEC);
         }
         StatutImport statut = statut(rapport);
         log.info("Simulation {} pour T{} {} : {}, {} ligne(s), {} erreur(s), {} desactivation(s)", nomFichier,
@@ -159,12 +169,12 @@ public class ImportService {
         if (discordantes.isEmpty()) {
             return null;
         }
-        return "Le classeur porte une autre periode que T" + numero + " " + annee + ", rien n'a ete importe : "
+        return "Le classeur porte une autre période que T" + numero + " " + annee + ", rien n'a été importé : "
                 + discordantes.stream()
                 .map(p -> p.libelle() + " (" + p.source() + " : \"" + p.texte() + "\")")
                 .distinct()
                 .collect(Collectors.joining(", "))
-                + ". Verifier le fichier ou le trimestre choisi.";
+                + ". Vérifier le fichier ou le trimestre choisi.";
     }
 
     /** Journal des imports, le plus recent en premier. */
@@ -195,7 +205,7 @@ public class ImportService {
 
     private static String message(RapportImport rapport) {
         return rapport.nbLignes() == 0
-                ? "Aucune ligne importee : verifier qu'il s'agit bien du classeur TALENT_360_BANK_Dataset"
+                ? "Aucune ligne importée : vérifier qu'il s'agit bien du classeur TALENT_360_BANK_Dataset"
                 : null;
     }
 
@@ -214,6 +224,8 @@ public class ImportService {
                                     int nbErreurs, String message) {
         ImportExcel journal = new ImportExcel();
         journal.setSource(SOURCE_CLASSEUR);
+        // Compte RH connecte qui lance l'import (null hors requete, ou sans compte en base).
+        journal.setUtilisateur(utilisateurCourant.utilisateur().orElse(null));
         journal.setNomFichier(nomFichier);
         journal.setDateImport(LocalDate.now());
         journal.setStatut(statut.name());

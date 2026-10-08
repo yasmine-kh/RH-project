@@ -44,7 +44,7 @@ public record ImportPageView(Formulaire formulaire, Rapport rapport, String erre
      * @param erreurCalcul     cause de l'echec du calcul ; l'import reste enregistre
      * @param dateReference    date de reference posee sur le trimestre par ce formulaire, nulle sinon
      * @param trimestreVide    l'import a echoue apres avoir ouvert un trimestre qui n'existait pas :
-     *                         il reste vide (AUDIT_REPORT B5)
+     *                         il reste vide (audit initial B5)
      * @param lienTableauDeBord "/?trimestre=AAAA-N" apres un import calcule, nul sinon
      */
     public record Rapport(String nomFichier, String trimestreLibelle, String trimestreValeur, boolean simulation,
@@ -53,12 +53,9 @@ public record ImportPageView(Formulaire formulaire, Rapport rapport, String erre
                           String message, Calcul calcul, String erreurCalcul, LocalDate dateReference,
                           boolean trimestreVide, String lienTableauDeBord) {
 
-        public String statutBadge() {
-            return switch (statut) {
-                case "SUCCES" -> "bg-success";
-                case "PARTIEL" -> "bg-warning text-dark";
-                default -> "bg-danger";
-            };
+        /** Reussi, Partiel ou Echec (le code reste dans {@link #statut()}). */
+        public String statutLibelle() {
+            return com.talent360bank.talent360bank.entity.StatutImport.libelle(statut);
         }
     }
 
@@ -80,10 +77,15 @@ public record ImportPageView(Formulaire formulaire, Rapport rapport, String erre
      * Une entree du journal ImportExcel.
      *
      * @param trimestre   "T3 2026", nul si l'import a echoue avant de l'ouvrir
-     * @param utilisateur compte RH qui a lance l'import ; nul tant que l'import ne le renseigne pas
+     * @param utilisateur login du compte RH qui a lance l'import ; nul pour les imports d'avant ce suivi
      */
     public record LigneJournal(Integer idImport, LocalDate dateImport, String nomFichier, String trimestre,
                                String statut, Integer nbLignes, Integer nbErreurs, String utilisateur,
                                String message) {
+
+        /** Reussi, Partiel ou Echec. */
+        public String statutLibelle() {
+            return com.talent360bank.talent360bank.entity.StatutImport.libelle(statut);
+        }
     }
 }

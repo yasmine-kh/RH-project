@@ -106,8 +106,8 @@ public class SuiviCampagneViewService {
         remarques.add("Le classeur ne contient ni dates ni statut de campagne : seul l'avancement des évaluations "
                 + "du manager est suivi.");
         if (total.nbAutoEvaluations() == 0) {
-            remarques.add("Aucune auto-évaluation pour ce trimestre : l'import du classeur n'en contient pas, "
-                    + "leur nombre reste 0 tant qu'aucune source ne les fournit.");
+            remarques.add("Aucune auto-évaluation pour ce trimestre : le classeur n'en contient pas. "
+                    + "Elles sont affichées « Non importé » tant qu'aucun fichier ne les fournit.");
         }
         return new SuiviCampagne(new TrimestreFiche(annee, numero, TrimestreCourantService.libelle(trimestre),
                 trimestre.getDateReference()),
@@ -136,7 +136,7 @@ public class SuiviCampagneViewService {
                 return new Groupe(fille.getCode(), fille.getLibelle(), nom(fille.getType()), 0, new ArrayList<>());
             }
         }
-        throw new IllegalStateException("Collaborateur hors de l'entite demandee");
+        throw new IllegalStateException("Collaborateur hors de l'entité demandée");
     }
 
     /** L'entite du collaborateur puis ses parents, de la plus fine a la direction. */

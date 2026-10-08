@@ -6,7 +6,7 @@ package com.talent360bank.talent360bank.entity;
  * memes seuils, pas de reglage propre.
  */
 public enum CategoriePotentiel {
-    ELEVE("Eleve"),
+    ELEVE("Élevé"),
     MOYEN("Moyen"),
     FAIBLE("Faible");
 

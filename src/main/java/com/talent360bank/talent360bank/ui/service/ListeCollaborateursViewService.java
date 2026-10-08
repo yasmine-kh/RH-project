@@ -346,13 +346,13 @@ public class ListeCollaborateursViewService {
     /** Refuse les criteres hors bornes ou les codes inconnus (400) plutot que de rendre une liste vide. */
     static void verifier(Criteres c) {
         if (c.page() < 1) {
-            throw new IllegalArgumentException("La page commence a 1");
+            throw new IllegalArgumentException("La page commence à 1");
         }
         if (c.taille() < 1 || c.taille() > Criteres.TAILLE_MAX) {
-            throw new IllegalArgumentException("La taille de page doit etre entre 1 et " + Criteres.TAILLE_MAX);
+            throw new IllegalArgumentException("La taille de page doit être entre 1 et " + Criteres.TAILLE_MAX);
         }
         if (c.caseNeufBox() != null && (c.caseNeufBox() < 1 || c.caseNeufBox() > 9)) {
-            throw new IllegalArgumentException("La case 9-box doit etre entre 1 et 9");
+            throw new IllegalArgumentException("La case 9-box doit être entre 1 et 9");
         }
         connu("readiness", c.readiness(), Arrays.stream(NiveauReadiness.values()).map(Enum::name).toList());
         connu("vigilance", c.vigilance(), Arrays.stream(NiveauVigilance.values()).map(Enum::name).toList());

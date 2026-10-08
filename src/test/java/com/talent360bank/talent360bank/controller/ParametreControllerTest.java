@@ -435,7 +435,7 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.recalcul.erreur").value(
                         "Réglages enregistrés, mais le recalcul du trimestre a échoué : "
                                 + "Les seuils de la matrice 9-box ne sont pas configures. "
-                                + "Corriger puis relancer POST /api/trimestres/2026/1/calcul"));
+                                + "Corrigez les réglages puis enregistrez-les de nouveau pour relancer le calcul."));
 
         verify(parametreRepository).save(any(Parametre.class));
     }
@@ -453,7 +453,7 @@ class ParametreControllerTest {
                 .andExpect(jsonPath("$.recalcul.recalcule").value(false))
                 // Le detail technique reste dans le journal.
                 .andExpect(jsonPath("$.recalcul.erreur").value(org.hamcrest.Matchers.allOf(
-                        org.hamcrest.Matchers.containsString("erreur inattendue (voir le journal)"),
+                        org.hamcrest.Matchers.containsString("Vérifiez les réglages et réessayez."),
                         org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("detail interne")))));
     }
 
@@ -559,7 +559,7 @@ class ParametreControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erreur").value("requete_mal_formee"))
                 // Le detail de Jackson (classes internes) reste dans le journal.
-                .andExpect(jsonPath("$.message").value("Corps de la requete illisible (JSON mal forme ou valeur invalide)"));
+                .andExpect(jsonPath("$.message").value("Corps de la requête illisible (JSON mal formé ou valeur invalide)"));
     }
 
     @Test

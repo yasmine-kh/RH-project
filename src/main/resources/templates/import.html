@@ -6,11 +6,11 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Import du classeur (page propre a l'application, absente du prototype) : classes et jetons du
   prototype (.panel, .form-row, table). Envoi, simulation, date de reference, calcul, bilan et journal
   inchanges (ImportPageController).
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('import')}"></aside>
 
@@ -27,7 +27,7 @@
                 <div th:replace="~{fragments/import-rapport :: rapport(${vue.rapport})}"></div>
             </th:block>
 
-            <!-- Formulaire HTML classique : th:action ajoute le champ cache du jeton CSRF. -->
+            <!--/* Formulaire HTML classique : th:action ajoute le champ cache du jeton CSRF. */-->
             <form method="post" th:action="@{/import}" enctype="multipart/form-data" class="panel" id="formulaire-import">
                 <div class="panel-head"><h3>Importer un classeur</h3><span class="hint" th:text="|${vue.tailleMaxLibelle} au maximum|">10 Mo au maximum</span></div>
                 <div class="panel-body">
@@ -58,14 +58,14 @@
                 </div>
             </form>
 
-            <!-- Reponses brutes au questionnaire d'engagement (ImportQuestionnaireService) : enregistrees telles
+            <!--/* Reponses brutes au questionnaire d'engagement (ImportQuestionnaireService) : enregistrees telles
                  quelles pour un trimestre deja importe, visibles sur la fiche de chacun. Le score d'engagement du
-                 classeur (12_VIGILANCE) et les calculs ne changent pas. -->
+                 classeur (12_VIGILANCE) et les calculs ne changent pas. */-->
             <div class="alert crit" id="erreur-questionnaire" th:if="${erreurQuestionnaire != null}"><div class="sev">ERREUR</div>
                 <div class="txt" th:text="${erreurQuestionnaire}">Envoi refusé</div></div>
             <div class="panel" id="rapport-questionnaire" th:if="${rapportQuestionnaire != null}" th:with="r=${rapportQuestionnaire}">
                 <div class="panel-head"><h3 th:text="|Questionnaire — ${r.nomFichier}|">Questionnaire — reponses.xlsx</h3>
-                    <span class="statut-tag" th:text="${r.statut}">SUCCES</span></div>
+                    <span class="statut-tag" th:text="${r.statutLibelle()}">Réussi</span></div>
                 <div class="panel-body">
                     <p style="font-size:12.5px; margin:0 0 8px;" th:text="|${r.trimestreLibelle} : ${r.nbReponses} réponse(s) de ${r.nbCollaborateurs} collaborateur(s) enregistrée(s), ${r.nbQuestions} question(s) lue(s).|">T3 2026 : 40 réponses</p>
                     <div class="alert warn" th:if="${r.message != null}"><div class="sev">ATTENTION</div><div class="txt" th:text="${r.message}">Message</div></div>
@@ -103,7 +103,7 @@
                         <td><span th:text="${ligne.nomFichier}">classeur.xlsx</span>
                             <div style="font-size:11px; color:var(--muted);" th:if="${ligne.message != null}" th:text="${ligne.message}">Cause</div></td>
                         <td th:text="${ligne.trimestre} ?: '—'">T3 2026</td>
-                        <td><span class="statut-tag" th:text="${ligne.statut}">SUCCES</span></td>
+                        <td><span class="statut-tag" th:text="${ligne.statutLibelle()}">Réussi</span></td>
                         <td class="mono" th:text="${ligne.nbLignes}">3102</td>
                         <td class="mono" th:text="${ligne.nbErreurs}">0</td>
                         <td th:text="${ligne.utilisateur} ?: '—'">rh</td>

@@ -9,6 +9,6 @@ import java.util.List;
 public interface ImportExcelRepository extends JpaRepository<ImportExcel, Integer> {
 
     /** Journal complet, le plus recent en premier (l'identifiant suit l'ordre des imports). */
-    @Query("select i from ImportExcel i left join fetch i.trimestre order by i.idImport desc")
+    @Query("select i from ImportExcel i left join fetch i.trimestre left join fetch i.utilisateur order by i.idImport desc")
     List<ImportExcel> findAllRecentsDabord();
 }

@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  *
  * <p>Regle : le trimestre demande dans l'URL ({@code ?trimestre=AAAA-N}), sinon
  * le plus recent qui a des scores. Le plus recent cree ne suffit pas : un
- * trimestre ouvert avant son import (ou par un import en echec, AUDIT_REPORT
+ * trimestre ouvert avant son import (ou par un import en echec, audit initial
  * B5) n'a encore rien a montrer, et les ecrans resteraient vides alors que le
  * precedent a toutes ses donnees. Sans aucun trimestre calcule, le plus recent
  * cree ; sans aucun trimestre, rien.

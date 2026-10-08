@@ -63,7 +63,7 @@ public class SeuilsCategoriePerformance {
     }
 
     @Transient
-    @AssertTrue(message = "Les seuils des categories de performance doivent etre strictement decroissants")
+    @AssertTrue(message = "Les seuils des catégories de performance doivent être strictement décroissants")
     public boolean isOrdreValide() {
         return Poids.ordreDecroissant(seuilExceptionnelle, seuilElevee, seuilSolide, seuilARenforcer);
     }

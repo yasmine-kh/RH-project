@@ -128,11 +128,11 @@ public class PosteCritiqueService {
         Objects.requireNonNull(parametre, "parametre");
         SeuilsCouverture seuilsCouverture = parametre.getSeuilsCouverture();
         if (seuilsCouverture == null || seuilsCouverture.getNbMinSuccesseurs() == null) {
-            throw new DonneesIncompletesException("Le seuil de couverture des postes critiques n'est pas configure");
+            throw new DonneesIncompletesException("Le seuil de couverture des postes critiques n'est pas configuré");
         }
         SeuilsReadiness seuils = parametre.getSeuilsReadiness();
         if (seuils == null || seuils.getSeuilReadyNow() == null || seuils.getSeuilMoins1An() == null) {
-            throw new DonneesIncompletesException("Les seuils de readiness ne sont pas configures");
+            throw new DonneesIncompletesException("Les seuils de readiness ne sont pas configurés");
         }
 
         if (nbSuccesseurs < seuilsCouverture.getNbMinSuccesseurs()) {
@@ -191,7 +191,7 @@ public class PosteCritiqueService {
             }
             if (!collaborateur.estCalculable()) {
                 ignores.add(new CouverturePoste.SuccesseurIgnore(idCollaborateur,
-                        "Hors perimetre (statut " + collaborateur.getStatut() + ")"));
+                        "Hors périmètre (statut " + collaborateur.getStatut() + ")"));
                 continue;
             }
 

@@ -70,12 +70,15 @@ The rule is simple: **the engine must produce the same results as the workbook.*
 
 ### Screens
 
-Sidebar order: Accueil, Collaborateurs, 9-Box, Viviers, Postes critiques, Compétences, Comité Talent, Fiche collaborateur, Alertes, Notifications, Campagne, Import, Paramètres. Every screen by quarter has the quarter selector (`?trimestre=AAAA-N`) and, when no quarter exists yet, the same empty state with a link to `/import` (`fragments/commun.html` : `aucunTrimestre`, `choixTrimestre`). Text is always rendered with `th:text` (never `th:utext`, checked by `PagesSansTrimestreTest`).
+Sidebar order (RH): Tableau de bord RH, Campagne d'évaluation, Collaborateurs, Matrice 9-Box, Compétences & Gaps, Engagement & Fidélisation, Viviers, Postes critiques & Succession, Comité Talent, Talent Passport, Alertes, Historique, Notifications, Managers, Organigramme, Import, Paramètres (17 entries, numbered 01–17). Every screen by quarter has the quarter selector (`?trimestre=AAAA-N`) and, when no quarter exists yet, the same empty state with a link to `/import` (`fragments/commun.html` : `aucunTrimestre`, `choixTrimestre`). Text is always rendered with `th:text` (never `th:utext`, checked by `PagesSansTrimestreTest`).
 
 | URL | Status | What HR does there |
 |---|---|---|
 | `/` | Working | **Interactive** home dashboard ([below](#home-dashboard)): the prototype's 10 cards, charts (9-Box, entité, vigilance, performance, potential, viviers, alert types) and lists (collaborateurs, alertes, viviers), cross-filtered by clicking, filters kept in the URL (`?case=9&entite=…`). Quarter selector |
-| `/dashboard-dg` | Redirect | **Removed**: merged into `/`. `DashboardController` redirects to `/` (keeping `?trimestre=`) so old links don't 404. The JSON API `GET /api/dashboard/dg` and `TableauDeBordDgViewService` stay. |
+| `/dashboard-dg` | Redirect | **Removed**: merged into `/`. `DashboardController` redirects to `/` (keeping `?trimestre=`) so old links don't 404. The JSON API `GET /api/dashboard/dg`, `TableauDeBordDg` and `TableauDeBordDgViewService` are removed too (audit round 1, #24). |
+| `/carriere-mobilite` | Redirect | **Removed** from every menu (no data source); the route redirects to `/` for now (`PagesEnDeveloppementController`). |
+| `/engagement`, `/historique` | In development | Placeholder pages (`templates/placeholder.html`), the only pages with "En cours de développement" together with the Comité decisions on `/comite-talent` (checked by `ModulesPagesDatasetTest` and `FinitionsAuditTest`). |
+| `/mon-engagement`, `/auto-evaluation`, `/evaluation-manager` | Removed (404) | Only HR logs in, so no form for employees or managers: "Mon engagement" opens the fiche's imported questionnaire answers, the Vue manager shows the imported manager evaluations. |
 | `/collaborateurs` | Working | Employee list: filters (entité with subtree, 9-Box case, talent, pool, readiness, vigilance, name/matricule), sort by clicking the column headers (name, performance, potential, matching, vigilance), 20 rows per page; each name links to the fiche. `ListeCollaborateursViewService` → `templates/collaborateurs.html` |
 | `/9box` | Working | The matrix on the left (about 60 %), a **detail panel** on the right (below it on a phone). Cells show only case number + label, the count and the % (no names), all the same height; the whole cell is a link to `/9box?trimestre=…&case=N#detail` (works without JavaScript). The panel shows the case's label, a one-line meaning from the placement rule (`04_9BOX` has no description column), the count and its people (name → fiche, matricule, entité, performance, potential) with a search field (`q`) and a sort (`tri` = NOM / PERFORMANCE / POTENTIEL), and a **🖨 Imprimer** button next to the search field: it prints only the open case's list (label, count, table) with the current search and sort, under a print-only header with the quarter, the print date and the search / sort used (`.impression-entete`). `neufbox.js` applies the search/sort then calls `window.print()`; `@media print` in `app.css` (scoped by `body.impression-9box`) hides the sidebar, the top bar, the matrix, the thresholds panel, the forms and the buttons. No library. Talent clé (case 9) is open by default. `static/js/neufbox.js` (vanilla) switches the panel, filters and sorts in place with the 9 panels already in the page. Shared matrix fragment: calm cells, only Talent clé tinted, selected cell outlined. On `/`, the Vue manager and the Vue entité the same compact matrix links each cell to `/collaborateurs?case=N` with the page's filters (the Vue manager filters its own team table, `?case=N#equipe`). |
 | `/viviers` | Working | One card per thematic pool then the relief pool (`VivierSyntheseService`: members, talents, high potentials, Ready Now, averages, positions covered, gaps identified), then the saved pool members. Quarter selector |
@@ -83,8 +86,8 @@ Sidebar order: Accueil, Collaborateurs, 9-Box, Viviers, Postes critiques, Compé
 | `/competences` | Working | Per-skill table sorted by average gap (current / target / gap averages, with a gap, Prioritaire, level distribution as small bars), the top gaps, and each critical position's requirements against its successors; filters entité, pool, critical position. `CompetenceSyntheseService` → `templates/competences.html` |
 | `/comite-talent` | Working | Chooses a quarter and a committee status; sees the "Talents validés (Comité)" indicator and the table of proposed talents with scores, categories, 9-Box box and a coloured status badge. |
 | `/alertes` | Working | Alerts of the displayed quarter ([below](#alerts)), computed on the fly by the engine: counters per type and severity, table sorted by severity, filters by type, severity, direction and name. Quarter selector |
-| `/notifications` | Working | Counters per severity and type and the 10 most severe alerts with their links (`NotificationsViewService`, same figures as `/alertes`). `templates/notifications.html` |
-| `/campagne` | Working | Evaluation progress per direction (progress bars), click a direction to see its child entités, managers with missing evaluations, and what the data cannot show (`remarques`). `SuiviCampagneViewService` → `templates/campagne.html` |
+| `/notifications` | Working | Counters per severity and type and the 10 most severe alerts with their links (`NotificationsViewService`, same figures as `/alertes`). No preference switches (nothing would store them). `templates/notifications.html` |
+| `/campagne` | Working | Evaluation progress per direction (progress bars), click a direction to see its child entités, managers with missing evaluations, and what the data cannot show (`remarques`). Self-evaluations show "Non importé" while none is imported, like the dashboard. `SuiviCampagneViewService` → `templates/campagne.html` |
 | `/managers`, `/managers/{matricule}` | Working | Choice page (managers with team size), then the **Vue manager**: manager, entité, team size and averages, the team's 9-Box (shared matrix, with names), team table (name → fiche, scores, case, talent / HP, readiness on the target post, vigilance), the team's alerts and missing evaluations. `ProfilsPagesController` → `ProfilsPagesService` (reuses `VueManagerViewService` as is, plus `PosteCibleService` for readiness) → `templates/vue-manager.html` |
 | `/entites`, `/entites?code=…` | Working | **Organigramme** (RH menu): one card per direction (name, headcount, talents, alerts of the quarter), click → its départements as a collapsible tree (`<details>`, headcount on the right, each line links to its Vue entité), name search on top; then the **Vue entité**: clickable breadcrumb up the hierarchy, child entités with their figures (clickable), subtree KPIs (talents link to the filtered list), 9-Box (shared matrix; a box opens `/collaborateurs?entite=…&case=N`), critical positions of the subtree, high-vigilance alerts, managers. The code is a **query parameter** because it contains `/`. `VueEntiteViewService` as is → `templates/vue-entite.html` |
 | `/import` | Working | Uploads the dataset workbook (.xlsx) for a quarter, with simulation, "calculate after import" and an optional reference date; sees the report (status, rows per sheet, rejected rows with sheet + Excel row + reason, deactivations, calculation result or error, link to the quarter's dashboard) and the last 20 imports. [Below](#import-page) |
@@ -102,7 +105,7 @@ The sidebar then shows, under the selector, a banner "Vue : Manager — Nom Pré
 | Profile | Menu (prototype) → page |
 |---|---|
 | RH (DRH / Talent Manager) | the full menu (no "02 Tableau de bord DG": merged into the RH dashboard): Accueil, Collaborateurs, Managers (`/managers`), Organigramme (`/entites`), 9-Box … Paramètres |
-| Collaborateur | Mon profil → his fiche · Mon engagement → placeholder page linking to the fiche's imported questionnaire answers (`#questionnaire`) · Campagne d'évaluation → `/campagne?entite=<his entité>` · Notifications → `/alertes?q=<matricule>` (his alerts) |
+| Collaborateur | Mon profil → his fiche · Mon engagement → the fiche's imported questionnaire answers (`/fiche-collaborateur?matricule=…#questionnaire`) · Notifications → `/alertes?q=<matricule>` (his alerts). No form and no self-evaluation page: only HR logs in. |
 | Manager | Campagne d'évaluation → Vue manager `#evaluations` (missing evaluations) · Collaborateurs → Vue manager `#equipe` · Matrice 9-Box → Vue manager `#neufbox` · Talent Passport → `/fiche-collaborateur` · Alertes → Vue manager `#alertes` · Notifications → `/notifications` |
 | Comité Talent / Direction | Comité Talent · Postes critiques & Succession · Historique → `/import` (journal of imports: there is no trail of decisions yet) |
 
@@ -141,11 +144,11 @@ A selector is a GET form with a `<select name="trimestre">`, as on `dashboard.ht
 
 ### Home dashboard
 
-`GET /` → `ui/controller/DashboardController` → `ui/service/DashboardService` (the engine's cards, unchanged) and `ui/service/TableauDeBordInteractifService` (the interactive view) → `templates/dashboard.html` + `static/js/tableau-de-bord.js` + Chart.js 4.4.4 (`static/vendor/chartjs/chart.umd.js`, served locally, MIT licence header kept). `GET /dashboard-dg` redirects here. No engine figure is computed in the screen code.
+`GET /` → `ui/controller/DashboardController` → `ui/service/DashboardService` (only the engine figures the page shows) and `ui/service/TableauDeBordInteractifService` (the interactive view) → `templates/dashboard.html` + `static/js/tableau-de-bord.js` + Chart.js 4.4.4 (`static/vendor/chartjs/chart.umd.js`, served locally, MIT licence header kept). `GET /dashboard-dg` redirects here. No engine figure is computed in the screen code.
 
 **Layout** (Power BI / Qlik style, prototype tokens and cards): **cards** on top, **charts** in the middle, **lists** at the bottom.
 
-- *Cards*: exactly the prototype's 10 (`renderDashRH`), in its order, 2 rows of 5, same style (coloured left border, icon, label): 👥 Population, ⭐ Talents validés, 🚀 Hauts potentiels, 🔄 Viviers actifs, 👔 Postes critiques / 🔗 Couverture succession, 🟢 Ready Now (engine card *Successeurs Ready Now*), ❤️ Engagement (N réponses), 🔴 Postes sans relève, 🧩 Gaps critiques (engine card *Postes critiques en alerte*: fewer successors than the minimum, the prototype's `gapsCritiques`). Population, Talents validés, Hauts potentiels, Viviers actifs and Engagement follow the filters (recounted on the filtered people with the engine's definitions; engagement = average of their questionnaire scores, 2 decimals HALF_UP like `DashboardService`; card colour by the prototype rule ≥ 75 teal, ≥ 60 gold, else rust). The 5 critical-position cards are the engine's cards as is and do not follow the filters (they count positions, not people). Without filter every card equals the engine card. The other engine cards (talents proposés, talents clés, relève, à risque, alertes, compétences en gap, postes couverts, campaign) are no longer on this page; they stay in `DashboardService` and `GET /api/dashboard/dg`, and their figures are on `/collaborateurs` (filters), `/notifications`, `/campagne`, `/competences` and `/postes-critiques`.
+- *Cards*: exactly the prototype's 10 (`renderDashRH`), in its order, 2 rows of 5, same style (coloured left border, icon, label): 👥 Population, ⭐ Talents validés, 🚀 Hauts potentiels, 🔄 Viviers actifs, 👔 Postes critiques / 🔗 Couverture succession, 🟢 Successions Ready Now (engine card *Successeurs Ready Now*), ❤️ Engagement (N réponses), 🔴 Postes sans relève, 🧩 Gaps critiques (engine card *Postes critiques en alerte*: fewer successors than the minimum, the prototype's `gapsCritiques`). Population, Talents validés, Hauts potentiels, Viviers actifs and Engagement follow the filters (recounted on the filtered people with the engine's definitions; engagement = average of their questionnaire scores, 2 decimals HALF_UP like `DashboardService`; card colour by the prototype rule ≥ 75 teal, ≥ 60 gold, else rust). The 5 critical-position cards are the engine's cards as is and do not follow the filters (they count positions, not people). Without filter every card equals the engine card. The other engine figures (talents proposés, talents clés, relève, à risque, alertes, compétences en gap, postes couverts, campaign) are not on this page and are no longer built by `DashboardService`; their figures are on `/collaborateurs` (filters), `/notifications`, `/campagne`, `/competences` and `/postes-critiques`.
 - *Charts*: 9-Box matrix (HTML cells, counts only), collaborateurs by entité (direction, horizontal bar), vigilance levels (doughnut), performance category, potential category, viviers (members per pool, the relief pool in gold), alertes by type (horizontal bar). All six requested charts have a data source; none was skipped. Performance and potential are shown **by engine category** (Exceptionnelle… / Élevé…), not by score band: bands would be a new calculation.
 - *Lists*: collaborateurs (performance + potential descending, the former top-talents rule; name → fiche), alertes (same lines as `/alertes`; link to the fiche, the position or the committee), viviers (each pool and its filtered members, names → fiche).
 
@@ -163,33 +166,28 @@ Data: `ListeCollaborateursViewService.population` (all calculated people, unpage
 
 Without settings for the quarter (`tableau.erreur`), only the engine's available cards and the reason show. The former blocks (alerts panel, pools table with averages, DG bench strength and top talents) are replaced by the charts and lists: top talents are the head of the collaborateurs list, positions in alert are in the alert list, and the bench strength per position stays on `/postes-critiques`.
 
-The engine cards the page reads (unchanged, also served by `GET /api/dashboard/dg`):
+`DashboardService` builds only what the page shows (audit round 1, #25): the 5 critical-position cards and
+the 9-Box counts; without settings, the "Collaborateurs actifs" and "Engagement moyen" cards with the reason. Alerts
+are computed once, by `TableauDeBordInteractifService` (the alert list).
 
 | Card | Source | Workbook (`00_DASHBOARD`) |
 |---|---|---|
-| Collaborateurs actifs | employees with status ACTIF (today) | A6 counts every row of `01_COLLABORATEURS` |
-| Talents validés par le Comité | proposed talents with committee decision "Oui" | E6 |
-| Hauts potentiels | potential ≥ 85 and performance ≥ 75 | G6 |
-| Vivier de succession (relève) | talent OR high potential | — |
-| Viviers actifs | thematic pools with at least one member | — |
 | Postes critiques | critical positions followed | C6 |
 | Couverture succession | % of critical positions not in alert | A10 (rounded) |
-| Successeurs Ready Now | (critical position, identified successor) pairs at Ready Now | C10 |
+| Successeurs Ready Now (shown as "🟢 Successions Ready Now") | (critical position, identified successor) pairs at Ready Now | C10 |
 | Postes critiques sans successeur | critical positions with no identified successor | E10 |
 | Postes critiques en alerte | fewer successors than the minimum setting (same as above while the minimum is 1) | — |
-| À risque (vigilance modérée ou élevée) | vigilance list (`EntreesVigilance` rule: active employees with at least one input) | E15 + G15 |
-| Compétences en gap prioritaire | skills of active employees whose gap reaches the quarter's threshold | G10 |
-| Engagement moyen /100 (N réponses) | average questionnaire score of active employees | — |
-| Talents proposés | performance and potential ≥ the talent thresholds (`SyntheseTableauDeBord.nbTalents`) | `10_TALENTS` E = Oui |
-| Talents clés (9-Box) | count of the 9-Box case performance 3 / potential 3 | block 2, "Talent clé" |
-| Postes critiques couverts | critical positions with at least one identified successor (prototype `postesCouverts`) | C6 − E10 |
-| Alertes ouvertes | total of the quarter's alerts (same list as `/alertes`, `TableauDeBordView.nbAlertes`) | — |
+| Collaborateurs actifs, Engagement moyen /100 (N réponses) | without settings only | — |
 
-`TableauDeBordDatasetTest` checks every engine card and the 9-Box counts against the workbook; `TableauDeBordPageIntegrationTest` checks every engine card on H2, the page layout, and the 10 cards (order, labels, colours, which ones follow the filters, equal to the engine without filter); `ModulesPagesDatasetTest` checks the 10 cards against the workbook (100, 8, 21, 5 viviers, 15, 93.33 %, 16, engagement, 1, 1), the figures of the removed cards on the pages that still show them (10 talents proposés, 21 relève and 10 Talent clé on `/collaborateurs`, 45 at risk by vigilance filter, 23 alerts on `/notifications`, 100 / 100 evaluations and no auto-evaluation on `/campagne`, 14 covered positions on `/postes-critiques`), `?case=9` (exactly the 10 Talent clé people of `04_9BOX`), stacked filters, chip removal links, ignored values, and that the embedded data is escaped; `LiensEtMatriceDatasetTest` checks the 9-Box cell links (`/?trimestre=2026-3&case=9`). The script itself is not run by the Java tests (MockMvc has no JavaScript).
+The people cards (Population, Talents validés, Hauts potentiels, Viviers actifs, Engagement) are counted by
+`TableauDeBordInteractifService` on the quarter's population; without filter they equal the engine's
+`SyntheseTableauDeBord` (talents validés E6, hauts potentiels G6).
+
+`TableauDeBordDatasetTest` checks the cards, the engine figures that are not cards (à risque, gaps prioritaires, vigilance) and the 9-Box counts against the workbook; `TableauDeBordPageIntegrationTest` checks the engine cards and the hand-computed figures on H2, the page layout, and the 10 cards (order, labels, colours, which ones follow the filters, equal to the engine without filter); `ModulesPagesDatasetTest` checks the 10 cards against the workbook (100, 8, 21, 5 viviers, 15, 93.33 %, 16, engagement, 1, 1), the figures of the removed cards on the pages that still show them (10 talents proposés, 21 relève and 10 Talent clé on `/collaborateurs`, 45 at risk by vigilance filter, 23 alerts on `/notifications`, 100 / 100 evaluations and no auto-evaluation on `/campagne`, 14 covered positions on `/postes-critiques`), `?case=9` (exactly the 10 Talent clé people of `04_9BOX`), stacked filters, chip removal links, ignored values, and that the embedded data is escaped; `LiensEtMatriceDatasetTest` checks the 9-Box cell links (`/?trimestre=2026-3&case=9`). The script itself is not run by the Java tests (MockMvc has no JavaScript).
 
 ### Alerts
 
-`/alertes` (`AlertesController` → `ui/service/AlertesViewService` → `templates/alertes.html`). No alert table: the alerts are recomputed from the engine on each request, for the displayed quarter. `AlertesViewService.alertes(trimestre)` is also the source of the dashboard's panel.
+`/alertes` (`AlertesController` → `ui/service/AlertesViewService` → `templates/alertes.html`). No alert table: the alerts are recomputed from the engine on each request, for the displayed quarter. `AlertesViewService.alertes(trimestre)` is also the source of the dashboard's alert list.
 
 | Type | Severity | Rule (source) | Subject / link |
 |---|---|---|---|
@@ -212,7 +210,7 @@ The engine cards the page reads (unchanged, also served by `GET /api/dashboard/d
 
 Not implemented, because no data source exists: late development-plan actions (`11_DEVELOPMENT_PLAN` not imported), the alert lifecycle of the prototype (new / in progress / treated: needs a persisted alert), "compétence stratégique insuffisante" (no critical-skill flag in the reference data).
 
-`AlertesPageIntegrationTest` (H2) covers each type, the counters, the filters, `?trimestre=`, the 404 and the equality with the dashboard panel; `AlertesDatasetTest` checks the workbook (1 position without successor = E10, 10 high vigilance = E15, 23 alerts in total). `AlertesNotificationsCampagneDatasetTest` checks the new rules on the workbook (no position with exactly 1 successor in `08`, no new talent with a single quarter) and a two-quarter scenario (BP019 below the talent threshold in T2 → the only new talent of T3).
+`AlertesPageIntegrationTest` (H2) covers each type, the counters, the filters, `?trimestre=`, the 404 and the equality with the dashboard's alert list; `AlertesDatasetTest` checks the workbook (1 position without successor = E10, 10 high vigilance = E15, 23 alerts in total). `AlertesNotificationsCampagneDatasetTest` checks the new rules on the workbook (no position with exactly 1 successor in `08`, no new talent with a single quarter) and a two-quarter scenario (BP019 below the talent threshold in T2 → the only new talent of T3).
 
 ### Notifications
 
@@ -244,9 +242,12 @@ Tests: `AlertesNotificationsCampagneDatasetTest` (actives and evaluated per dire
 - **Size limit.** The browser checks the size before sending. If a bigger file still reaches the server, Tomcat refuses it before Spring: the CSRF token in the body cannot be read, Spring Security forwards to `/erreur/403`, and the size error is raised there. `TailleImportAdvice` recognises the original URL and redirects to `/import?erreur=taille` (message). Tested on a real server (`ImportPageHttpTest`). A very large file can still end in a connection reset (Tomcat stops reading the upload).
 - **Lock.** The whole upload (import + calculation) runs under `VerrouCalculTrimestre` for that quarter: a second upload, or a recalculation started elsewhere, gets "Un calcul est déjà en cours" instead of running in parallel. API imports (`POST /api/imports`) do **not** take it (AUDIT B6, for Dou).
 - **Reference date.** Set after a successful import with `TrimestreService.modifierDateReference` (nothing stored depends on it, no recalculation).
-- **Empty quarter (AUDIT B5).** Not prevented by the import: format, period and unreadable-file failures stop before the quarter is created, but an import that fails afterwards (no readable row, unexpected error) leaves the new quarter empty. The screens are not affected (the displayed quarter is the latest one **with scores**), and the page warns when it happens. For Dou.
+- **Empty quarter (audit B5).** Not prevented by the import: format, period and unreadable-file failures stop before the quarter is created, but an import that fails afterwards (no readable row, unexpected error) leaves the new quarter empty. The screens are not affected (the displayed quarter is the latest one **with scores**), and the page warns when it happens. For Dou.
 - **One workbook, one quarter.** The workbook announces its own period (`PeriodeClasseur`: file name, rows 1–3 of every sheet; `TALENT_360_BANK_Dataset_V1.xlsx` says "au 15/09/2026" in `00_DASHBOARD` A2, i.e. T3 2026). Choosing another quarter (e.g. T4 2026) is refused before anything is written: report status `ECHEC`, message *Le classeur porte une autre periode que T4 2026, rien n'a ete importe : T3 2026 (00_DASHBOARD A2 : "15/09/2026"). Verifier le fichier ou le trimestre choisi.*, no quarter created, one `ECHEC` line in the journal (`ImportAutreTrimestreDatasetTest`). To load T4, use the T4 workbook (its own date); re-importing the T3 data under T4 would give a T4 identical to T3 except where the history changes the result (see the note in [section 12](#12-current-status-and-whats-left)).
 - **Report** (`ImportPageView.Rapport`) does not depend on the form: the coming folder import can render one per file with the same fragment, from a second form and POST in `ImportPageController`.
+- **Statuses** are shown in plain French: Réussi / Partiel / Échec (`StatutImport.libelle`; the stored codes stay `SUCCES` / `PARTIEL` / `ECHEC`).
+- **Unexpected errors** show "L'import a échoué. Vérifiez le fichier et réessayez." (`ImportService.MESSAGE_ECHEC`); the technical detail goes only to the log.
+- **User.** Each journal row records the logged-in RH account (`ImportExcel.utilisateur`, column `import_excel.id_utilisateur`, via `securite/UtilisateurCourant`), shown in the history's "Utilisateur" column; older rows show "—".
 - `th:text` only: sheet names, reasons and messages come from the uploaded file.
 
 - **Questionnaire answers** (second form, `POST /import/questionnaire`, fields `fichier` and `trimestre` = an existing quarter): see [Questionnaire answers](#questionnaire-answers). Its report is shown above the form (`rapportQuestionnaire`, `erreurQuestionnaire`); the import is logged in the same journal with source `QUESTIONNAIRE_ENGAGEMENT`.
@@ -425,8 +426,7 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Dashboard | `GET /api/dashboard/synthese` |
 | Notifications | `GET /api/notifications` (counters + 10 alerts), `GET /api/notifications/badge` (bell, cheap) ([below](#notifications)) |
 | Campaign | `GET /api/trimestres/{annee}/{numero}/campagne[?entite=]` ([below](#campaign-progress)) |
-| DG dashboard | `GET /api/dashboard/dg?annee=&numero=[&limite=8]` ([below](#collaborateurs-list-and-dg-dashboard)) |
-| Employee list | `GET /api/trimestres/{annee}/{numero}/collaborateurs` with optional `entite`, `case`, `talent`, `vivier`, `readiness`, `vigilance`, `q`, `tri`, `ordre`, `page`, `taille` ([below](#collaborateurs-list-and-dg-dashboard)) |
+| Employee list | `GET /api/trimestres/{annee}/{numero}/collaborateurs` with optional `entite`, `case`, `talent`, `vivier`, `readiness`, `vigilance`, `q`, `tri`, `ordre`, `page`, `taille` ([below](#collaborateurs-list)) |
 | Quarters | `GET /api/trimestres`, `POST /api/trimestres` (`annee`, `numero`, optional `dateReference`), `PUT /api/trimestres/{annee}/{numero}` (`dateReference`), `POST .../calcul` |
 | Import | `POST /api/imports` (workbook upload), `GET /api/imports` (journal) |
 | Employees | `GET /api/collaborateurs`, `GET /api/collaborateurs/{id}` (both return `CollaborateurResponse`, never the entity), `POST /api/collaborateurs`, `DELETE /api/collaborateurs/{id}` |
@@ -526,9 +526,9 @@ Both are engine services (Jas) with a JSON endpoint; the screens (Ima) only disp
 
 Tests: `SuccessionViviersDatasetTest` (the workbook: `09!M` on all 44 rows, every successor of PST01 and PST13, every pool summary against `10_TALENTS` / `09_SUCCESSION`, target posts of BP001, BP003, BP019), `PosteCibleServiceTest`, `VivierSyntheseServiceTest`, `SuccessionServiceTest` (largest gap), `PosteCibleEtVivierSyntheseControllerTest` (JSON contract), `SansSessionOuverteIntegrationTest` (fixed number of queries).
 
-### Collaborateurs list and DG dashboard
+### Collaborateurs list
 
-Two read-only views (Jas) built from the engine's results, for the Collaborateurs and DG screens (Ima). Neither adds a formula: they assemble, filter, sort and count.
+A read-only view (Jas) built from the engine's results, for the Collaborateurs screen (Ima). It adds no formula: it assembles, filters, sorts and counts.
 
 **Employee list**: `ui/service/ListeCollaborateursViewService.construire(annee, numero, criteres)` → `ui/model/ListeCollaborateurs`; `controller/ListeCollaborateursController` returns it at `GET /api/trimestres/{annee}/{numero}/collaborateurs`.
 
@@ -540,14 +540,12 @@ Two read-only views (Jas) built from the engine's results, for the Collaborateur
 - **Pagination:** `page` from 1, `taille` 1–100 (default 20). The response gives `nbTotal` (before filters), `nbFiltres`, `nbPages`, and the `criteres` actually applied.
 - **Queries:** a fixed number (24) whatever the population: everything is read in batches, then filtered in memory.
 
-**DG dashboard**: `ui/service/TableauDeBordDgViewService.construire(trimestre, limite)` → `ui/model/TableauDeBordDg`; `controller/TableauDeBordDgController` at `GET /api/dashboard/dg?annee=&numero=&limite=`. The DG **page** no longer exists (merged into the RH dashboard, `/dashboard-dg` redirects to `/`): the home page calls `construireAccueil(trimestre, 8)`, which returns the RH view and the DG data from one `DashboardService` construction, and shows `postesCritiques` (bench strength) and `topTalents`. The service and the API stay.
+The DG dashboard (page, `GET /api/dashboard/dg`, `TableauDeBordDgViewService`) was merged into the home page and
+then removed (audit round 1, #24): its top talents are the head of the dashboard's collaborateurs list (same order:
+performance + potential descending, then performance, then matricule, `TableauDeBordInteractifService.ORDRE`) and the
+bench strength per position is on `/postes-critiques`.
 
-- `kpis` and `neufBox`: **the same cards and grid as the home dashboard** (`DashboardService.construireAvecSynthese`), never recalculated.
-- `postesCritiques[]`, one per critical position (from the dashboard's own `PosteCritiqueService` coverage): `nbSuccesseurs` (08!G), `nbReadyNow` (successors at Ready Now, 09!L), `meilleurSuccesseur` {`matricule`, `nomComplet`, `scoreMatching`, `readiness`} or null, `couverture` + `couvertureLibelle`, `alerte`.
-- `topTalents[]`: proposed talents (10_TALENTS!E). **The workbook has no ranking**, so the rule is `TableauDeBordDg.REGLE_TOP_TALENTS`: performance + potential descending, then performance descending, then matricule (to be confirmed with the client). Each one: `rang`, scores, `scoreCumule`, `estHautPotentiel`, `decisionComite`, `estTalentValide`, `posteCible`. `limite` 1–50, default 8 (the prototype shows 8).
-- Without settings, `erreur` explains it and only the cards that do not depend on them are present.
-
-Tests: `CollaborateursDgDatasetTest` (the workbook: counts per 9-box case vs `00_DASHBOARD`, talents and validated talents, pools, vigilance, entité subtree, sort and pagination, every critical position's successors / Ready Now / best successor vs 08 and 09, top talents order, same cards as the home dashboard), `ListeCollaborateursViewServiceTest` (filters, sort, pagination, invalid criteria, top-talents order), `ListeCollaborateursEtDgControllerTest` (JSON contract, 400, 404, 401), `SansSessionOuverteIntegrationTest` (fixed number of queries).
+Tests: `CollaborateursDatasetTest` (the workbook: counts per 9-box case vs `00_DASHBOARD`, talents and validated talents, pools, vigilance, entité subtree, sort and pagination, every critical position's successors / Ready Now / best successor vs 08 and 09, order of the proposed talents on the dashboard), `ListeCollaborateursViewServiceTest` (filters, sort, pagination, invalid criteria, talents order), `ListeCollaborateursControllerTest` (JSON contract, 400, 404, 401), `SansSessionOuverteIntegrationTest` (fixed number of queries).
 
 ### Compétences module
 
@@ -1119,7 +1117,15 @@ The application holds personal data, so it is designed to be reachable **only fr
 
 - **An old MySQL password is in the public git history** (commits `17a709c`, `414361d`; the repository is public). It must be changed wherever it was used; it's no longer in the code.
 - **Write endpoints bind entities** in `CollaborateurController` and `CompetenceController` (`POST` with an entity as `@RequestBody`, no validation) and allow deletions. They are RH only, but should take a validated form.
-- **Bootstrap is loaded from a CDN.** That's an outside request, and the screens break with no internet.
+
+**Conventions (audit round 1)**
+
+- Template comments are Thymeleaf parser comments `<!--/* … */-->`: they are not sent to the browser
+  (`FinitionsAuditTest` fails on a plain `<!-- -->`).
+- Display labels and messages are in French with accents (Modérée, Élevée, À renforcer, Maîtrisé, À développer…);
+  enum codes are unchanged. Counts of talents always say which ones: "Talents proposés" or "Talents validés".
+- The original logo `BP-Logo.png` is kept in `docs/assets/`, not served; the app serves `BP-Embleme.png` and
+  `BP-Logo-Complet.png`.
 
 ---
 
@@ -1246,7 +1252,7 @@ git push -u origin feature/my-change
 - Vue manager and Vue entité pages, profile selector in the sidebar, cross links manager / entité, French 404 page.
 - Alerts "Un seul successeur" and "Nouveau talent identifié", notifications and bell badge (`/api/notifications[/badge]`), campaign progress per direction (`/api/trimestres/{a}/{n}/campagne`).
 - Compétences module (`/api/trimestres/{a}/{n}/competences`: per skill, top gaps, what each critical position's successors lack), checked against `06`, `07`, `09` and G10.
-- Employee list (filters, sort, pagination: `/api/trimestres/{a}/{n}/collaborateurs`) and DG dashboard (`/api/dashboard/dg`), checked against the workbook.
+- Employee list (filters, sort, pagination: `/api/trimestres/{a}/{n}/collaborateurs`), checked against the workbook.
 - Largest gap per successor (`09_SUCCESSION!M`), every successor of each critical position, pool summaries (`/api/viviers/synthese`) and target post per employee (`/api/trimestres/{a}/{n}/postes-cibles`, fiche `posteCible`), checked against the workbook.
 - Self-evaluation and manager evaluation stored side by side (`source` on `Performance` / `Potentiel`), official score blended by `PonderationSources` (default manager only), fiche `autoEvaluation` and manager view `autoVsManager` (audit R1d).
 
@@ -1262,9 +1268,8 @@ git push -u origin feature/my-change
 **Ima — UI**
 
 - Quarter selector on `/9box` and `/viviers`: the `trimestre` and `trimestres` model attributes are already there ([Displayed quarter](#displayed-quarter-all-screens)).
-- Screens still to build: Paramètres (writes need the header; see [`requetes-ecriture.md`](requetes-ecriture.md)). `/import` needs an entry in the sidebar (Ima).
-- Import (Dou): lock `POST /api/imports` like the page does (B6); avoid the empty quarter left by a failed import (B5); fill `ImportExcel.utilisateur` (the history's "Utilisateur" column stays empty until then).
-- Serve Bootstrap and its icons locally, so the app works offline.
+- Screens still to build: Engagement & Fidélisation (`/engagement`), Historique (`/historique`), the Comité decisions on `/comite-talent`.
+- Import (Dou): lock `POST /api/imports` like the page does (B6); avoid the empty quarter left by a failed import (B5).
 - Fiche page: show `posteCible` and `successions[].gapCompetence` (the model has them).
 - Page tests for `/`, `/9box`, `/viviers`.
 

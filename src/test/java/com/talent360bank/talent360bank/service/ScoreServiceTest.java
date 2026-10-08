@@ -242,7 +242,7 @@ class ScoreServiceTest {
 
     /**
      * Les scores existants du trimestre sont lus en une fois et mis a jour sur
-     * place : aucune recherche par collaborateur (N+1, AUDIT_REPORT 3.4).
+     * place : aucune recherche par collaborateur (N+1, audit initial 3.4).
      */
     @Test
     void leRecalculMetAJourLesScoresExistantsSansLesChercherUnParUn() {
@@ -439,7 +439,7 @@ class ScoreServiceTest {
 
         assertThatThrownBy(() -> scoreService.recalculerTrimestre(trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
-                .hasMessageContaining("Aucun parametre");
+                .hasMessageContaining("Aucun paramètre");
 
         verify(scoreRepository, never()).save(any());
     }

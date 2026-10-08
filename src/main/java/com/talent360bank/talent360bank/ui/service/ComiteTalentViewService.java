@@ -96,21 +96,11 @@ public class ComiteTalentViewService {
                 score.getCategoriePotentiel() == null ? null : score.getCategoriePotentiel().getLibelle(),
                 score.getPositionBox(),
                 statut.name(),
-                statut.getLibelle(),
-                badgeClass(statut));
-    }
-
-    static String badgeClass(StatutValidationComite statut) {
-        return switch (statut) {
-            case OUI -> "bg-success";
-            case EN_ATTENTE -> "bg-warning text-dark";
-            case NON -> "bg-danger";
-        };
+                statut.getLibelle());
     }
 
     private KpiCard kpi(int talentsValides) {
-        return new KpiCard("Talents valides (Comite)", String.valueOf(talentsValides),
-                "bi-patch-check", "kpi-green");
+        return new KpiCard("Talents validés (Comité)", String.valueOf(talentsValides));
     }
 
     /** Tous, puis chaque statut avec son effectif sur le trimestre. */

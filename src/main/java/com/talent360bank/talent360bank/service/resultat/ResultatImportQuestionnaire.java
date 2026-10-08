@@ -15,4 +15,9 @@ import java.util.List;
 public record ResultatImportQuestionnaire(String nomFichier, String trimestreLibelle, String trimestreValeur,
                                           String statut, int nbCollaborateurs, int nbReponses, int nbQuestions,
                                           List<String> erreurs, String message) {
+
+    /** Reussi, Partiel ou Echec. */
+    public String statutLibelle() {
+        return com.talent360bank.talent360bank.entity.StatutImport.libelle(statut);
+    }
 }

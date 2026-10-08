@@ -6,14 +6,14 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Talent Passport : balisage de renderPassportShell() / buildPassportHTML() du prototype. Toutes les
   valeurs viennent de la fiche du moteur (FicheCollaborateurViewService). Les blocs du prototype sans
   donnee (aspirations, detail du matching, plan de developpement) sont absents ; l'engagement (score et
   questionnaire du prototype) n'est pas affiche sur le Talent Passport, il reste dans le module Engagement,
   l'import et les calculs. Les blocs propres a la fiche (notes, vigilance, successions, historique,
   auto-evaluation, reponses au questionnaire importees) suivent.
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('fiche-collaborateur')}"></aside>
 
@@ -32,7 +32,7 @@
                 <noscript><button type="submit" class="btn">Rechercher</button></noscript>
             </form>
 
-            <!-- Personne sans donnee : la disposition du prototype avec le message, jamais une page vide. -->
+            <!--/* Personne sans donnee : la disposition du prototype avec le message, jamais une page vide. */-->
             <div class="panel" th:if="${erreur != null}"><div class="panel-body">
                 <div class="empty-state">Aucune donnée pour ce collaborateur.
                     <div style="font-size:11.5px; margin-top:6px;" th:text="${erreur}">Aucun collaborateur BP999</div></div>
@@ -92,7 +92,7 @@
                             th:attr="data-matching-poste=${pc.posteId},data-matching-matricule=${id.matricule},data-matching-trimestre=${trimestreFiche}">
                         <div class="match-bd"><span>Matching</span><div class="bar-track"><div class="bar-fill" th:style="|width:${pc.scoreMatching}%|"></div></div><span
                                 class="mono" th:text="|${pc.scoreMatching}%|">90.23%</span></div>
-                        <!-- Sous-scores du matching (API /api/postes/{poste}/candidats/{matricule}), remplis par prototype.js. -->
+                        <!--/* Sous-scores du matching (API /api/postes/{poste}/candidats/{matricule}), remplis par prototype.js. */-->
                         <div class="matching-detail"></div>
                         <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">Readiness : <th:block th:replace="~{fragments/prototype :: readiness(${pc.readiness}, ${pc.readinessLibelle})}"></th:block>
                             · Gap principal : <b th:text="${pc.gapCompetence != null} ? |${pc.gapCompetence} (${pc.gapNiveaux} niveau(x))| : 'Aucun gap majeur'">Aucun gap majeur</b>
@@ -101,7 +101,7 @@
                     </div></div>
                     <div class="panel" th:if="${fiche.posteCible == null}"><div class="panel-body empty-state">Ce collaborateur n'a actuellement aucun poste cible.</div></div>
 
-                    <!-- Blocs de la fiche du moteur, absents du prototype. -->
+                    <!--/* Blocs de la fiche du moteur, absents du prototype. */-->
                     <div class="grid-2">
                         <div class="panel" th:each="axe : ${ {'Performance', 'Potentiel'} }" th:with="ev=${axe == 'Performance' ? fiche.performance : fiche.potentiel}">
                             <div class="panel-head"><h3 th:text="|${axe} — évaluation du manager|">Performance</h3>
@@ -137,9 +137,9 @@
                                 <td th:text="${h.scorePotentiel} ?: '—'">90</td><td><th:block th:replace="~{fragments/box9 :: case9(${h.neufBox != null} ? ${h.neufBox.numero} : null, ${h.neufBox != null} ? ${h.neufBox.libelle} : null)}"></th:block></td></tr></tbody></table>
                     </div></div>
 
-                    <!-- Reponses importees du fichier de reponses au questionnaire (ReponsesQuestionnaireViewService),
+                    <!--/* Reponses importees du fichier de reponses au questionnaire (ReponsesQuestionnaireViewService),
                          telles quelles, dans l'ordre des colonnes du fichier (Q01, Q02...), sans regroupement ; colonne
-                         Theme affichee seulement si une reponse a un theme ; trimestre choisi par ?questionnaire=AAAA-N. -->
+                         Theme affichee seulement si une reponse a un theme ; trimestre choisi par ?questionnaire=AAAA-N. */-->
                     <div class="panel" id="questionnaire"><div class="panel-head"><h3>Réponses au questionnaire</h3>
                         <form method="get" th:action="@{/fiche-collaborateur} + '#questionnaire'" class="filters" style="margin:0;">
                             <input type="hidden" name="matricule" th:value="${id.matricule}">

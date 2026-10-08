@@ -7,7 +7,6 @@ import com.talent360bank.talent360bank.service.CalculTrimestreService;
 import com.talent360bank.talent360bank.service.ImportService;
 import com.talent360bank.talent360bank.service.TrimestreService;
 import com.talent360bank.talent360bank.ui.model.AlertesView;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordView;
 import com.talent360bank.talent360bank.ui.service.AlertesViewService;
 import com.talent360bank.talent360bank.ui.service.DashboardService;
 import org.junit.jupiter.api.BeforeAll;
@@ -52,10 +51,12 @@ class AlertesDatasetTest {
     private AlertesViewService alertesViewService;
     @Autowired
     private DashboardService dashboardService;
+    @Autowired
+    private com.talent360bank.talent360bank.ui.service.TableauDeBordInteractifService tableauDeBordInteractif;
 
     private LecteurXlsx classeur;
     private AlertesView vue;
-    private TableauDeBordView tableau;
+    private com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif tableau;
     private Map<String, Integer> parType;
 
     static boolean classeurPresent() {
@@ -74,7 +75,7 @@ class AlertesDatasetTest {
 
         classeur = new LecteurXlsx(FICHIER);
         vue = alertesViewService.construire(t3, AlertesView.Filtres.AUCUN);
-        tableau = dashboardService.construire(t3);
+        tableau = tableauDeBordInteractif.construire(t3, dashboardService.construire(t3), Map.of());
         parType = vue.parType().stream()
                 .collect(Collectors.toMap(AlertesView.Compteur::code, AlertesView.Compteur::nombre));
     }
@@ -103,8 +104,10 @@ class AlertesDatasetTest {
     }
 
     @Test
-    void le_total_est_celui_du_panneau_du_tableau_de_bord() {
-        assertThat(tableau.nbAlertes()).isEqualTo(vue.total());
-        assertThat(tableau.alertes()).isEqualTo(vue.alertes().subList(0, TableauDeBordView.ALERTES_AFFICHEES));
+    void le_total_est_celui_de_la_liste_du_tableau_de_bord() {
+        // Le tableau de bord liste toutes les alertes de l'ecran Alertes, dans le meme ordre.
+        assertThat(tableau.alertes()).hasSize(vue.total());
+        assertThat(tableau.alertes()).extracting(a -> a.type() + "|" + a.matricule())
+                .containsExactlyElementsOf(vue.alertes().stream().map(a -> a.type().name() + "|" + a.matricule()).toList());
     }
 }

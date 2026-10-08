@@ -85,7 +85,7 @@ public class ParametreController {
         Trimestre trimestre = chargeur.exigerTrimestre(annee, numero);
         if (parametreRepository.existsByTrimestre(trimestre)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Des reglages existent deja pour T" + numero + " " + annee);
+                    "Des réglages existent déjà pour T" + numero + " " + annee);
         }
         Parametre cree = parametreRepository.save(Parametre.parDefaut(trimestre));
         return ResponseEntity.status(HttpStatus.CREATED).body(ParametreResponse.de(cree));
@@ -157,15 +157,14 @@ public class ParametreController {
         } catch (RuntimeException e) {
             log.error("Recalcul T{} {} apres changement de reglages : echec", trimestre.getNumero(),
                     trimestre.getAnnee(), e);
-            return RecalculReglagesResponse.echoue(messageEchec(trimestre, "erreur inattendue (voir le journal)"),
-                    duree(debut));
+            return RecalculReglagesResponse.echoue("Réglages enregistrés, mais le recalcul du trimestre a échoué. "
+                    + "Vérifiez les réglages et réessayez.", duree(debut));
         }
     }
 
     private static String messageEchec(Trimestre trimestre, String cause) {
         return "Réglages enregistrés, mais le recalcul du trimestre a échoué : " + cause
-                + ". Corriger puis relancer POST /api/trimestres/" + trimestre.getAnnee() + "/"
-                + trimestre.getNumero() + "/calcul";
+                + ". Corrigez les réglages puis enregistrez-les de nouveau pour relancer le calcul.";
     }
 
     private static long duree(long debut) {
@@ -175,6 +174,6 @@ public class ParametreController {
     private Parametre exiger(int annee, int numero) {
         return parametreRepository.findByNumeroEtAnnee(numero, annee)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun parametre configure pour T" + numero + " " + annee));
+                        "Aucun paramètre configuré pour T" + numero + " " + annee));
     }
 }

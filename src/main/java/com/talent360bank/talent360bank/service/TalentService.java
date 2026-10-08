@@ -175,7 +175,7 @@ public class TalentService {
         Parametre parametre = calculService.chargerParametre(trimestre);
 
         List<MembreVivierReleve> vivier = new ArrayList<>();
-        for (Score score : scoresEvaluables(trimestre, "vivier de releve")) {
+        for (Score score : scoresEvaluables(trimestre, "vivier de relève")) {
             boolean talent = estTalent(score, parametre);
             boolean hautPotentiel = estHautPotentiel(score, parametre);
             if (talent || hautPotentiel) {
@@ -195,10 +195,10 @@ public class TalentService {
                                      String statut) {
         if (scorePerformance == null || scorePotentiel == null) {
             throw new DonneesIncompletesException(
-                    "Les deux scores sont necessaires pour statuer sur le " + statut);
+                    "Les deux scores sont nécessaires pour statuer sur le " + statut);
         }
         if (seuilPerformance == null || seuilPotentiel == null) {
-            throw new DonneesIncompletesException("Les seuils de " + statut + " ne sont pas configures");
+            throw new DonneesIncompletesException("Les seuils de " + statut + " ne sont pas configurés");
         }
         return scorePerformance.compareTo(seuilPerformance) >= 0
                 && scorePotentiel.compareTo(seuilPotentiel) >= 0;
@@ -209,7 +209,7 @@ public class TalentService {
         Objects.requireNonNull(trimestre, "trimestre");
         return scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun score calcule pour " + collaborateur.getIdCollaborateur()
+                        "Aucun score calculé pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
     }
 

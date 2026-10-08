@@ -234,7 +234,7 @@ class TalentServiceTest {
 
         assertThatThrownBy(() -> talentService.detecterTalents(trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
-                .hasMessageContaining("Aucun parametre");
+                .hasMessageContaining("Aucun paramètre");
     }
 
     // --- haut potentiel ------------------------------------------------------

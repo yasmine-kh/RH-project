@@ -109,11 +109,11 @@ public class TrimestreService {
 
     public static void verifier(int annee, int numero) {
         if (numero < 1 || numero > 4) {
-            throw new IllegalArgumentException("Le numero de trimestre doit etre entre 1 et 4 (recu " + numero + ")");
+            throw new IllegalArgumentException("Le numéro de trimestre doit être entre 1 et 4 (reçu " + numero + ")");
         }
         if (annee < ANNEE_MIN || annee > ANNEE_MAX) {
             throw new IllegalArgumentException(
-                    "L'annee doit etre entre " + ANNEE_MIN + " et " + ANNEE_MAX + " (recu " + annee + ")");
+                    "L'année doit être entre " + ANNEE_MIN + " et " + ANNEE_MAX + " (reçu " + annee + ")");
         }
     }
 }

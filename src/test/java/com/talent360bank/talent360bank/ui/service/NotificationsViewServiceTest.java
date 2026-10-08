@@ -61,8 +61,8 @@ class NotificationsViewServiceTest {
         t3.setNumero(3);
         when(trimestreCourant.selectionner(null)).thenReturn(new TrimestreCourantService.Selection(t3, List.of()));
         when(alertes.construire(t3, AlertesView.Filtres.AUCUN)).thenReturn(new AlertesView("T3 2026", 3,
-                List.of(), List.of(new Compteur("CRITIQUE", "Critique", 1, null),
-                new Compteur("ELEVEE", "Élevée", 0, null), new Compteur("MOYENNE", "Moyenne", 2, null)),
+                List.of(), List.of(new Compteur("CRITIQUE", "Critique", 1),
+                new Compteur("ELEVEE", "Élevée", 0), new Compteur("MOYENNE", "Moyenne", 2)),
                 List.of(), List.of(), AlertesView.Filtres.AUCUN, List.of(), null));
         service = new NotificationsViewService(alertes, trimestreCourant, horloge);
     }

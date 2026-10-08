@@ -2,7 +2,7 @@
 <html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<!--
+<!--/*
   grille(m, trimestre, filtre) : le HTML que renderBox9Grid() du prototype produit, rendu par le serveur.
   trimestre null : pas de modale, chaque case reste un lien (vue manager : l'API n'a pas de filtre par equipe).
   filtre : critere ajoute a la liste de la modale (ex. "entite=DIR:..."), null pour toute la population.
@@ -10,7 +10,7 @@
   du moteur (MatriceNeufBox) qui porte ces niveaux : effectif et libelle du moteur, jamais recalcules.
   Emoji et couleur de fond : ceux du prototype pour cette position (BOX9_DEF). Un clic ouvre la
   modale du prototype (prototype.js) ; sans JavaScript, la case est un lien vers sa liste.
--->
+*/-->
 <div th:fragment="grille(m, trimestre, filtre)" class="box9-wrap"
      th:with="emoji=${ {'3-3':'⭐','2-3':'🚀','1-3':'🔵','3-2':'👔','2-2':'🟢','1-2':'🟠','3-1':'🧠','2-1':'🟠','1-1':'🔴'} },
               cls=${ {'3-3':'talent','2-3':'talent','1-3':'high','3-2':'high','2-2':'','1-2':'','3-1':'high','2-1':'','1-1':'watch'} }">
@@ -27,26 +27,12 @@
     <div class="box9-xaxis" style="grid-column:2;"><span>Performance faible</span><span>moyenne</span><span>élevée →</span></div>
 </div>
 
-<!--
+<!--/*
   case9(numero, libelle) : une case 9-Box dans un tableau, comme le prototype ("emoji libelle").
   L'emoji est celui de BOX9_DEF pour la position de la case (numero = (perf - 1) x 3 + potentiel).
--->
+*/-->
 <th:block th:fragment="case9(numero, libelle)"><th:block th:if="${numero == null}">—</th:block><th:block th:if="${numero != null}"
         th:with="emoji=${ {'9':'⭐','6':'🚀','3':'🔵','8':'👔','5':'🟢','2':'🟠','7':'🧠','4':'🟠','1':'🔴'} }">[[${emoji.get('' + numero)}]] [[${libelle}]]</th:block></th:block>
-
-<!--
-  alertes(liste) : les lignes .alert du prototype (CRITIQUE / ATTENTION / INFO) pour les alertes
-  du moteur (AlerteVue), dans l'ordre du moteur. Gravite : Critique -> crit, Elevee -> warn, Moyenne -> info.
--->
-<th:block th:fragment="alertes(liste)">
-    <div class="alert" th:each="a : ${liste}"
-         th:classappend="${a.severite.name() == 'CRITIQUE'} ? 'crit' : (${a.severite.name() == 'ELEVEE'} ? 'warn' : 'info')">
-        <div class="sev" th:text="${a.severite.name() == 'CRITIQUE'} ? 'CRITIQUE' : (${a.severite.name() == 'ELEVEE'} ? 'ATTENTION' : 'INFO')">CRITIQUE</div>
-        <div class="txt"><span th:text="|${a.type.libelle} — |">Type — </span><b th:text="${a.sujet}">Sujet</b><span
-                th:text="| : ${a.message} |"> : message</span><a th:href="${a.lien}" th:text="${a.lienLibelle}">Fiche</a></div>
-    </div>
-    <div class="empty-state" th:if="${#lists.isEmpty(liste)}">Aucune alerte.</div>
-</th:block>
 
 </body>
 </html>
