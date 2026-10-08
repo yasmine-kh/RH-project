@@ -15,6 +15,8 @@ public interface CollaborateurRepository extends JpaRepository<Collaborateur, St
 
     long countByStatut(StatutCollaborateur statut);
 
+    List<Collaborateur> findByStatut(StatutCollaborateur statut);
+
     /** Toute la population avec son manager, son entite et ses parents, en une requete (liste de l'API). */
     @Query("select c from Collaborateur c left join fetch c.manager m left join fetch m.collaborateur "
             + "left join fetch c.entite e left join fetch e.parent e1 "

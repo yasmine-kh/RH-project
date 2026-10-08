@@ -252,7 +252,7 @@ public class ImportClasseurService {
         Set<String> presents = new HashSet<>();
         for (Row ligne : lignes) {
             try {
-                String id = Cellules.texte(ligne, 0);
+                String id = Cellules.matricule(ligne, 0);
                 if (id != null) {
                     presents.add(id);
                 }
@@ -261,14 +261,14 @@ public class ImportClasseurService {
             }}
         pourChaqueLigne(feuille, lignes, rapport, ligne -> {
             Collaborateur collaborateur = new Collaborateur();
-            collaborateur.setIdCollaborateur(Cellules.texte(ligne, 0));
-            collaborateur.setNom(Cellules.texte(ligne, 1));
-            collaborateur.setPrenom(Cellules.texte(ligne, 2));
+            collaborateur.setIdCollaborateur(Cellules.matricule(ligne, 0));
+            collaborateur.setNom(Cellules.matricule(ligne, 1));
+            collaborateur.setPrenom(Cellules.matricule(ligne, 2));
             collaborateur.setSexe(sexe(ligne));
             collaborateur.setDateNaissance(Cellules.date(ligne, 4));
             collaborateur.setDateEntree(Cellules.date(ligne, 5));
-            collaborateur.setFonction(Cellules.texte(ligne, 11));
-            collaborateur.setGrade(Cellules.texte(ligne, 12));
+            collaborateur.setFonction(Cellules.matricule(ligne, 11));
+            collaborateur.setGrade(Cellules.matricule(ligne, 12));
             collaborateur.setStatut(statutCollaborateur(ligne));
             valider(collaborateur, COLONNES_COLLABORATEUR);
             // Derniere etape : elle cree les entites manquantes, la ligne doit etre valide.
@@ -281,7 +281,7 @@ public class ImportClasseurService {
                     && collaborateur.getStatut() == StatutCollaborateur.ACTIF) {
                 rapport.reactive(collaborateur.getIdCollaborateur());
             }
-            managerParCollaborateur.put(collaborateur.getIdCollaborateur(), Cellules.texte(ligne, 13));
+            managerParCollaborateur.put(collaborateur.getIdCollaborateur(), Cellules.matricule(ligne, 13));
             ligneParCollaborateur.put(collaborateur.getIdCollaborateur(), ligne);
         });
         Map<String, Collaborateur> collaborateurs = indexer(collaborateurRepository.findAll(),
@@ -319,7 +319,7 @@ public class ImportClasseurService {
                 collaborateurs.get(idCollaborateur).setManager(manager);
             }});}
     private static Sexe sexe(Row ligne) {
-        String libelle = Cellules.texte(ligne, 3);
+        String libelle = Cellules.matricule(ligne, 3);
         Sexe sexe = Sexe.depuisLibelle(libelle);
         if (libelle != null && sexe == null) {
             throw new LigneRejeteeException("colonne D : sexe \"" + libelle + "\" inconnu (M ou F attendu)");
@@ -327,7 +327,7 @@ public class ImportClasseurService {
         return sexe;}
     /** Actif, Inactif ou Archive ; vide vaut Actif. */
     private static StatutCollaborateur statutCollaborateur(Row ligne) {
-        String libelle = Cellules.texte(ligne, 14);
+        String libelle = Cellules.matricule(ligne, 14);
         if (libelle == null) {
             return StatutCollaborateur.ACTIF;}
         String valeur = sansAccents(libelle);
@@ -341,9 +341,9 @@ public class ImportClasseurService {
         String feuille = FEUILLE_COMPETENCES;
         pourChaqueLigne(feuille, lignes(classeur, feuille, ENTETE_COMPETENCE, rapport), rapport, ligne -> {
             Competence competence = new Competence();
-            competence.setCompetenceId(Cellules.texte(ligne, 0));
-            competence.setNom(Cellules.texte(ligne, 1));
-            competence.setCategorie(Cellules.texte(ligne, 2));
+            competence.setCompetenceId(Cellules.matricule(ligne, 0));
+            competence.setNom(Cellules.matricule(ligne, 1));
+            competence.setCategorie(Cellules.matricule(ligne, 2));
             valider(competence, Map.of("competenceId", "A", "nom", "B"));
             competenceRepository.save(competence);
         });}
@@ -361,7 +361,7 @@ public class ImportClasseurService {
                     skill);}
         pourChaqueLigne(feuille, lignes, rapport, ligne -> {
             Collaborateur collaborateur = collaborateur(collaborateurs, ligne, 1, "B");
-            String nomCompetence = Cellules.texte(ligne, 2);
+            String nomCompetence = Cellules.matricule(ligne, 2);
             Competence competence = nomCompetence == null ? null : competencesParNom.get(nomCompetence);
             if (competence == null) {
                 throw new LigneRejeteeException(nomCompetence == null
@@ -377,11 +377,11 @@ public class ImportClasseurService {
                 skill = new CompetenceCollaborateur();
                 skill.setCollaborateur(collaborateur);
                 skill.setCompetence(competence);}
-            skill.setCleLookup(Cellules.texte(ligne, 0));
+            skill.setCleLookup(Cellules.matricule(ligne, 0));
             skill.setNiveauActuel(actuel);
             skill.setNiveauCible(cible);
             skill.setGap(gap != null ? gap : cible - actuel);
-            skill.setStatutGap(Cellules.texte(ligne, 7));
+            skill.setStatutGap(Cellules.matricule(ligne, 7));
             existants.put(cle, competenceCollaborateurRepository.save(skill));
         });}
     // ------------------------------------------------------------------ 07 / 08
@@ -389,8 +389,8 @@ public class ImportClasseurService {
                                 Map<String, Competence> competencesParNom, Map<String, Entite> entites) {
         String feuille = FEUILLE_POSTES;
         pourChaqueLigne(feuille, lignes(classeur, feuille, ENTETE_POSTE, rapport), rapport, ligne -> {
-            String posteId = Cellules.texte(ligne, 0);
-            String nomPoste = Cellules.texte(ligne, 1);
+            String posteId = Cellules.matricule(ligne, 0);
+            String nomPoste = Cellules.matricule(ligne, 1);
             if (nomPoste == null) {
                 throw new LigneRejeteeException("colonne B : nom du poste absent");
             }
@@ -399,7 +399,7 @@ public class ImportClasseurService {
             Integer[] niveaux = new Integer[5];
             for (int i = 0; i < 5; i++) {
                 int colonne = 5 + 2 * i;
-                String nom = Cellules.texte(ligne, colonne);
+                String nom = Cellules.matricule(ligne, colonne);
                 if (nom != null) {
                     competences[i] = competencesParNom.get(nom);
                     if (competences[i] == null) {
@@ -416,8 +416,8 @@ public class ImportClasseurService {
             });
             poste.setNomPoste(nomPoste);
             poste.setEntite(direction);
-            poste.setGradeCible(Cellules.texte(ligne, 3));
-            poste.setCriticite(Cellules.texte(ligne, 4));
+            poste.setGradeCible(Cellules.matricule(ligne, 3));
+            poste.setCriticite(Cellules.matricule(ligne, 4));
             poste.setCompetenceRequise1(competences[0]);
             poste.setNiveau1(niveaux[0]);
             poste.setCompetenceRequise2(competences[1]);
@@ -428,15 +428,15 @@ public class ImportClasseurService {
             poste.setNiveau4(niveaux[3]);
             poste.setCompetenceRequise5(competences[4]);
             poste.setNiveau5(niveaux[4]);
-            poste.setPosteCritique(Cellules.texte(ligne, 15));
+            poste.setPosteCritique(Cellules.matricule(ligne, 15));
             posteRepository.save(poste);});}
     /** 08_POSTES_CRITIQUES : titulaire des postes deja connus (colonnes E et F). */
     private void completerPostesCritiques(Workbook classeur, RapportImport rapport, Map<String, Poste> postes) {
         String feuille = FEUILLE_POSTES_CRITIQUES;
         pourChaqueLigne(feuille, lignes(classeur, feuille, ENTETE_POSTE, rapport), rapport, ligne -> {
             Poste poste = poste(postes, ligne, 0, "A");
-            poste.setTitulaireId(Cellules.texte(ligne, 4));
-            poste.setTitulaireNom(Cellules.texte(ligne, 5));
+            poste.setTitulaireId(Cellules.matricule(ligne, 4));
+            poste.setTitulaireNom(Cellules.matricule(ligne, 5));
         });}
     // ------------------------------------------------------------------ 02 / 03
     private void importerPerformances(Workbook classeur, RapportImport rapport,
@@ -576,7 +576,7 @@ public class ImportClasseurService {
             Collaborateur collaborateur = collaborateur(collaborateurs, ligne, 0, "A");
             presents.add(collaborateur.getIdCollaborateur());
             StatutValidationComite statut = statutComite(ligne);
-            String direction = Cellules.texte(ligne, 2);
+            String direction = Cellules.matricule(ligne, 2);
             VivierThematique vivier = vivierThematique(ligne);
             if (vivier != null && direction == null) {
                 throw new LigneRejeteeException("colonne C : direction absente, vivier "
@@ -611,7 +611,7 @@ public class ImportClasseurService {
         });
         retirerAbsents(feuille, rapport, rejetees, validations, presents, validationComiteRepository);}
     private static StatutValidationComite statutComite(Row ligne) {
-        String libelle = Cellules.texte(ligne, 6);
+        String libelle = Cellules.matricule(ligne, 6);
         if (libelle == null) {
             return null;
         }
@@ -623,7 +623,7 @@ public class ImportClasseurService {
         throw new LigneRejeteeException("colonne G : decision \"" + libelle
                 + "\" inconnue (Oui, Non ou En attente attendu)");}
     private static VivierThematique vivierThematique(Row ligne) {
-        String libelle = Cellules.texte(ligne, 8);
+        String libelle = Cellules.matricule(ligne, 8);
         if (libelle == null) {
             return null;
         }
@@ -768,7 +768,7 @@ public class ImportClasseurService {
                 .collect(Collectors.joining(" ; "));
         throw new LigneRejeteeException(message);}
     private static Collaborateur collaborateur(Map<String, Collaborateur> collaborateurs, Row ligne, int colonne, String lettre) {
-        String idCollaborateur = Cellules.texte(ligne, colonne);
+        String idCollaborateur = Cellules.matricule(ligne, colonne); // ✅ Nouveau
         if (idCollaborateur == null) {
             throw new LigneRejeteeException("colonne " + lettre + " : Employee_ID absent");
         }
@@ -791,7 +791,7 @@ public class ImportClasseurService {
     private Entite entite(Map<String, Entite> entites, Row ligne, int premiereColonne, TypeEntite... niveaux) {
         String[] libelles = new String[niveaux.length];
         for (int i = 0; i < niveaux.length; i++) {
-            libelles[i] = Cellules.texte(ligne, premiereColonne + i);
+            libelles[i] = Cellules.matricule(ligne, premiereColonne + i);
             if (libelles[i] != null && libelles[i].length() > Entite.LONGUEUR_LIBELLE) {
                 throw new LigneRejeteeException("colonne " + Cellules.lettre(premiereColonne + i) + " : "
                         + niveaux[i].name().toLowerCase(Locale.ROOT) + " de plus de " + Entite.LONGUEUR_LIBELLE
@@ -811,7 +811,7 @@ public class ImportClasseurService {
         return courante;
     }
     private static Poste poste(Map<String, Poste> postes, Row ligne, int colonne, String lettre) {
-        String posteId = Cellules.texte(ligne, colonne);
+        String posteId = Cellules.matricule(ligne, colonne);
         Poste poste = posteId == null ? null : postes.get(posteId);
         if (poste == null) {
             throw new LigneRejeteeException(posteId == null

@@ -113,7 +113,7 @@ public class Collaborateur {
     public String getNomComplet() {
         return prenom + " " + nom;
     }
-
+    private String email;
     public String getIdCollaborateur() {
         return idCollaborateur;
     }
@@ -249,5 +249,13 @@ public class Collaborateur {
     @Override
     public String toString() {
         return "Collaborateur{idCollaborateur='" + idCollaborateur + "', statut=" + statut + "}";
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

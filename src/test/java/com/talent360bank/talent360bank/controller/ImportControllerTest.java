@@ -1,26 +1,28 @@
 package com.talent360bank.talent360bank.controller;
 
-import com.talent360bank.talent360bank.config.SecurityConfig;
-import org.springframework.context.annotation.Import;
-import org.springframework.security.test.context.support.WithMockUser;
 import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
+import com.talent360bank.talent360bank.config.SecurityConfig;
 import com.talent360bank.talent360bank.entity.ImportExcel;
 import com.talent360bank.talent360bank.entity.StatutImport;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.service.CampagneService;
+import com.talent360bank.talent360bank.service.DossierImportService; // <--- Import ajouté ici
 import com.talent360bank.talent360bank.service.ImportService;
 import com.talent360bank.talent360bank.service.resultat.ResultatCalculTrimestre;
 import com.talent360bank.talent360bank.service.resultat.ResultatCampagne;
 import com.talent360bank.talent360bank.service.resultat.ResultatConstitutionVivier;
 import com.talent360bank.talent360bank.service.resultat.ResultatImport;
-import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
 import com.talent360bank.talent360bank.service.resultat.ResultatImport.BilanFeuille;
 import com.talent360bank.talent360bank.service.resultat.ResultatImport.ErreurImport;
+import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+
+import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
@@ -48,9 +50,13 @@ class ImportControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
+    private DossierImportService dossierImportService;
+
+    @MockitoBean
     private ImportService importService;
-    @MockBean
+
+    @MockitoBean
     private CampagneService campagneService;
 
     private final MockMultipartFile fichier = new MockMultipartFile("fichier", "dataset.xlsx",

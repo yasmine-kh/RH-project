@@ -1,8 +1,10 @@
 package com.talent360bank.talent360bank.controller;
 
+import com.talent360bank.talent360bank.controller.dto.CompetenceDTO;
 import com.talent360bank.talent360bank.entity.Competence;
 import com.talent360bank.talent360bank.service.CompetenceService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,11 +26,18 @@ public class CompetenceController {
     }
 
     @PostMapping
-    public Competence creer(@Valid @RequestBody Competence competence) {
-        return competenceService.enregistrer(competence);
+    public ResponseEntity<CompetenceDTO> creer(@Valid @RequestBody CompetenceDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(competenceService.creer(dto));
     }
 
-    // Soft Delete (B11) : Archivage / Desactivation via le service
+    // Soft Delete (B11) : Archivage via le service
+    @PutMapping("/{id}/archiver")
+    public ResponseEntity<Void> archiver(@PathVariable String id) {
+        competenceService.archiverCompetence(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Suppression définitive (si nécessaire)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> supprimer(@PathVariable String id) {
         competenceService.supprimer(id);
