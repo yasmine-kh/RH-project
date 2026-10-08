@@ -65,9 +65,15 @@ class RoutesUniquesTest {
                 .containsEntry("/comite-talent", "PagesController")
                 .containsEntry("/parametres", "PagesController")
                 .containsEntry("/collaborateurs", "ModulesPagesController")
-                .containsEntry("/dashboard-dg", "ModulesPagesController")
+                .containsEntry("/dashboard-dg", "DashboardController")
                 .containsEntry("/competences", "ModulesPagesController")
                 .containsEntry("/notifications", "ModulesPagesController")
-                .containsEntry("/campagne", "ModulesPagesController");
+                .containsEntry("/campagne", "ModulesPagesController")
+                .containsEntry("/carriere-mobilite", "PagesEnDeveloppementController")
+                .containsEntry("/engagement", "PagesEnDeveloppementController")
+                .containsEntry("/historique", "PagesEnDeveloppementController")
+                .containsEntry("/mon-engagement", "PagesEnDeveloppementController")
+                .containsEntry("/auto-evaluation", "PagesEnDeveloppementController")
+                .containsEntry("/evaluation-manager", "PagesEnDeveloppementController");
     }
 }

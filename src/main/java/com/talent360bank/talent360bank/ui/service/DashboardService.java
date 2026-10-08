@@ -130,6 +130,7 @@ public class DashboardService {
 
         List<VivierTableau> lignesViviers = viviers(viviers, synthese.couvertures());
         int nbEvaluesVigilance = synthese.vigilanceParNiveau().values().stream().mapToInt(Integer::intValue).sum();
+        List<CaseTableau> cases = neufBox(synthese);
 
         List<KpiCard> kpis = List.of(
                 effectif,
@@ -155,9 +156,16 @@ public class DashboardService {
                         "bi-exclamation-octagon", "kpi-red"),
                 new KpiCard("Compétences en gap prioritaire", String.valueOf(gapsPrioritaires),
                         "bi-mortarboard", "kpi-orange"),
+                new KpiCard("Talents proposés", String.valueOf(synthese.nbTalents()), "bi-star", "kpi-green"),
+                new KpiCard("Talents clés (9-Box)", String.valueOf(cases.stream()
+                        .filter(c -> c.niveauPerformance() == 3 && c.niveauPotentiel() == 3)
+                        .mapToInt(CaseTableau::nombre).sum()), "bi-grid-3x3", "kpi-green"),
+                new KpiCard("Postes critiques couverts", String.valueOf(synthese.nbPostesCritiques()
+                        - synthese.nbPostesSansSuccesseur()), "bi-shield-check", "kpi-green"),
+                new KpiCard("Alertes ouvertes", String.valueOf(alertes.size()), "bi-bell", "kpi-red"),
                 engagement);
 
-        return new Construction(new TableauDeBordView(libelle, kpis, neufBox(synthese), synthese.nbPlaces9Box(),
+        return new Construction(new TableauDeBordView(libelle, kpis, cases, synthese.nbPlaces9Box(),
                 synthese.nbNonPlaces9Box(), vigilance(synthese), (int) Math.max(0, actifs - nbEvaluesVigilance),
                 alertes.stream().limit(TableauDeBordView.ALERTES_AFFICHEES).toList(), alertes.size(),
                 lignesViviers, postesSansSuccesseur(synthese), null), synthese);

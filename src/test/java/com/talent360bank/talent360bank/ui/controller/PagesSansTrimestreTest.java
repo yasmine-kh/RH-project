@@ -34,7 +34,7 @@ class PagesSansTrimestreTest {
     private MockMvc mockMvc;
 
     @ParameterizedTest
-    @ValueSource(strings = {"/", "/dashboard-dg", "/collaborateurs", "/9box", "/viviers", "/postes-critiques",
+    @ValueSource(strings = {"/", "/collaborateurs", "/9box", "/viviers", "/postes-critiques",
             "/competences", "/comite-talent", "/alertes", "/notifications", "/campagne", "/managers",
             "/managers/BP001", "/entites", "/entites?code=DIR:RESEAU_RETAIL/DEP:NORD"})
     void sans_trimestre_la_page_invite_a_importer(String url) throws Exception {
@@ -48,17 +48,30 @@ class PagesSansTrimestreTest {
     void la_sidebar_liste_les_ecrans_dans_l_ordre() throws Exception {
         String page = mockMvc.perform(get("/")).andExpect(status().isOk()).andReturn()
                 .getResponse().getContentAsString(StandardCharsets.UTF_8);
-        List<String> liens = List.of("href=\"/\"", "href=\"/dashboard-dg\"", "href=\"/collaborateurs\"",
-                "href=\"/managers\"", "href=\"/entites\"", "href=\"/9box\"", "href=\"/viviers\"", "href=\"/postes-critiques\"", "href=\"/competences\"",
-                "href=\"/comite-talent\"", "href=\"/fiche-collaborateur\"", "href=\"/alertes\"",
-                "href=\"/notifications\"", "href=\"/campagne\"", "href=\"/import\"", "href=\"/parametres\"");
+        // Ordre du prototype (NAV_DEF, role DRH), puis les pages propres a l'application.
+        List<String> liens = List.of("href=\"/\"", "href=\"/campagne\"",
+                "href=\"/collaborateurs\"", "href=\"/9box\"", "href=\"/competences\"", "href=\"/carriere-mobilite\"",
+                "href=\"/engagement\"", "href=\"/viviers\"", "href=\"/postes-critiques\"", "href=\"/comite-talent\"",
+                "href=\"/fiche-collaborateur\"", "href=\"/alertes\"", "href=\"/historique\"", "href=\"/notifications\"",
+                "href=\"/managers\"", "href=\"/entites\"", "href=\"/import\"", "href=\"/parametres\"");
         int precedent = -1;
-        String sidebar = page.substring(page.indexOf("sidebar-nav"));
+        String sidebar = page.substring(page.indexOf("<nav id=\"nav\">"));
         for (String lien : liens) {
             int position = sidebar.indexOf(lien);
             assertThat(position).as(lien).isGreaterThan(precedent);
             precedent = position;
         }
+        // Le tableau de bord DG est fusionne dans le tableau de bord RH : plus d'entree dans le menu.
+        assertThat(sidebar.substring(0, sidebar.indexOf("</nav>"))).doesNotContain("/dashboard-dg", "Tableau de bord DG");
+    }
+
+    @Test
+    void l_ancien_tableau_de_bord_dg_renvoie_au_tableau_de_bord_rh() throws Exception {
+        mockMvc.perform(get("/dashboard-dg")).andExpect(status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/"));
+        String page = mockMvc.perform(get("/")).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(page).contains("Aucun trimestre importé pour le moment");
     }
 
     @Test

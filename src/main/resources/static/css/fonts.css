@@ -1,0 +1,18 @@
+/* Les trois polices du prototype (Google Fonts dans docs/prototype/index.html), hebergees
+   localement pour fonctionner hors ligne (static/vendor/fonts, licence SIL OFL).
+   font-display: block + <link rel="preload"> dans l'en-tete : pas de flash de police de secours
+   au changement de page. */
+@font-face { font-family: "Fraunces"; font-style: normal; font-weight: 100 900; font-display: block;
+    src: url("../vendor/fonts/fraunces-latin-opsz-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: block;
+    src: url("../vendor/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: block;
+    src: url("../vendor/fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: block;
+    src: url("../vendor/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 700; font-display: block;
+    src: url("../vendor/fonts/ibm-plex-sans-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: block;
+    src: url("../vendor/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: block;
+    src: url("../vendor/fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }

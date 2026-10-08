@@ -1,170 +1,151 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Dashboard</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Tableau de bord RH</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
 
-<div class="app-layout">
+<!--
+  Tableau de bord RH interactif (cartes en haut, graphiques au milieu, listes en bas), style du
+  prototype (renderDashRH). Filtrage croise : un clic sur un element d'un graphique filtre toute la page
+  (cartes, autres graphiques, listes) ; les filtres se cumulent, s'affichent en puces et restent dans
+  l'URL (?case=9&entite=...). Le serveur rend la vue deja filtree par l'URL (TableauDeBordInteractifService) ;
+  tableau-de-bord.js refiltre sur place, sans recharger, avec les donnees du trimestre embarquees une
+  fois (data-donnees, JSON echappe par th:attr). Graphiques : Chart.js, servi localement (vendor/chartjs).
+  Aucun chiffre calcule ici : chaque valeur vient du moteur (DashboardService, liste Collaborateurs,
+  AlertesViewService). L'ancien tableau de bord DG (/dashboard-dg) renvoie ici.
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('accueil')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('accueil')}"></div>
+    <div id="main">
+        <th:block th:with="sous=${tableau.trimestreLibelle != null} ? 'Vue d\'ensemble du capital talents — ' + ${tableau.trimestreLibelle} : 'Vue d\'ensemble du capital talents'">
+            <div th:replace="~{fragments/prototype :: topbar('Tableau de bord RH', ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Dashboard general</h1>
-            <p class="text-muted" th:if="${tableau.trimestreLibelle == null}">
-                Vue d'ensemble des indicateurs RH - aucun trimestre enregistre pour le moment.</p>
-            <p class="text-muted" th:if="${tableau.trimestreLibelle != null}"
-               th:text="|Vue d'ensemble des indicateurs RH - ${tableau.trimestreLibelle}|">
-                Vue d'ensemble des indicateurs RH - T3 2026</p>
-        </header>
+        <section class="view active" id="view-dashrh" th:with="k=${tableau.kpis}">
 
-        <!-- Choix du trimestre : par defaut le plus recent qui a des scores. -->
-        <form method="get" action="/" class="filtre-bar" th:if="${not #lists.isEmpty(trimestres)}">
-            <div>
-                <label for="trimestre" class="form-label">Trimestre</label>
-                <select id="trimestre" name="trimestre" class="form-select">
+            <!-- Trimestre affiche : changer de trimestre recharge la page (sans les filtres). -->
+            <form method="get" action="/" class="filters" th:if="${not #lists.isEmpty(trimestres)}">
+                <select id="trimestre" name="trimestre" data-auto aria-label="Trimestre">
                     <option th:each="option : ${trimestres}" th:value="${option.valeur}"
                             th:text="${option.hasData} ? ${option.libelle} : ${option.libelle} + ' (pas encore calcule)'"
                             th:selected="${trimestre != null and option.valeur == trimestre.valeur}">T3 2026</option>
                 </select>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-        </form>
+                <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+            </form>
 
-        <th:block th:if="${tableau.trimestreLibelle == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+            <div class="panel" th:if="${tableau.trimestreLibelle == null}"><div class="panel-body empty-state">
+                Aucun trimestre importé pour le moment : il n'y a encore rien à afficher.<br><br>
+                <a href="/import" class="btn">Importer le classeur</a></div></div>
 
-        <div class="alert alert-warning mt-4" th:if="${tableau.erreur != null}" th:text="${tableau.erreur}">Reglages absents</div>
+            <!-- Sans reglages, le moteur ne calcule rien : seuls l'effectif et l'engagement, avec la raison. -->
+            <th:block th:if="${tableau.erreur != null}">
+                <div class="alert warn"><div class="sev">ATTENTION</div><div class="txt" th:text="${tableau.erreur}">Reglages absents</div></div>
+                <div class="kpi-row">
+                    <div class="kpi" th:each="c : ${k}"><div class="val" th:text="${c.value}">100</div><div class="lbl" th:text="${c.label}">Collaborateurs actifs</div></div>
+                </div>
+            </th:block>
 
-        <div class="kpi-grid">
-            <div class="kpi-card" th:each="kpi : ${tableau.kpis}" th:classappend="${kpi.colorClass}">
-                <div class="kpi-icon"><i th:class="'bi ' + ${kpi.icon}"></i></div>
-                <div class="kpi-body">
-                    <div class="kpi-value" th:text="${kpi.value}">0</div>
-                    <div class="kpi-label" th:text="${kpi.label}">Libelle</div>
+            <!-- Tout ce qui s'affiche est calcule par TableauDeBordInteractifService avant le rendu (valeurs absentes :
+                 "—") ; le template ne fait qu'afficher. -->
+            <div id="tdb" th:if="${vue != null}" th:attr="data-donnees=${vue.donneesJson}">
+
+                <!-- ===== Cartes : les 10 du prototype (renderDashRH), dans son ordre, 2 rangees de 5. Population, Talents
+                     valides, Hauts potentiels, Viviers actifs et Engagement suivent les filtres (data-filtre) ; Postes
+                     critiques, Couverture, Ready Now, Postes sans releve et Gaps critiques : cartes du moteur, toute la banque. -->
+                <div class="kpi-row tdb-kpis" id="kpis">
+                    <div class="kpi" th:each="c : ${vue.kpis}" th:classappend="${c.classe}"
+                         th:attr="data-kpi=${c.code},data-filtre=${c.filtre}">
+                        <div class="val" th:text="${c.valeur}">100</div><div class="lbl" th:text="${c.libelle}">👥 Population</div></div>
+                </div>
+
+                <!-- ===== Filtres actifs ===== -->
+                <div class="tdb-filtres" id="tdb-filtres">
+                    <span class="tdb-filtres-titre">Filtres</span>
+                    <span id="tdb-puces"><a class="puce" th:each="p : ${vue.puces}" th:href="${p.lienRetrait}" th:attr="data-parametre=${p.parametre}"
+                            title="Retirer ce filtre"><span th:text="|${p.dimension} : ${p.valeur}|">9-Box : Talent clé</span><span class="puce-x" aria-hidden="true">✕</span></a></span>
+                    <span class="hint" id="tdb-aucun-filtre" th:hidden="${not #lists.isEmpty(vue.puces)}">Aucun : cliquer un élément d'un graphique filtre toute la page.</span>
+                    <a class="btn ghost" id="tdb-reinitialiser" th:href="@{/(trimestre=${trimestre.valeur})}" th:hidden="${#lists.isEmpty(vue.puces)}">Réinitialiser</a>
+                </div>
+
+                <!-- ===== Graphiques ===== -->
+                <noscript><div class="alert info"><div class="sev">INFO</div><div class="txt">Les graphiques demandent JavaScript ; la matrice, les cartes et les listes restent filtrables par leurs liens.</div></div></noscript>
+                <div class="tdb-graphiques">
+                    <div class="panel"><div class="panel-head"><h3>Matrice 9-Box</h3><span class="hint">effectifs · cliquer une case</span></div>
+                        <div class="panel-body">
+                            <div class="box9-wrap">
+                                <div class="box9-yaxis"><span>Potentiel ↑</span></div>
+                                <div class="box9-grid" id="tdb-neufbox">
+                                    <a th:each="c : ${vue.neufBox}" class="box9-cell" th:href="${c.lien}"
+                                       th:classappend="|${c.classe} ${c.selectionnee ? 'selectionnee' : ''} ${vue.filtres.caseNeufBox != null and !c.selectionnee ? 'estompee' : ''}|"
+                                       th:attr="data-case=${c.numero}"><div><span class="cnt" th:text="${c.nombre}">10</span></div><div class="lbl" th:text="${c.etiquette}">⭐ Talent clé</div></a>
+                                </div>
+                                <div class="box9-xaxis" style="grid-column:2;"><span>Performance faible</span><span>moyenne</span><span>élevée →</span></div>
+                            </div>
+                        </div></div>
+                    <div class="panel tdb-large"><div class="panel-head"><h3>Collaborateurs par entité</h3><span class="hint">direction</span></div>
+                        <div class="panel-body"><div class="tdb-graphe tdb-graphe-haut"><canvas id="graphe-entite" aria-label="Collaborateurs par entité" role="img"></canvas></div></div></div>
+                    <div class="panel"><div class="panel-head"><h3>Niveaux de vigilance</h3></div>
+                        <div class="panel-body"><div class="tdb-graphe"><canvas id="graphe-vigilance" aria-label="Niveaux de vigilance" role="img"></canvas></div></div></div>
+                    <div class="panel"><div class="panel-head"><h3>Performance</h3><span class="hint">catégorie</span></div>
+                        <div class="panel-body"><div class="tdb-graphe"><canvas id="graphe-perf" aria-label="Répartition de la performance" role="img"></canvas></div></div></div>
+                    <div class="panel"><div class="panel-head"><h3>Potentiel</h3><span class="hint">catégorie</span></div>
+                        <div class="panel-body"><div class="tdb-graphe"><canvas id="graphe-pot" aria-label="Répartition du potentiel" role="img"></canvas></div></div></div>
+                    <div class="panel"><div class="panel-head"><h3>Viviers</h3><span class="hint">membres</span></div>
+                        <div class="panel-body"><div class="tdb-graphe"><canvas id="graphe-vivier" aria-label="Membres par vivier" role="img"></canvas></div></div></div>
+                    <div class="panel tdb-large"><div class="panel-head"><h3>Alertes par type</h3></div>
+                        <div class="panel-body"><div class="tdb-graphe"><canvas id="graphe-alerte" aria-label="Alertes par type" role="img"></canvas></div></div></div>
+                </div>
+
+                <!-- ===== Listes ===== -->
+                <div class="panel" id="liste-collaborateurs"><div class="panel-head"><h3>Collaborateurs <span class="tdb-compte" id="tdb-nb-collaborateurs" th:text="|(${#lists.size(vue.personnes)})|">(100)</span></h3>
+                    <span class="hint">performance + potentiel décroissants</span></div>
+                    <div class="panel-body tdb-defile">
+                        <div class="empty-state" id="tdb-collaborateurs-vide" th:hidden="${not #lists.isEmpty(vue.personnes)}">Aucun collaborateur pour ces filtres.</div>
+                        <table th:hidden="${#lists.isEmpty(vue.personnes)}"><thead><tr><th>Matricule</th><th>Nom</th><th>Direction</th><th>9-Box</th><th>Perf.</th><th>Potentiel</th><th>Vigilance</th><th>Viviers</th></tr></thead>
+                            <tbody id="tdb-collaborateurs"><tr th:each="p : ${vue.personnes}">
+                                <td class="mono" th:text="${p.matricule}">BP001</td>
+                                <td><a th:href="${p.lien}" th:text="${p.nomComplet}">Prenom Nom</a></td>
+                                <td th:text="${p.direction}">Direction</td>
+                                <td th:text="${p.caseEtiquette}">⭐ Talent clé</td>
+                                <td th:text="${p.performance} ?: '—'">90.00</td>
+                                <td th:text="${p.potentiel} ?: '—'">90.00</td>
+                                <td th:text="${p.vigilanceLibelle} ?: '—'">Faible</td>
+                                <td th:text="${p.viviersTexte}">Vivier Commercial</td>
+                            </tr></tbody></table>
+                    </div></div>
+
+                <div class="grid-2">
+                    <div class="panel" id="liste-alertes"><div class="panel-head"><h3>Alertes <span class="tdb-compte" id="tdb-nb-alertes" th:text="|(${#lists.size(vue.alertes)})|">(23)</span></h3>
+                        <a class="hint" th:href="@{/alertes(trimestre=${trimestre.valeur})}">écran Alertes</a></div>
+                        <div class="panel-body tdb-defile" id="tdb-alertes">
+                            <div class="alert" th:each="a : ${vue.alertes}" th:classappend="${a.classe}">
+                                <div class="sev" th:text="${a.sev}">CRITIQUE</div>
+                                <div class="txt"><span th:text="|${a.typeLibelle} — |">Type — </span><b th:text="${a.sujet}">Sujet</b><span
+                                        th:text="| : ${a.message} |"> : message</span><a th:href="${a.lien}" th:text="${a.lienLibelle}">Fiche</a></div>
+                            </div>
+                            <div class="empty-state" th:if="${#lists.isEmpty(vue.alertes)}">Aucune alerte pour ces filtres.</div>
+                        </div></div>
+                    <div class="panel" id="liste-viviers"><div class="panel-head"><h3>Viviers</h3><span class="hint">membres filtrés</span></div>
+                        <div class="panel-body tdb-defile"><div class="tdb-viviers" id="tdb-viviers">
+                            <div class="tdb-vivier" th:each="v : ${vue.viviers}" th:attr="data-vivier=${v.code}">
+                                <div class="tdb-vivier-tete"><b th:text="${v.libelle}">Vivier Commercial</b><span class="mono" th:text="${#lists.size(v.membres)}">47</span></div>
+                                <div class="tdb-vivier-membres"><th:block th:each="m, etat : ${v.membres}"><a th:href="${m.lien}" th:text="${m.nomComplet}">Nom</a><th:block th:unless="${etat.last}">, </th:block></th:block><span
+                                        class="hint" th:if="${#lists.isEmpty(v.membres)}">Aucun membre.</span></div>
+                            </div>
+                        </div></div></div>
                 </div>
             </div>
-        </div>
 
-        <div class="row g-4 mt-1" th:if="${not #lists.isEmpty(tableau.neufBox)}">
-            <section class="col-lg-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h2 class="h6 mb-0">Matrice 9-Box</h2>
-                        <a th:href="@{/9box(trimestre=${trimestre.valeur})}" class="small">Voir la matrice</a>
-                    </div>
-                    <div class="card-body">
-                        <div th:replace="~{fragments/matrice9box :: matrice(${matrice})}"></div>
-                        <!-- 00_DASHBOARD, bloc 2 : repartition de la population par categorie. -->
-                        <table class="table table-sm mt-3 mb-0">
-                            <thead><tr><th>Categorie</th><th class="text-end">Effectif</th></tr></thead>
-                            <tbody>
-                            <tr th:each="case9 : ${tableau.neufBox}">
-                                <td th:text="${case9.libelle}">Talent cle</td>
-                                <td class="text-end" th:text="${case9.nombre}">0</td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <section class="col-lg-6">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white"><h2 class="h6 mb-0">Vigilance (risque de depart)</h2></div>
-                    <div class="card-body">
-                        <table class="table table-sm mb-2">
-                            <tbody>
-                            <tr th:each="niveau : ${tableau.vigilance}">
-                                <td th:text="${niveau.libelle}">Faible</td>
-                                <td class="text-end fw-bold" th:text="${niveau.nombre}">0</td>
-                            </tr>
-                            </tbody>
-                        </table>
-                        <p class="text-muted small mb-0" th:if="${tableau.nbSansVigilance > 0}"
-                           th:text="${tableau.nbSansVigilance} + ' collaborateur(s) actif(s) sans donnee de vigilance, donc sans indice'">
-                            Sans donnee</p>
-                    </div>
-                </div>
-
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h2 class="h6 mb-0">Alertes prioritaires</h2>
-                        <a class="small" th:href="@{/alertes(trimestre=${trimestre.valeur})}"
-                           th:text="${tableau.nbAlertes > #lists.size(tableau.alertes)} ? |${#lists.size(tableau.alertes)} sur ${tableau.nbAlertes} - voir tout| : 'Voir les alertes'">6 sur 12 - voir tout</a>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted mb-0" th:if="${#lists.isEmpty(tableau.alertes)}">Aucune alerte.</p>
-                        <div th:each="alerte : ${tableau.alertes}" class="alert py-2 mb-2"
-                             th:classappend="${alerte.severite.name() == 'CRITIQUE'} ? 'alert-danger' : (${alerte.severite.name() == 'ELEVEE'} ? 'alert-warning' : 'alert-info')">
-                            <strong th:text="${alerte.severite.libelle}">Critique</strong>
-                            <span th:text="|${alerte.type.libelle} : ${alerte.sujet} - ${alerte.message}|">Message</span>
-                            <a class="ms-1" th:href="${alerte.lien}" th:text="${alerte.lienLibelle}">Fiche collaborateur</a>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- 00_DASHBOARD, bloc 3 : postes critiques sans successeur identifie (action prioritaire). -->
-        <section class="mt-4" th:if="${tableau.trimestreLibelle != null and tableau.erreur == null}">
-            <h2 class="h6">Postes critiques sans successeur identifié</h2>
-            <p class="text-muted small" th:if="${#lists.isEmpty(tableau.postesSansSuccesseur)}">
-                Tous les postes critiques ont au moins un successeur identifié.</p>
-            <div class="table-responsive" th:if="${not #lists.isEmpty(tableau.postesSansSuccesseur)}">
-                <table class="table table-hover bg-white rounded shadow-sm">
-                    <thead><tr><th>Poste_ID</th><th>Nom du poste</th><th>Direction</th></tr></thead>
-                    <tbody>
-                    <tr th:each="poste : ${tableau.postesSansSuccesseur}" class="table-danger">
-                        <td><a th:href="@{/postes-critiques(trimestre=${trimestre.valeur})} + '#poste-' + ${poste.posteId}"
-                               th:text="${poste.posteId}">PST13</a></td>
-                        <td th:text="${poste.nomPoste}">Responsable Cybersecurite</td>
-                        <td th:text="${poste.direction} ?: '-'">IT &amp; Digital</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="text-muted small mb-0">Plans de développement suivis / en retard (00_DASHBOARD A15, C15) :
-                non disponibles, la feuille 11_DEVELOPMENT_PLAN n'est pas importée.</p>
         </section>
-
-        <section class="mt-4" th:if="${not #lists.isEmpty(tableau.viviers)}">
-            <h2 class="h6">Viviers thematiques</h2>
-            <div class="table-responsive">
-                <table class="table table-hover bg-white rounded shadow-sm">
-                    <thead>
-                    <tr>
-                        <th>Vivier</th>
-                        <th class="text-end">Effectif</th>
-                        <th class="text-end">Perf. moyenne</th>
-                        <th class="text-end">Potentiel moyen</th>
-                        <th class="text-end">Talents</th>
-                        <th class="text-end">Ready Now</th>
-                        <th class="text-end">Postes critiques couverts</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="vivier : ${tableau.viviers}">
-                        <td th:text="${vivier.libelle}">Vivier Commercial</td>
-                        <td class="text-end" th:text="${vivier.effectif}">0</td>
-                        <td class="text-end" th:text="${vivier.performanceMoyenne} ?: '-'">-</td>
-                        <td class="text-end" th:text="${vivier.potentielMoyen} ?: '-'">-</td>
-                        <td class="text-end" th:text="${vivier.nbTalents}">0</td>
-                        <td class="text-end" th:text="${vivier.nbReadyNow}">0</td>
-                        <td class="text-end" th:text="${vivier.nbPostesCouverts}">0</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </main>
-
+    </div>
 </div>
 
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
+<script th:if="${vue != null}" th:src="@{/vendor/chartjs/chart.umd.js}"></script>
+<script th:if="${vue != null}" th:src="@{/js/tableau-de-bord.js}"></script>
 </body>
 </html>

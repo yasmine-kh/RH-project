@@ -1,115 +1,88 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Campagne</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Campagne d'évaluation</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<div class="app-layout">
+<!--
+  Campagne d'evaluation (vue DRH) : balisage de renderCampagne() du prototype. Avancement des
+  evaluations du manager calcule par le moteur (SuiviCampagneViewService) ; pas de dates ni de
+  statut de campagne (absents des donnees).
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('campagne')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('campagne')}"></div>
+    <div id="main">
+        <th:block th:with="titre='Campagne d\'évaluation', sous=${vue != null} ? 'Talent Review ' + ${vue.trimestre.libelle} + ' — évaluation manager, auto-évaluation, calcul' : 'Talent Review — évaluation manager, auto-évaluation, calcul'">
+            <div th:replace="~{fragments/prototype :: topbar(${titre}, ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Campagne d'évaluation</h1>
-            <p class="text-muted" th:if="${vue != null}"
-               th:text="|Évaluations du manager (performance et potentiel) - ${vue.trimestre.libelle}|">T3 2026</p>
-        </header>
+        <section class="view active" id="view-campagne">
+            <form method="get" action="/campagne" class="filters" th:if="${trimestre != null}">
+                <input type="hidden" name="entite" th:if="${vue != null and vue.entite != null}" th:value="${vue.entite.code}">
+                <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
+                <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+                <span style="font-size:12px; color:var(--muted);" th:if="${vue != null}">
+                    <a th:href="@{/campagne(trimestre=${trimestre.valeur})}">Toute la banque</a>
+                    <th:block th:if="${vue.entite != null}"> / <a th:href="@{/entites(code=${vue.entite.code}, trimestre=${trimestre.valeur})}"
+                            th:text="${vue.entite.libelle}">Reseau Retail</a></th:block>
+                </span>
+            </form>
 
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <form method="get" action="/campagne" class="filtre-bar" th:if="${trimestre != null}">
-            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-        </form>
+            <div class="alert warn" th:if="${erreur != null}"><div class="sev">ATTENTION</div><div class="txt" th:text="${erreur}">Entite inconnue</div></div>
 
-        <div class="alert alert-warning mt-4" th:if="${erreur != null}" th:text="${erreur}">Entite inconnue</div>
-
-        <th:block th:if="${vue != null}">
-            <nav class="mt-3 small" aria-label="Niveau">
-                <a th:href="@{/campagne(trimestre=${trimestre.valeur})}">Toute la banque</a>
-                <th:block th:if="${vue.entite != null}"> / <a
-                        th:href="@{/entites(code=${vue.entite.code}, trimestre=${trimestre.valeur})}"
-                        th:text="${vue.entite.libelle}">Reseau Retail</a></th:block>
-            </nav>
-
-            <div class="card shadow-sm mt-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <strong th:text="${vue.total.libelle}">Toute la banque</strong>
-                        <span th:text="|${vue.total.nbEvalues} / ${vue.total.nbActifs} évalués (${vue.total.pourcentageEvalues ?: 0} %)|">100 / 100</span>
+            <th:block th:if="${vue != null}">
+                <div class="panel"><div class="panel-head"><h3 th:text="|${vue.total.libelle} — ${vue.trimestre.libelle}|">Toute la banque — T3 2026</h3></div>
+                <div class="panel-body">
+                    <div class="stat-block">
+                        <div class="stat"><div class="n" th:text="|${vue.total.nbAutoEvaluations}/${vue.total.nbActifs}|">0/100</div><div class="l">Auto-évaluations soumises</div></div>
+                        <div class="stat"><div class="n" th:text="|${vue.total.nbEvalues}/${vue.total.nbActifs}|">100/100</div><div class="l">Évaluations manager complétées</div></div>
+                        <div class="stat"><div class="n" th:text="${vue.total.nbManquants}">0</div><div class="l">Évaluations manquantes</div></div>
                     </div>
-                    <div class="progress mt-2" style="height: 10px">
-                        <div class="progress-bar bg-success" role="progressbar"
-                             th:style="|width: ${vue.total.pourcentageEvalues ?: 0}%|"></div>
-                    </div>
-                    <p class="small text-muted mt-2 mb-0"
-                       th:text="|${vue.total.nbManquants} évaluation(s) manquante(s), ${vue.total.nbAutoEvaluations} auto-évaluation(s)|">0 manquante</p>
-                </div>
-            </div>
+                    <div class="comp-row"><span>Évaluations manager</span><div class="bar-track"><div class="bar-fill o"
+                            th:style="|width:${vue.total.pourcentageEvalues ?: 0}%|"></div></div><span class="gap" th:text="|${vue.total.pourcentageEvalues ?: 0}%|">100%</span></div>
+                    <p style="font-size:12px; color:var(--muted); margin-top:14px;">Une fois le classeur importé, le moteur calcule Performance, Potentiel, 9-Box, Score Talent, Matching et Readiness.</p>
+                    <a class="btn" style="margin-top:6px; display:inline-block; text-decoration:none;" href="/import">Lancer le calcul</a>
+                </div></div>
 
-            <div class="alert alert-light border mt-3 small" th:if="${not #lists.isEmpty(vue.remarques)}">
-                <div th:each="remarque : ${vue.remarques}"><i class="bi bi-info-circle"></i>
-                    <span th:text="${remarque}">Remarque</span></div>
-            </div>
+                <div class="alert info" th:each="remarque : ${vue.remarques}"><div class="sev">INFO</div><div class="txt" th:text="${remarque}">Remarque</div></div>
 
-            <div class="table-responsive mt-3" th:if="${not #lists.isEmpty(vue.lignes)}">
-                <table class="table table-hover bg-white rounded shadow-sm align-middle">
-                    <thead>
-                    <tr>
-                        <th>Entité</th><th class="text-end">Actifs</th><th class="text-end">Évalués</th>
-                        <th style="min-width: 160px">Avancement</th><th class="text-end">Manquants</th>
-                        <th>Managers en retard</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="ligne : ${vue.lignes}">
+                <div class="panel" th:if="${not #lists.isEmpty(vue.lignes)}"><div class="panel-head"><h3>Population par direction</h3></div><div class="panel-body">
+                    <table><thead><tr><th>Direction</th><th>Effectif</th><th>Éval. manager complétées</th><th>Manquantes</th><th>Managers en retard</th></tr></thead>
+                    <tbody><tr th:each="ligne : ${vue.lignes}">
                         <td>
                             <a th:if="${ligne.code != null and (vue.entite == null or ligne.code != vue.entite.code)}"
-                               th:href="@{/campagne(trimestre=${trimestre.valeur}, entite=${ligne.code})}"
-                               th:text="${ligne.libelle}">Reseau Retail</a>
-                            <span th:unless="${ligne.code != null and (vue.entite == null or ligne.code != vue.entite.code)}"
-                                  th:text="${ligne.libelle}">Sans direction</span>
-                            <a th:if="${ligne.code != null}" class="small ms-1" title="Vue entité"
-                               th:href="@{/entites(code=${ligne.code}, trimestre=${trimestre.valeur})}"><i class="bi bi-diagram-3"></i> vue</a>
+                               th:href="@{/campagne(trimestre=${trimestre.valeur}, entite=${ligne.code})}" th:text="${ligne.libelle}">Reseau Retail</a>
+                            <span th:unless="${ligne.code != null and (vue.entite == null or ligne.code != vue.entite.code)}" th:text="${ligne.libelle}">Sans direction</span>
+                            <a th:if="${ligne.code != null}" style="font-size:11px; margin-left:6px;"
+                               th:href="@{/entites(code=${ligne.code}, trimestre=${trimestre.valeur})}">Vue entité</a>
                         </td>
-                        <td class="text-end" th:text="${ligne.nbActifs}">47</td>
-                        <td class="text-end" th:text="${ligne.nbEvalues}">47</td>
+                        <td th:text="${ligne.nbActifs}">47</td>
+                        <td th:text="|${ligne.nbEvalues}/${ligne.nbActifs}|">47/47</td>
+                        <td th:text="${ligne.nbManquants}">0</td>
                         <td>
-                            <div class="progress" style="height: 8px">
-                                <div class="progress-bar" role="progressbar"
-                                     th:classappend="${ligne.nbManquants == 0} ? 'bg-success' : 'bg-warning'"
-                                     th:style="|width: ${ligne.pourcentageEvalues ?: 0}%|"></div>
-                            </div>
-                            <span class="small text-muted" th:text="|${ligne.pourcentageEvalues ?: 0} %|">100 %</span>
-                        </td>
-                        <td class="text-end" th:text="${ligne.nbManquants}">0</td>
-                        <td>
-                            <span class="text-muted" th:if="${#lists.isEmpty(ligne.managers)}">-</span>
-                            <div class="small" th:each="manager : ${ligne.managers}">
-                                <a th:if="${manager.matricule != null}"
-                                   th:href="@{/managers/{m}(m=${manager.matricule}, trimestre=${trimestre.valeur})}"
-                                   th:text="${manager.nom}">Manager</a>
+                            <span th:if="${#lists.isEmpty(ligne.managers)}">—</span>
+                            <div th:each="manager : ${ligne.managers}">
+                                <a th:if="${manager.matricule != null}" th:href="@{/managers/{m}(m=${manager.matricule}, trimestre=${trimestre.valeur})}" th:text="${manager.nom}">Manager</a>
                                 <span th:if="${manager.matricule == null}" th:text="${manager.nom}">Sans manager</span>
                                 <span th:text="|: ${manager.nbManquants}|">: 2</span>
-                                (<th:block th:each="matricule, etat : ${manager.manquants}"><a
+                                (<th:block th:each="matricule, etat : ${manager.manquants}"><a class="mono"
                                     th:href="@{/fiche-collaborateur(matricule=${matricule}, trimestre=${trimestre.valeur})}"
                                     th:text="${matricule}">BP001</a><span th:if="${!etat.last}">, </span></th:block>)
                             </div>
                         </td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </th:block>
-    </main>
-
+                    </tr></tbody></table>
+                </div></div>
+            </th:block>
+        </section>
+    </div>
 </div>
 
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 </body>
 </html>

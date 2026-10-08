@@ -3,6 +3,7 @@ package com.talent360bank.talent360bank.ui.controller;
 import com.talent360bank.talent360bank.ui.model.ImportPageView;
 import com.talent360bank.talent360bank.ui.model.ImportPageView.Formulaire;
 import com.talent360bank.talent360bank.ui.service.ImportPageService;
+import com.talent360bank.talent360bank.ui.service.TrimestreCourantService;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -30,9 +31,11 @@ public class ImportPageController {
     static final String ERREUR_TAILLE = "taille";
 
     private final ImportPageService importPageService;
+    private final TrimestreCourantService trimestreCourant;
 
-    public ImportPageController(ImportPageService importPageService) {
+    public ImportPageController(ImportPageService importPageService, TrimestreCourantService trimestreCourant) {
         this.importPageService = importPageService;
+        this.trimestreCourant = trimestreCourant;
     }
 
     @GetMapping("/import")
@@ -60,7 +63,23 @@ public class ImportPageController {
                 new Formulaire(annee, numero, simulation, calcul, dateReference)), model);
     }
 
-    private static String afficher(ImportPageView vue, Model model) {
+    /**
+     * Reponses brutes au questionnaire d'engagement (fichier de reponses du formulaire),
+     * pour un trimestre deja importe : voir ImportQuestionnaireService. Le bilan s'affiche
+     * au-dessus du formulaire, comme celui du classeur.
+     */
+    @PostMapping(value = "/import/questionnaire", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public String importerQuestionnaire(@RequestParam(name = "fichier", required = false) MultipartFile fichier,
+                                        @RequestParam(defaultValue = "") String trimestre, Model model) {
+        ImportPageService.EnvoiQuestionnaire envoi = importPageService.importerQuestionnaire(fichier, trimestre);
+        model.addAttribute("rapportQuestionnaire", envoi.rapport());
+        model.addAttribute("erreurQuestionnaire", envoi.erreur());
+        model.addAttribute("trimestreQuestionnaire", trimestre);
+        return afficher(importPageService.page(), model);
+    }
+
+    private String afficher(ImportPageView vue, Model model) {
+        model.addAttribute("trimestresQuestionnaire", trimestreCourant.lister());
         model.addAttribute("vue", vue);
         model.addAttribute("activePage", "import");
         return "import";

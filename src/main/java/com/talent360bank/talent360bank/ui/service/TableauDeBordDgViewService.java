@@ -33,7 +33,9 @@ import java.util.stream.Collectors;
 /**
  * Tableau de bord DG d'un trimestre : les cartes et la matrice du tableau de
  * bord RH, la releve de chaque poste critique et les meilleurs talents avec
- * leur poste cible.
+ * leur poste cible. L'ecran DG n'existe plus : ses blocs propres (releve des
+ * postes, meilleurs talents) sont sur le tableau de bord RH
+ * ({@link #construireAccueil}) ; l'API GET /api/dashboard/dg reste.
  *
  * <p>REGLE : aucun calcul ici. Cartes et matrice sont celles de
  * {@link DashboardService} (memes valeurs, jamais recalculees autrement) ; la
@@ -73,11 +75,23 @@ public class TableauDeBordDgViewService {
     }
 
     /**
+     * Le tableau de bord RH et les blocs DG qu'il affiche, tires de la meme
+     * construction (le moteur n'est appele qu'une fois).
+     */
+    public record Accueil(TableauDeBordView rh, TableauDeBordDg dg) {
+    }
+
+    /**
      * @param trimestre trimestre affiche, null s'il n'en existe aucun
      * @param limite    nombre de talents, 1 a {@link TableauDeBordDg#TOP_TALENTS_MAX}
      * @throws IllegalArgumentException si la limite est hors bornes
      */
     public TableauDeBordDg construire(Trimestre trimestre, int limite) {
+        return construireAccueil(trimestre, limite).dg();
+    }
+
+    /** Comme {@link #construire}, avec le tableau de bord RH dont il reprend les cartes. */
+    public Accueil construireAccueil(Trimestre trimestre, int limite) {
         if (limite < 1 || limite > TableauDeBordDg.TOP_TALENTS_MAX) {
             throw new IllegalArgumentException("Le nombre de talents doit etre entre 1 et "
                     + TableauDeBordDg.TOP_TALENTS_MAX);
@@ -86,8 +100,8 @@ public class TableauDeBordDgViewService {
         TableauDeBordView vue = construction.vue();
         SyntheseTableauDeBord synthese = construction.synthese();
         if (synthese == null) {
-            return new TableauDeBordDg(vue.trimestreLibelle(), vue.kpis(), vue.neufBox(), List.of(), List.of(),
-                    vue.erreur());
+            return new Accueil(vue, new TableauDeBordDg(vue.trimestreLibelle(), vue.kpis(), vue.neufBox(),
+                    List.of(), List.of(), vue.erreur()));
         }
 
         String erreur = null;
@@ -97,8 +111,8 @@ public class TableauDeBordDgViewService {
         } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
             erreur = "Meilleurs talents : " + e.getMessage();
         }
-        return new TableauDeBordDg(vue.trimestreLibelle(), vue.kpis(), vue.neufBox(),
-                synthese.couvertures().stream().map(TableauDeBordDgViewService::poste).toList(), talents, erreur);
+        return new Accueil(vue, new TableauDeBordDg(vue.trimestreLibelle(), vue.kpis(), vue.neufBox(),
+                synthese.couvertures().stream().map(TableauDeBordDgViewService::poste).toList(), talents, erreur));
     }
 
     /** La releve d'un poste critique, telle que PosteCritiqueService l'a evaluee. */

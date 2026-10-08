@@ -111,7 +111,7 @@ class SecurityConfigTest {
                 .andExpect(status().isOk())
                 // Jeton CSRF ajoute par th:action.
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")));
-        mockMvc.perform(get("/css/style.css")).andExpect(status().isOk());
+        mockMvc.perform(get("/css/prototype.css")).andExpect(status().isOk());
     }
 
     /** Ecritures sur l'API. */

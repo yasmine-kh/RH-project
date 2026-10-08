@@ -1,93 +1,60 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Postes critiques</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Postes critiques &amp; Succession</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<div class="app-layout">
+<!--
+  Postes critiques & Succession : balisage de renderPostes() du prototype (.succ-card). Couverture et
+  successeurs calcules par le moteur (PosteCritiqueViewService ; taux de couverture et postes en alerte
+  lus sur la synthese du trimestre, API /api/dashboard/synthese).
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('postes-critiques')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('postes-critiques')}"></div>
+    <div id="main">
+        <th:block th:with="sous=${trimestre != null} ? 'Couverture et profondeur de la relève — ' + ${trimestre.libelle} : 'Couverture et profondeur de la relève'">
+            <div th:replace="~{fragments/prototype :: topbar('Postes critiques & Succession', ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Postes critiques</h1>
-            <p class="text-muted" th:if="${trimestre != null and #lists.isEmpty(rows)}">
-                Aucun poste critique pour le trimestre en cours.
-            </p>
-        </header>
+        <section class="view active" id="view-postes">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+            <form method="get" action="/postes-critiques" class="filters" th:if="${trimestre != null}">
+                <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
+                <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+            </form>
 
-        <form method="get" action="/postes-critiques" class="filtre-bar" th:if="${trimestre != null}">
-            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-        </form>
+            <div class="empty-state" th:if="${trimestre != null and #lists.isEmpty(rows)}">Aucun poste critique pour le trimestre en cours.</div>
 
-        <div class="table-responsive mt-3" th:if="${not #lists.isEmpty(rows)}">
-            <table class="table table-hover bg-white rounded shadow-sm">
-                <thead>
-                <tr>
-                    <th>Poste</th>
-                    <th>Direction</th>
-                    <th>Criticite</th>
-                    <th>Titulaire</th>
-                    <th>Successeurs</th>
-                    <th>Candidat potentiel</th>
-                    <th>Score matching</th>
-                    <th>Statut</th>
-                </tr>
-                </thead>
-                <tbody>
-                <th:block th:each="row : ${rows}">
-                    <tr th:id="|poste-${row.posteId}|" th:classappend="${row.enAlerte} ? 'table-danger' : ''">
-                        <td th:text="${row.nomPoste}"></td>
-                        <td th:text="${row.direction}"></td>
-                        <td th:text="${row.criticite}"></td>
-                        <td th:text="${row.titulaire}"></td>
-                        <td th:text="${row.nbSuccesseurs}"></td>
-                        <td th:text="${row.candidatPotentiel}"></td>
-                        <td th:text="${row.scoreMatching != null ? row.scoreMatching : '-'}"></td>
-                        <td>
-                            <span class="badge" th:classappend="${row.enAlerte} ? 'bg-danger' : 'bg-success'"
-                                  th:text="${row.statut}"></span>
-                        </td>
-                    </tr>
-                    <!-- Tous les successeurs evalues, du meilleur matching au moins bon. -->
-                    <tr th:if="${not #lists.isEmpty(row.successeurs)}" class="table-light">
-                        <td></td>
-                        <td colspan="7">
-                            <table class="table table-sm mb-0 small">
-                                <thead>
-                                <tr><th>Successeur</th><th class="text-end">Matching</th><th>Readiness</th><th>Plus grand gap</th></tr>
-                                </thead>
-                                <tbody>
-                                <tr th:each="successeur : ${row.successeurs}">
-                                    <td>
-                                        <a th:href="@{/fiche-collaborateur(matricule=${successeur.matricule}, trimestre=${trimestre.valeur})}"
-                                           th:text="${successeur.nomComplet}">Nom</a>
-                                        <span class="text-muted" th:text="|(${successeur.matricule})|">(BP001)</span>
-                                    </td>
-                                    <td class="text-end" th:text="${successeur.scoreMatching}">95.20</td>
-                                    <td th:text="${successeur.readinessLibelle}">Ready Now</td>
-                                    <td th:text="${successeur.gapCompetence != null} ? |${successeur.gapCompetence} (${successeur.gapNiveaux} niveau(x))| : 'Aucun écart'">Aucun ecart</td>
-                                </tr>
-                                </tbody>
-                            </table>
-                        </td>
-                    </tr>
-                </th:block>
-                </tbody>
-            </table>
-        </div>
-    </main>
+            <div class="panel" th:if="${not #lists.isEmpty(rows)}" th:attr="data-synthese-trimestre=${trimestre.valeur}" hidden><div class="panel-body">
+                <div style="display:flex; justify-content:space-between; align-items:center;"><div><b data-synthese="nbAlertesPostesCritiques">1</b>
+                    poste(s) critique(s) en alerte sur <b data-synthese="nbPostesCritiques">15</b> — taux de couverture de la succession</div>
+                    <div class="mono"><span data-synthese="tauxCouverture">93.33</span> %</div></div>
+                <div class="cov-bar"><div class="cov-bar-fill" data-synthese-largeur="tauxCouverture" style="width:0%"></div></div>
+            </div></div>
 
+            <div class="succ-card" th:each="p : ${rows}" th:id="|poste-${p.posteId}|"><div class="sh">
+                <div><div class="t" th:text="${p.nomPoste}">Directeur regional</div>
+                    <div class="d" th:text="|${p.posteId} · ${p.direction} · criticité : ${p.criticite ?: '—'} · titulaire : ${p.titulaire ?: '—'}|">PST01 · Reseau Retail</div></div>
+                <span class="statut-tag" th:text="${p.statut}" th:style="${p.enAlerte} ? 'color:var(--rust); border-color:var(--rust); background:var(--rust-light)' : ''">Couverte - Ready Now</span></div>
+                <div class="sb">
+                    <div class="succ-row" th:each="s : ${p.successeurs}" th:attr="data-href=@{/fiche-collaborateur(matricule=${s.matricule}, trimestre=${trimestre.valeur})}"
+                         style="cursor:pointer"><span class="m" th:text="${s.matricule}">BP035</span><span class="nm"><a
+                            th:href="@{/fiche-collaborateur(matricule=${s.matricule}, trimestre=${trimestre.valeur})}" th:text="${s.nomComplet}">Nom</a></span><th:block
+                            th:replace="~{fragments/prototype :: readiness(${s.readiness}, ${s.readinessLibelle})}"></th:block><span class="statut-tag"
+                            th:text="${s.gapCompetence != null} ? |Plus grand gap : ${s.gapCompetence} (${s.gapNiveaux})| : 'Aucun écart'">Aucun écart</span><span
+                            class="pct" th:text="|${s.scoreMatching}%|">95.20%</span></div>
+                    <div class="no-succ" th:if="${#lists.isEmpty(p.successeurs)}">🔴 Aucun successeur identifié — poste sans relève.</div>
+                </div>
+            </div>
+        </section>
+    </div>
 </div>
 
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 </body>
 </html>

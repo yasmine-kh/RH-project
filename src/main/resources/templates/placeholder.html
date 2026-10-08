@@ -1,30 +1,133 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title th:text="${pageTitle} + ' - Talent 360 Bank'">Talent 360 Bank</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title th:text="'BP TALENT 360 — ' + ${pageTitle}">BP TALENT 360</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
-<div class="app-layout">
 
-    <div th:replace="~{fragments/sidebar :: sidebar(${activePage})}"></div>
+<!--
+  Pages "En cours de developpement" (PagesEnDeveloppementController) : le balisage de la vue du
+  prototype (render...()) avec ses intitules et colonnes, sans aucune valeur. Aucune donnee n'est
+  calculee ni stockee pour ces modules ; quand une donnee proche existe, un lien y mene.
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar(${activePage})}"></aside>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1 th:text="${pageTitle}">Page</h1>
-        </header>
+    <div id="main">
+        <div th:replace="~{fragments/prototype :: topbar(${pageTitle}, ${pageSousTitre})}"></div>
 
-        <div class="placeholder-box">
-            <i class="bi bi-tools"></i>
-            <p>Cet ecran sera construit a l'etape suivante, une fois la sidebar et la navigation validees.</p>
-        </div>
-    </main>
+        <th:block th:switch="${activePage}">
 
+            <!-- ===== 07 Carriere & Mobilite (renderCarriere) ===== -->
+            <section class="view active" id="view-carriere" th:case="'carriere-mobilite'">
+                <div class="alert info"><div class="sev">EN COURS</div><div class="txt"><b>En cours de développement.</b>
+                    Les aspirations (projet professionnel, mobilité souhaitée, horizon), les mobilités réalisées et les promotions ne
+                    figurent pas dans les données importées : aucun de ces indicateurs n'est calculé. Les postes cibles et la readiness
+                    existent déjà : <a href="/collaborateurs">Collaborateurs</a> et <a href="/postes-critiques">Postes critiques &amp; Succession</a>.</div></div>
+                <div class="kpi-row">
+                    <div class="kpi teal"><div class="val" style="font-size:13px; padding:8px 0;">En cours de développement</div><div class="lbl">Taux de mobilité interne</div></div>
+                    <div class="kpi"><div class="val" style="font-size:13px; padding:8px 0;">En cours de développement</div><div class="lbl">Mobilités réalisées</div></div>
+                    <div class="kpi gold"><div class="val" style="font-size:13px; padding:8px 0;">En cours de développement</div><div class="lbl">Mobilités souhaitées</div></div>
+                    <div class="kpi teal"><div class="val" style="font-size:13px; padding:8px 0;">En cours de développement</div><div class="lbl">Promotions envisageables (Ready Now)</div></div>
+                </div>
+                <div class="panel"><div class="panel-head"><h3>Souhaits de carrière &amp; mobilité</h3></div><div class="panel-body">
+                    <table><thead><tr><th>Matricule</th><th>Nom</th><th>Poste actuel</th><th>Projet</th><th>Mobilité</th><th>Horizon</th><th>Poste cible</th><th>Readiness</th></tr></thead>
+                    <tbody><tr><td colspan="8" class="empty-state">En cours de développement : aucune donnée de souhait de carrière.</td></tr></tbody></table>
+                </div></div>
+            </section>
+
+            <!-- ===== 08 Engagement & Fidelisation (renderEngagementRH) ===== -->
+            <section class="view active" id="view-engagementRH" th:case="'engagement'">
+                <div class="alert info"><div class="sev">EN COURS</div><div class="txt"><b>En cours de développement.</b>
+                    Le score d'engagement sur 100 de chaque collaborateur est importé avec le classeur, et les réponses brutes au
+                    questionnaire peuvent être importées (<a href="/import#formulaire-questionnaire">Import</a>) : elles sont visibles
+                    sur la fiche de chacun (<a href="/fiche-collaborateur">Talent Passport</a>, « Réponses au questionnaire »). Les
+                    résultats agrégés par dimension, le taux de réponse et l'eNPS moyen ne sont pas encore calculés. L'engagement
+                    moyen existant est sur le <a href="/">Tableau de bord RH</a>.</div></div>
+                <div class="kpi-row">
+                    <div class="kpi teal"><div class="val" style="font-size:13px; padding:8px 0;">En cours de développement</div><div class="lbl">❤️ Engagement global</div></div>
+                    <div class="kpi"><div class="val" style="font-size:13px; padding:8px 0;">En cours de développement</div><div class="lbl">Taux de réponse</div></div>
+                    <div class="kpi gold"><div class="val" style="font-size:13px; padding:8px 0;">En cours de développement</div><div class="lbl">Recommandation (eNPS moyen)</div></div>
+                    <div class="kpi rust"><div class="val" style="font-size:13px; padding:8px 0;">En cours de développement</div><div class="lbl">Dimensions à surveiller (&lt;70%)</div></div>
+                </div>
+                <div class="grid-2">
+                    <div class="panel"><div class="panel-head"><h3>Résultat par dimension</h3></div><div class="panel-body">
+                        <div class="pill-row"><span class="pill">Management</span><span class="pill">Reconnaissance</span><span class="pill">Formation</span>
+                            <span class="pill">Évolution professionnelle</span><span class="pill">Conditions de travail</span><span class="pill">Communication interne</span></div>
+                        <div class="empty-state">En cours de développement.</div>
+                    </div></div>
+                    <div class="panel"><div class="panel-head"><h3>Signaux nécessitant une attention RH</h3></div><div class="panel-body">
+                        <div class="empty-state">En cours de développement.</div>
+                    </div></div>
+                </div>
+                <div class="panel"><div class="panel-head"><h3>Résultat par direction</h3></div><div class="panel-body">
+                    <table><thead><tr><th>Direction</th><th>Effectif</th><th>Réponses</th><th>Score engagement</th></tr></thead>
+                    <tbody><tr><td colspan="4" class="empty-state">En cours de développement.</td></tr></tbody></table>
+                </div></div>
+            </section>
+
+            <!-- ===== 14 Historique (renderHistorique) ===== -->
+            <section class="view active" id="view-historique" th:case="'historique'">
+                <div class="alert info"><div class="sev">EN COURS</div><div class="txt"><b>En cours de développement.</b>
+                    Les décisions (Comité Talent, successions) et les changements de statut ne sont pas encore tracés. Le journal des
+                    imports du classeur existe déjà : <a href="/import#journal-imports">Import</a>.</div></div>
+                <div class="panel"><div class="panel-body">
+                    <table><thead><tr><th>Date</th><th>Matricule</th><th>Acteur</th><th>Événement</th></tr></thead>
+                    <tbody><tr><td colspan="4" class="empty-state">En cours de développement : aucun événement enregistré.</td></tr></tbody></table>
+                </div></div>
+            </section>
+
+            <!-- ===== Collaborateur : Mon engagement (renderEngagementSelf) ===== -->
+            <section class="view active" id="view-engagement" th:case="'mon-engagement'">
+                <div class="panel"><div class="panel-head"><h3>Mon Talent 360 — questionnaire d'engagement</h3><span class="statut-tag">En cours de développement</span></div>
+                <div class="panel-body">
+                    <p style="font-size:12.5px; color:var(--muted); margin-bottom:14px;">Le questionnaire d'engagement ne peut pas encore être rempli dans
+                        l'application.
+                        <th:block th:if="${profilActif != null and profilActif.matricule != null}">Les réponses importées par le RH sont sur
+                            <a th:href="@{/fiche-collaborateur(matricule=${profilActif.matricule})} + '#questionnaire'">Mon profil</a>.</th:block></p>
+                    <div class="pill-row"><span class="pill">Management</span><span class="pill">Reconnaissance</span><span class="pill">Formation</span>
+                        <span class="pill">Évolution professionnelle</span><span class="pill">Conditions de travail</span><span class="pill">Communication interne</span>
+                        <span class="pill">Recommandation (0-10)</span><span class="pill">Commentaire (facultatif)</span></div>
+                    <p style="font-size:12px; color:var(--muted); margin:14px 0 0;">1 = Pas du tout d'accord · 5 = Tout à fait d'accord</p>
+                    <div class="empty-state">Formulaire en cours de développement.</div>
+                </div></div>
+            </section>
+
+            <!-- ===== Collaborateur : Campagne d'evaluation, auto-evaluation (renderCampagne, profil collaborateur) ===== -->
+            <section class="view active" id="view-campagne" th:case="'auto-evaluation'">
+                <div class="panel"><div class="panel-head"><h3>Mon Talent 360 — auto-évaluation</h3><span class="statut-tag">En cours de développement</span></div>
+                <div class="panel-body">
+                    <p style="font-size:12.5px; color:var(--muted); margin:0 0 14px;">L'auto-évaluation ne peut pas encore être saisie dans l'application.
+                        <th:block th:if="${profilActif != null and profilActif.matricule != null}">Les évaluations déjà importées sont sur
+                            <a th:href="@{/fiche-collaborateur(matricule=${profilActif.matricule})}">Mon profil</a>.</th:block></p>
+                    <div class="pill-row"><span class="pill">Projet professionnel</span><span class="pill">Mobilité souhaitée</span><span class="pill">Horizon souhaité</span>
+                        <span class="pill">Auto-évaluation des compétences (1 = Débutant, 5 = Référent)</span></div>
+                    <div class="empty-state">Formulaire en cours de développement.</div>
+                </div></div>
+            </section>
+
+            <!-- ===== Manager : formulaire d'evaluation (openManagerEvalForm) ===== -->
+            <section class="view active" id="view-campagne-manager" th:case="'evaluation-manager'">
+                <div class="panel"><div class="panel-head"><h3>Évaluation Talent 360</h3><span class="statut-tag">En cours de développement</span></div>
+                <div class="panel-body">
+                    <p style="font-size:12.5px; color:var(--muted); margin:0 0 14px;">L'évaluation ne peut pas encore être saisie dans l'application : les notes
+                        du manager viennent de l'import du classeur.
+                        <th:block th:if="${profilActif != null and profilActif.type == 'MANAGER' and profilActif.matricule != null}">Les évaluations manquantes
+                            de l'équipe sont sur <a th:href="@{/managers/{m}(m=${profilActif.matricule})} + '#evaluations'">Campagne d'évaluation</a>.</th:block>
+                        <th:block th:unless="${profilActif != null and profilActif.type == 'MANAGER' and profilActif.matricule != null}">L'avancement
+                            des évaluations est sur <a href="/campagne">Campagne d'évaluation</a>.</th:block></p>
+                    <div class="pill-row"><span class="pill">Performance (0-100)</span><span class="pill">Potentiel (0-100)</span><span class="pill">Commentaire qualitatif</span></div>
+                    <div class="empty-state">Formulaire en cours de développement.</div>
+                </div></div>
+            </section>
+
+            <section class="view active" th:case="*"><div class="empty-state">En cours de développement.</div></section>
+        </th:block>
+    </div>
 </div>
 
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 </body>
 </html>

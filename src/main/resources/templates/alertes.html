@@ -1,152 +1,99 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Alertes</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Alertes</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<div class="app-layout">
+<!--
+  Alertes : balisage de renderAlertes() du prototype (un panneau par gravite, lignes .alert). Alertes
+  calculees par le moteur (AlertesViewService), filtrees cote serveur ; nombre de collaborateurs a risque
+  lu sur la synthese du trimestre (API /api/dashboard/synthese).
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('alertes')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('alertes')}"></div>
+    <div id="main">
+        <th:block th:with="sous=${vue.trimestreLibelle != null} ? 'Signaux nécessitant une action RH — ' + ${vue.trimestreLibelle} : 'Signaux nécessitant une action RH'">
+            <div th:replace="~{fragments/prototype :: topbar('Alertes', ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Alertes</h1>
-            <p class="text-muted" th:if="${vue.trimestreLibelle == null}">Aucun trimestre enregistre pour le moment.</p>
-            <p class="text-muted" th:if="${vue.trimestreLibelle != null}"
-               th:text="|Signaux necessitant une action RH - ${vue.trimestreLibelle}|">
-                Signaux necessitant une action RH - T3 2026</p>
-        </header>
+        <section class="view active" id="view-alertes">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <div class="alert alert-warning mt-4" th:if="${vue.erreur != null}" th:text="${vue.erreur}">Reglages absents</div>
-
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
-
-        <!-- Ce que les regles n'ont pas pu faire (ex. : pas de trimestre precedent pour les nouveaux talents). -->
-        <div class="alert alert-light border mt-4 small" th:if="${not #lists.isEmpty(vue.informations)}">
-            <div th:each="information : ${vue.informations}"><i class="bi bi-info-circle"></i>
-                <span th:text="${information}">Nouveaux talents : compares a T2 2026.</span></div>
-        </div>
-
-        <!-- Compteurs sur toutes les alertes du trimestre, avant filtres. -->
-        <div class="kpi-grid" th:if="${vue.trimestreLibelle != null and vue.erreur == null}">
-            <div class="kpi-card kpi-red">
-                <div class="kpi-icon"><i class="bi bi-bell"></i></div>
-                <div class="kpi-body">
-                    <div class="kpi-value" th:text="${vue.total}">0</div>
-                    <div class="kpi-label">Alertes</div>
-                </div>
-            </div>
-            <div class="kpi-card" th:each="compteur : ${vue.parSeverite}"
-                 th:classappend="${compteur.code == 'CRITIQUE'} ? 'kpi-red' : (${compteur.code == 'ELEVEE'} ? 'kpi-orange' : 'kpi-blue')">
-                <div class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                <div class="kpi-body">
-                    <div class="kpi-value" th:text="${compteur.nombre}">0</div>
-                    <div class="kpi-label" th:text="${compteur.libelle}">Critique</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="d-flex flex-wrap gap-2 mt-3" th:if="${vue.trimestreLibelle != null and vue.erreur == null}">
-            <a th:each="compteur : ${vue.parType}" class="badge text-bg-light border text-decoration-none"
-               th:href="@{/alertes(trimestre=${trimestre.valeur}, type=${compteur.code})}"
-               th:text="|${compteur.libelle} : ${compteur.nombre}|">Vigilance elevee : 3</a>
-        </div>
-
-        <form method="get" action="/alertes" class="filtre-bar" th:if="${vue.trimestreLibelle != null}">
-            <div>
-                <label for="trimestre" class="form-label">Trimestre</label>
-                <select id="trimestre" name="trimestre" class="form-select">
-                    <option th:each="option : ${trimestres}" th:value="${option.valeur}"
-                            th:text="${option.hasData} ? ${option.libelle} : ${option.libelle} + ' (pas encore calcule)'"
-                            th:selected="${trimestre != null and option.valeur == trimestre.valeur}">T3 2026</option>
-                </select>
-            </div>
-            <div>
-                <label for="type" class="form-label">Type</label>
-                <select id="type" name="type" class="form-select">
-                    <option value="">Tous</option>
+            <form method="get" action="/alertes" class="filters" th:if="${vue.trimestreLibelle != null}">
+                <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
+                <select id="type" name="type" data-auto aria-label="Type">
+                    <option value="">Tous types</option>
                     <option th:each="compteur : ${vue.parType}" th:value="${compteur.code}" th:text="${compteur.libelle}"
                             th:selected="${compteur.code == vue.filtres.type}">Vigilance elevee</option>
                 </select>
-            </div>
-            <div>
-                <label for="severite" class="form-label">Gravite</label>
-                <select id="severite" name="severite" class="form-select">
-                    <option value="">Toutes</option>
+                <select id="severite" name="severite" data-auto aria-label="Gravité">
+                    <option value="">Toutes gravités</option>
                     <option th:each="compteur : ${vue.parSeverite}" th:value="${compteur.code}" th:text="${compteur.libelle}"
                             th:selected="${compteur.code == vue.filtres.severite}">Critique</option>
                 </select>
-            </div>
-            <div>
-                <label for="direction" class="form-label">Direction</label>
-                <select id="direction" name="direction" class="form-select">
-                    <option value="">Toutes</option>
+                <select id="direction" name="direction" data-auto aria-label="Direction">
+                    <option value="">Toutes directions</option>
                     <option th:each="direction : ${vue.directions}" th:value="${direction}" th:text="${direction}"
                             th:selected="${direction == vue.filtres.direction}">Reseau Retail</option>
                 </select>
+                <input type="text" id="q" name="q" placeholder="Filtrer par nom ou matricule…" th:value="${vue.filtres.recherche}">
+                <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+            </form>
+
+            <div class="alert warn" th:if="${vue.erreur != null}"><div class="sev">ATTENTION</div><div class="txt" th:text="${vue.erreur}">Reglages absents</div></div>
+            <div class="alert info" th:each="information : ${vue.informations}"><div class="sev">INFO</div><div class="txt" th:text="${information}">Information</div></div>
+
+            <div class="kpi-row" th:if="${vue.trimestreLibelle != null and vue.erreur == null}">
+                <div class="kpi rust"><div class="val" th:text="${vue.total}">23</div><div class="lbl">🔔 Alertes</div></div>
+                <div class="kpi" th:each="compteur : ${vue.parSeverite}"
+                     th:classappend="${compteur.code == 'CRITIQUE'} ? 'rust' : (${compteur.code == 'ELEVEE'} ? 'gold' : 'teal')">
+                    <div class="val" th:text="${compteur.nombre}">1</div><div class="lbl" th:text="${compteur.libelle}">Critique</div></div>
+                <div class="kpi rust" th:if="${trimestre != null}" th:attr="data-synthese-trimestre=${trimestre.valeur}" hidden>
+                    <div class="val" data-synthese="nbARisque">45</div><div class="lbl">🟠 À risque (vigilance modérée ou élevée)</div></div>
             </div>
-            <div>
-                <label for="q" class="form-label">Nom</label>
-                <input type="search" id="q" name="q" class="form-control" placeholder="Nom ou matricule"
-                       th:value="${vue.filtres.recherche}">
+
+            <div class="pill-row" style="margin-bottom:14px;" th:if="${vue.trimestreLibelle != null and vue.erreur == null}">
+                <a th:each="compteur : ${vue.parType}" class="pill" style="text-decoration:none"
+                   th:href="@{/alertes(trimestre=${trimestre.valeur}, type=${compteur.code})}"
+                   th:text="|${compteur.libelle} : ${compteur.nombre}|">Vigilance elevee : 3</a>
             </div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-        </form>
 
-        <p class="text-muted mt-4" th:if="${vue.trimestreLibelle != null and vue.erreur == null and vue.total == 0}">
-            Aucune alerte pour ce trimestre.</p>
-        <p class="text-muted mt-4" th:if="${vue.total > 0 and #lists.isEmpty(vue.alertes)}">
-            Aucune alerte pour ces filtres.</p>
+            <div class="empty-state" th:if="${vue.trimestreLibelle != null and vue.erreur == null and vue.total == 0}">Aucune alerte active.</div>
+            <div class="empty-state" th:if="${vue.total > 0 and #lists.isEmpty(vue.alertes)}"
+                 th:text="${vue.filtres.recherche != null} ? 'Aucune donnée pour ce collaborateur.' : 'Aucune alerte pour ces filtres.'">Aucune alerte pour ces filtres.</div>
+            <p style="font-size:12px; color:var(--muted); margin:0 0 10px;" th:if="${not #lists.isEmpty(vue.alertes)}"
+               th:text="|${#lists.size(vue.alertes)} alerte(s) affichee(s) sur ${vue.total}|">12 alertes affichees sur 30</p>
 
-        <div class="table-responsive mt-4" th:if="${not #lists.isEmpty(vue.alertes)}">
-            <p class="text-muted small" th:text="|${#lists.size(vue.alertes)} alerte(s) affichee(s) sur ${vue.total}|">
-                12 alertes affichees sur 30</p>
-            <table class="table table-hover bg-white rounded shadow-sm">
-                <thead>
-                <tr>
-                    <th>Gravite</th>
-                    <th>Type</th>
-                    <th>Sujet</th>
-                    <th>Entite</th>
-                    <th>Direction</th>
-                    <th>Message</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="alerte : ${vue.alertes}">
-                    <td><span class="badge" th:classappend="${alerte.severite.badgeClass}"
-                              th:text="${alerte.severite.libelle}">Critique</span></td>
-                    <td th:text="${alerte.type.libelle}">Vigilance elevee</td>
-                    <td>
-                        <span th:text="${alerte.sujet}">Nom</span>
-                        <span class="text-muted small d-block" th:text="${alerte.matricule}">BP001</span>
-                        <span class="small d-block" th:if="${alerte.managerMatricule != null}">Manager :
-                            <a th:href="@{/managers/{m}(m=${alerte.managerMatricule}, trimestre=${trimestre.valeur})}"
-                               th:text="${alerte.managerNom}">Manager</a></span>
-                    </td>
-                    <td>
-                        <a th:if="${alerte.entiteCode != null}"
-                           th:href="@{/entites(code=${alerte.entiteCode}, trimestre=${trimestre.valeur})}"
-                           th:text="${alerte.entite}">Agence</a>
-                        <span th:if="${alerte.entiteCode == null}" th:text="${alerte.entite} ?: '-'">-</span>
-                    </td>
-                    <td th:text="${alerte.direction} ?: '-'">Direction</td>
-                    <td th:text="${alerte.message}">Message</td>
-                    <td><a th:href="${alerte.lien}" th:text="${alerte.lienLibelle}">Fiche collaborateur</a></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </main>
-
+            <th:block th:each="groupe : ${ {'CRITIQUE', 'ELEVEE', 'MOYENNE'} }" th:with="items=${vue.alertes.?[severite.name() == '__${groupe}__']}">
+                <div class="panel" th:if="${not #lists.isEmpty(items)}">
+                    <div class="panel-head"><h3 th:text="${groupe == 'CRITIQUE'} ? 'CRITIQUE' : (${groupe == 'ELEVEE'} ? 'ATTENTION' : 'INFORMATION')">CRITIQUE</h3>
+                        <span class="hint" th:text="${#lists.size(items)}">3</span></div>
+                    <div class="panel-body">
+                        <div class="alert" th:each="a : ${items}" th:classappend="${groupe == 'CRITIQUE'} ? 'crit' : (${groupe == 'ELEVEE'} ? 'warn' : 'info')">
+                            <div class="sev" th:text="${groupe == 'CRITIQUE'} ? 'CRITIQUE' : (${groupe == 'ELEVEE'} ? 'ATTENTION' : 'INFORMATION')">CRITIQUE</div>
+                            <div class="txt"><span th:text="|${a.type.libelle} — |">Type — </span><b th:text="${a.sujet}">Sujet</b>
+                                <span class="mono" style="font-size:11px; color:var(--muted);" th:if="${a.matricule != null}" th:text="${a.matricule}">BP001</span>
+                                <span th:text="| : ${a.message}|"> : message</span>
+                                <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">
+                                    <th:block th:if="${a.entiteCode != null}"><a th:href="@{/entites(code=${a.entiteCode}, trimestre=${trimestre.valeur})}" th:text="${a.entite}">Agence</a></th:block>
+                                    <th:block th:if="${a.entiteCode == null and a.entite != null}" th:text="${a.entite}">Agence</th:block>
+                                    <th:block th:if="${a.direction != null}"> · <span th:text="${a.direction}">Direction</span></th:block>
+                                    <th:block th:if="${a.managerMatricule != null}"> · Manager : <a th:href="@{/managers/{m}(m=${a.managerMatricule}, trimestre=${trimestre.valeur})}"
+                                            th:text="${a.managerNom}">Manager</a></th:block>
+                                    · <a th:href="${a.lien}" th:text="${a.lienLibelle}">Fiche collaborateur</a>
+                                </div></div>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
+        </section>
+    </div>
 </div>
 
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 </body>
 </html>

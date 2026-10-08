@@ -1,34 +1,33 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Connexion</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Connexion</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<!-- Version minimale, a restyler (Ima). Le formulaire est traite par Spring Security (POST /login). -->
-<main class="container" style="max-width: 420px; margin-top: 10vh;">
-    <h1 class="h3 mb-4">Talent 360 Bank</h1>
-
-    <div class="alert alert-danger" th:if="${param.error}">Identifiant ou mot de passe incorrect.</div>
-    <div class="alert alert-info" th:if="${param.deconnexion}">Vous etes deconnecte.</div>
-
-    <!-- th:action ajoute le champ cache du jeton CSRF. -->
-    <form method="post" th:action="@{/login}">
-        <div class="mb-3">
-            <label for="username" class="form-label">Identifiant</label>
-            <input type="text" id="username" name="username" class="form-control"
-                   autocomplete="username" required autofocus>
+<!-- Connexion, aux couleurs du prototype. Le formulaire est traite par Spring Security (POST /login). -->
+<main class="page-seule">
+    <div class="boite">
+        <div class="boite-tete marque">
+            <!-- Logo BP complet dans la case de la marque (bordure doree, elargie aux proportions du logo). -->
+            <span class="mark mark-logo"><img th:src="@{/images/BP-Logo-Complet.png}" alt="Banque Populaire" width="170" height="52"></span>
+            <div><h3>BP TALENT 360</h3><p>Vivier &amp; Succession — SIRH</p></div>
         </div>
-        <div class="mb-3">
-            <label for="password" class="form-label">Mot de passe</label>
-            <input type="password" id="password" name="password" class="form-control"
-                   autocomplete="current-password" required>
+        <div class="boite-corps">
+            <div class="alert crit" th:if="${param.error}"><div class="sev">ERREUR</div><div class="txt">Identifiant ou mot de passe incorrect.</div></div>
+            <div class="alert info" th:if="${param.deconnexion}"><div class="sev">INFO</div><div class="txt">Vous etes deconnecte.</div></div>
+
+            <!-- th:action ajoute le champ cache du jeton CSRF. -->
+            <form method="post" th:action="@{/login}">
+                <div class="form-row"><label for="username">Identifiant</label>
+                    <input type="text" id="username" name="username" autocomplete="username" required autofocus></div>
+                <div class="form-row"><label for="password">Mot de passe</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required></div>
+                <button type="submit" class="btn" style="width:100%; margin-top:6px;">Se connecter</button>
+            </form>
         </div>
-        <button type="submit" class="btn btn-primary w-100">Se connecter</button>
-    </form>
+    </div>
 </main>
 
 </body>

@@ -6,15 +6,12 @@ import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.service.CompetenceSyntheseService;
 import com.talent360bank.talent360bank.service.resultat.SyntheseCompetences;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs;
-import com.talent360bank.talent360bank.ui.model.MatriceNeufBox;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.Criteres;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.Tri;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordDg;
 import com.talent360bank.talent360bank.ui.service.ListeCollaborateursViewService;
 import com.talent360bank.talent360bank.ui.service.NotificationsViewService;
 import com.talent360bank.talent360bank.ui.service.OptionsFiltresService;
 import com.talent360bank.talent360bank.ui.service.SuiviCampagneViewService;
-import com.talent360bank.talent360bank.ui.service.TableauDeBordDgViewService;
 import com.talent360bank.talent360bank.ui.service.TrimestreCourantService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -30,8 +27,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Ecrans des modules de Jas : Collaborateurs, Dashboard DG, Competences,
- * Notifications et Campagne. Chacun accepte {@code ?trimestre=AAAA-N} (404 si
+ * Ecrans des modules de Jas : Collaborateurs, Competences, Notifications et
+ * Campagne (le Dashboard DG est fusionne dans le tableau de bord RH, voir
+ * DashboardController). Chacun accepte {@code ?trimestre=AAAA-N} (404 si
  * inconnu ; sinon le plus recent qui a des scores) et pose "trimestre" et
  * "trimestres" (voir {@link TrimestreCourantService}). Sans trimestre, le
  * template affiche l'etat vide avec le lien vers l'import.
@@ -45,20 +43,17 @@ public class ModulesPagesController {
 
     private final TrimestreCourantService trimestreCourant;
     private final ListeCollaborateursViewService listeCollaborateurs;
-    private final TableauDeBordDgViewService tableauDeBordDg;
     private final CompetenceSyntheseService competences;
     private final NotificationsViewService notifications;
     private final SuiviCampagneViewService campagne;
     private final OptionsFiltresService options;
 
     public ModulesPagesController(TrimestreCourantService trimestreCourant,
-                                  ListeCollaborateursViewService listeCollaborateurs,
-                                  TableauDeBordDgViewService tableauDeBordDg, CompetenceSyntheseService competences,
+                                  ListeCollaborateursViewService listeCollaborateurs, CompetenceSyntheseService competences,
                                   NotificationsViewService notifications, SuiviCampagneViewService campagne,
                                   OptionsFiltresService options) {
         this.trimestreCourant = trimestreCourant;
         this.listeCollaborateurs = listeCollaborateurs;
-        this.tableauDeBordDg = tableauDeBordDg;
         this.competences = competences;
         this.notifications = notifications;
         this.campagne = campagne;
@@ -155,20 +150,6 @@ public class ModulesPagesController {
         });
         return url.queryParam("tri", tri.name()).queryParam("ordre", decroissant ? "desc" : "asc")
                 .queryParam("page", page).encode().build().toUriString();
-    }
-
-    // --- Dashboard DG ---------------------------------------------------------------------------------
-
-    @GetMapping("/dashboard-dg")
-    public String dashboardDg(@RequestParam(name = TrimestreCourantService.PARAMETRE, required = false) String trimestre,
-                              Model model) {
-        Trimestre choisi = selectionner(trimestre, model, "dashboard-dg");
-        if (choisi != null) {
-            TableauDeBordDg vue = tableauDeBordDg.construire(choisi, TableauDeBordDg.TOP_TALENTS_PAR_DEFAUT);
-            model.addAttribute("vue", vue);
-            model.addAttribute("matrice", MatriceNeufBox.depuis(vue.neufBox(), 0, trimestre(choisi)));
-        }
-        return "dashboard-dg";
     }
 
     // --- Competences ------------------------------------------------------------------------------------

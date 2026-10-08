@@ -116,7 +116,24 @@ public class ListeCollaborateursViewService {
         verifier(criteres);
         Trimestre trimestre = trimestreRepository.findByNumeroAndAnnee(numero, annee)
                 .orElseThrow(() -> new RessourceIntrouvableException("Aucun trimestre T" + numero + " " + annee));
+        Population population = population(trimestre);
+        return paginer(new TrimestreFiche(annee, numero, VueManagerViewService.libelle(trimestre),
+                        trimestre.getDateReference()), population.lignes(), population.collaborateurs(), criteres,
+                population.manquantes());
+    }
 
+    /**
+     * Toute la population calculee du trimestre, sans filtre ni pagination : les lignes de la liste
+     * et, pour chacune, le resultat du moteur dont elle est tiree (categories, engagement, releve).
+     * Le tableau de bord interactif filtre ces lignes lui-meme. Meme nombre fixe de requetes.
+     *
+     * @param membres par matricule, le resultat de ResultatsCollaborateurs
+     */
+    public record Population(List<LigneCollaborateur> lignes, Map<String, Membre> membres,
+                             Map<String, Collaborateur> collaborateurs, List<String> manquantes) {
+    }
+
+    public Population population(Trimestre trimestre) {
         Set<String> manquantes = new LinkedHashSet<>();
         Parametre parametre = parametreRepository.findByTrimestre(trimestre).orElse(null);
         if (parametre == null) {
@@ -146,9 +163,9 @@ public class ListeCollaborateursViewService {
             lignes.add(ligne(parMatricule.get(id), membre, decisions.get(id), viviers.get(id), cibles.get(id)));
         }
 
-        return paginer(new TrimestreFiche(annee, numero, VueManagerViewService.libelle(trimestre),
-                        trimestre.getDateReference()), lignes, parMatricule, criteres,
-                List.copyOf(manquantes));
+        return new Population(List.copyOf(lignes), membres.stream()
+                .collect(Collectors.toMap(Membre::matricule, Function.identity(), (x, y) -> x, java.util.LinkedHashMap::new)),
+                parMatricule, List.copyOf(manquantes));
     }
 
     // --- lecture ------------------------------------------------------------------

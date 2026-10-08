@@ -1,70 +1,63 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Organigramme</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Organigramme</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<div class="app-layout">
+<!--
+  Organigramme (page propre a l'application) : une carte par direction, au style du prototype ;
+  cliquer pour voir ses departements, puis une entite pour ouvrir sa vue. Recherche : organigramme.js.
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('entites')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('entites')}"></div>
+    <div id="main">
+        <div th:replace="~{fragments/prototype :: topbar('Organigramme', 'Une carte par direction : ses départements, puis une entité pour ouvrir sa vue. Effectif à droite, sous-arbre compris.')}"></div>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Organigramme</h1>
-            <p class="text-muted">Une carte par direction : cliquer pour voir ses départements, puis une entité pour
-                ouvrir sa vue. Effectif à droite, sous-arbre compris.</p>
-        </header>
+        <section class="view active" id="view-entites">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+            <th:block th:if="${organigramme != null}">
+                <div class="empty-state" th:if="${#lists.isEmpty(organigramme.directions)}">Aucune entité importée.</div>
+                <div class="alert info" th:unless="${organigramme.indicateursDisponibles}"><div class="sev">INFO</div>
+                    <div class="txt">Talents et alertes non calculés : réglages du trimestre absents (page Paramètres).</div></div>
 
-        <th:block th:if="${organigramme != null}">
-            <p class="text-muted" th:if="${#lists.isEmpty(organigramme.directions)}">Aucune entité importée.</p>
-            <p class="text-muted small" th:unless="${organigramme.indicateursDisponibles}">
-                Talents et alertes non calculés : réglages du trimestre absents (page Paramètres).</p>
+                <!-- Recherche par nom : affichee par organigramme.js (sans JavaScript, tout l'arbre est ouvert). -->
+                <div class="organigramme-recherche" id="organigramme-recherche-bloc" hidden
+                     th:unless="${#lists.isEmpty(organigramme.directions)}">
+                    <input type="search" id="organigramme-recherche" placeholder="Rechercher une entité…" aria-label="Rechercher une entité" autocomplete="off">
+                    <div class="empty-state" id="organigramme-aucun" hidden>Aucune entité ne correspond.</div>
+                </div>
 
-            <!-- Recherche par nom : affichee par organigramme.js (sans JavaScript, tout l'arbre est ouvert). -->
-            <div class="organigramme-recherche" id="organigramme-recherche-bloc" hidden
-                 th:unless="${#lists.isEmpty(organigramme.directions)}">
-                <input type="search" id="organigramme-recherche" class="form-control"
-                       placeholder="Rechercher une entité" aria-label="Rechercher une entité" autocomplete="off">
-                <p class="text-muted small mt-2 mb-0" id="organigramme-aucun" hidden>Aucune entité ne correspond.</p>
-            </div>
-
-            <div class="organigramme-grille">
-                <details class="organigramme-carte" open th:each="direction : ${organigramme.directions}"
-                         th:with="b=${direction.branche}" th:attr="data-nom=${b.libelle}">
-                    <summary>
-                        <span class="organigramme-carte-titre" th:text="${b.libelle}">Direction</span>
-                        <span class="organigramme-chiffres">
-                            <span><strong th:text="${b.effectif}">120</strong> collaborateurs</span>
-                            <span th:if="${direction.nbTalents != null}">
-                                <strong th:text="${direction.nbTalents}">8</strong> talents</span>
-                            <span th:if="${direction.nbAlertes != null}">
-                                <strong th:text="${direction.nbAlertes}">3</strong> alertes</span>
-                        </span>
-                    </summary>
-                    <div class="organigramme-carte-corps">
-                        <a class="organigramme-lien-direction"
-                           th:href="@{/entites(code=${b.code}, trimestre=${trimestre.valeur})}">Vue de la direction</a>
-                        <p class="text-muted small mb-0" th:if="${#lists.isEmpty(b.enfants)}">Aucun département.</p>
-                        <th:block th:each="enfant : ${b.enfants}">
-                            <th:block th:insert="~{fragments/arbre-entites :: noeud(${enfant})}"></th:block>
-                        </th:block>
-                    </div>
-                </details>
-            </div>
-        </th:block>
-    </main>
-
+                <div class="organigramme-grille">
+                    <details class="organigramme-carte" open th:each="direction : ${organigramme.directions}"
+                             th:with="b=${direction.branche}" th:attr="data-nom=${b.libelle}">
+                        <summary>
+                            <span class="organigramme-carte-titre" th:text="${b.libelle}">Direction</span>
+                            <span class="organigramme-chiffres">
+                                <span><strong th:text="${b.effectif}">120</strong> collaborateurs</span>
+                                <span th:if="${direction.nbTalents != null}"><strong th:text="${direction.nbTalents}">8</strong> talents</span>
+                                <span th:if="${direction.nbAlertes != null}"><strong th:text="${direction.nbAlertes}">3</strong> alertes</span>
+                            </span>
+                        </summary>
+                        <div class="organigramme-carte-corps">
+                            <a class="organigramme-lien-direction" th:href="@{/entites(code=${b.code}, trimestre=${trimestre.valeur})}">Vue de la direction</a>
+                            <div class="empty-state" style="padding:8px 0;" th:if="${#lists.isEmpty(b.enfants)}">Aucun département.</div>
+                            <th:block th:each="enfant : ${b.enfants}">
+                                <th:block th:insert="~{fragments/arbre-entites :: noeud(${enfant})}"></th:block>
+                            </th:block>
+                        </div>
+                    </details>
+                </div>
+            </th:block>
+        </section>
+    </div>
 </div>
 
-
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 <script th:src="@{/js/organigramme.js}" defer></script>
 </body>
 </html>

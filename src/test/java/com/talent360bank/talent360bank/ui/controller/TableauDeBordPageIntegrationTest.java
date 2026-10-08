@@ -225,6 +225,13 @@ class TableauDeBordPageIntegrationTest {
                 Map.entry("À risque (vigilance modérée ou élevée)", String.valueOf(synthese.nbARisque())),
                 Map.entry("Compétences en gap prioritaire",
                         String.valueOf(competenceCollaborateurService.compterGapsPrioritaires(t1))),
+                Map.entry("Talents proposés", String.valueOf(synthese.nbTalents())),
+                Map.entry("Talents clés (9-Box)", String.valueOf(tableau.neufBox().stream()
+                        .filter(c -> c.niveauPerformance() == 3 && c.niveauPotentiel() == 3)
+                        .mapToInt(CaseTableau::nombre).sum())),
+                Map.entry("Postes critiques couverts", String.valueOf(synthese.couvertures().stream()
+                        .filter(c -> c.nbSuccesseurs() > 0).count())),
+                Map.entry("Alertes ouvertes", String.valueOf(tableau.nbAlertes())),
                 Map.entry("Engagement moyen /100 (3 réponses)", "46.67"));
 
         // Les memes chiffres, poses a la main sur cette population.
@@ -236,7 +243,12 @@ class TableauDeBordPageIntegrationTest {
                 .containsEntry("Couverture succession", "50 %")
                 .containsEntry("Postes critiques sans successeur", "1")
                 .containsEntry("À risque (vigilance modérée ou élevée)", "2")
-                .containsEntry("Compétences en gap prioritaire", "1");
+                .containsEntry("Compétences en gap prioritaire", "1")
+                // D01 et D02 (95/95) : talents proposes, case Talent cle ; PA couvert (D01), PB non ; 5 alertes.
+                .containsEntry("Talents proposés", "2")
+                .containsEntry("Talents clés (9-Box)", "2")
+                .containsEntry("Postes critiques couverts", "1")
+                .containsEntry("Alertes ouvertes", "5");
         assertThat(tableau.erreur()).isNull();
         assertThat(tableau.trimestreLibelle()).isEqualTo("T1 2026");
     }
@@ -292,9 +304,56 @@ class TableauDeBordPageIntegrationTest {
         String page = mockMvc.perform(get("/")).andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString();
 
-        assertThat(page).contains("Dashboard general", "indicateurs RH - T1 2026", "Talents validés par le Comité",
-                        "Matrice 9-Box", "Alertes prioritaires", "Vivier Commercial", "46.67")
-                .doesNotContain("donnees mockees", "Alertes actives");
+        // Tableau de bord interactif : cartes en haut, graphiques, puis listes (collaborateurs, alertes, viviers).
+        assertThat(page).contains("Tableau de bord RH", "capital talents — T1 2026", "⭐ Talents validés",
+                        "Matrice 9-Box", "Vivier Commercial", "46.67", "id=\"kpis\"", "❤️ Engagement (3 réponses)",
+                        "id=\"graphe-entite\"", "id=\"graphe-vigilance\"", "id=\"graphe-perf\"", "id=\"graphe-pot\"",
+                        "id=\"graphe-vivier\"", "id=\"graphe-alerte\"", "id=\"liste-collaborateurs\"",
+                        "id=\"liste-alertes\"", "id=\"liste-viviers\"", "/vendor/chartjs/chart.umd.js",
+                        "/js/tableau-de-bord.js")
+                .doesNotContain("donnees mockees", "Alertes actives", "cdn.jsdelivr", "unpkg.com",
+                        // Les cartes ajoutees puis retirees, et les titres de groupe.
+                        "🎯 Talents proposés", "🔔 Alertes ouvertes", "📋 Évaluations du manager", "Auto-évaluations",
+                        "id=\"kpis-collaborateurs\"", "id=\"kpis-postes\"", "class=\"tdb-titre\"", "toute la banque (non");
+        assertThat(page.indexOf("id=\"kpis\"")).isLessThan(page.indexOf("id=\"graphe-entite\""));
+        assertThat(page.indexOf("id=\"graphe-alerte\"")).isLessThan(page.indexOf("id=\"liste-collaborateurs\""));
+    }
+
+    /**
+     * Les 10 cartes du prototype (renderDashRH), dans son ordre : sans filtre, chaque carte vaut celle du moteur.
+     * Celles sur les personnes suivent les filtres, celles sur les postes critiques non.
+     */
+    @Test
+    @Order(3)
+    void les_10_cartes_du_prototype_valent_celles_du_moteur() throws Exception {
+        MvcResult resultat = mockMvc.perform(get("/")).andExpect(status().isOk()).andReturn();
+        TableauDeBordView tableau = tableau(resultat);
+        com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif vue =
+                (com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif) resultat.getModelAndView()
+                        .getModel().get("vue");
+        Map<String, String> moteur = kpis(tableau);
+        assertThat(vue.kpis()).extracting(com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Kpi::code,
+                        com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Kpi::libelle,
+                        com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Kpi::valeur,
+                        com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Kpi::filtre)
+                .containsExactly(
+                        tuple("population", "👥 Population", moteur.get("Collaborateurs actifs"), true),
+                        tuple("talentsValides", "⭐ Talents validés", moteur.get("Talents validés par le Comité"), true),
+                        tuple("hautsPotentiels", "🚀 Hauts potentiels", moteur.get("Hauts potentiels"), true),
+                        tuple("viviersActifs", "🔄 Viviers actifs", moteur.get("Viviers actifs"), true),
+                        tuple("postesCritiques", "👔 Postes critiques", moteur.get("Postes critiques"), false),
+                        tuple("couverture", "🔗 Couverture succession", moteur.get("Couverture succession"), false),
+                        tuple("readyNow", "🟢 Ready Now", moteur.get("Successeurs Ready Now"), false),
+                        tuple("engagement", "❤️ Engagement (3 réponses)", moteur.get("Engagement moyen /100 (3 réponses)"),
+                                true),
+                        tuple("postesSansReleve", "🔴 Postes sans relève",
+                                moteur.get("Postes critiques sans successeur"), false),
+                        tuple("gapsCritiques", "🧩 Gaps critiques", moteur.get("Postes critiques en alerte"), false));
+        // Couleurs du prototype ; engagement 46.67 < 60 : rust.
+        assertThat(vue.kpis()).extracting(com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Kpi::classe)
+                .containsExactly("", "gold", "teal", "", "", "teal", "teal", "rust", "rust", "rust");
+        assertThat(vue.puces()).isEmpty();
+        assertThat(vue.personnes()).hasSize(6);
     }
 
     // ------------------------------------------------------------ choix du trimestre
@@ -365,6 +424,38 @@ class TableauDeBordPageIntegrationTest {
         mockMvc.perform(get("/postes-critiques").param("trimestre", "2026-2")).andExpect(status().isOk())
                 .andExpect(model().attribute("rows", List.of()))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Aucun poste critique")));
+    }
+
+    /**
+     * Donnees manquantes : un collaborateur actif sans entite, sans evaluation ni questionnaire (donc sans
+     * case 9-Box, sans vigilance, sans vivier). La page se rend entiere, avec "—" a sa place, filtree ou non.
+     */
+    @Test
+    @Order(7)
+    void un_collaborateur_sans_entite_ni_donnees_s_affiche_avec_des_tirets() throws Exception {
+        collaborateur("D09", null, StatutCollaborateur.ACTIF);
+        for (String url : List.of("/?trimestre=2026-1", "/?trimestre=2026-1&entite=SANS",
+                "/?trimestre=2026-1&case=9&vigilance=ELEVEE&vivier=RELEVE&alerte=VIGILANCE_ELEVEE")) {
+            MvcResult resultat = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn();
+            String page = resultat.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+            assertThat(page.trim()).as(url).endsWith("</html>");
+        }
+        MvcResult resultat = mockMvc.perform(get("/?trimestre=2026-1&entite=SANS")).andReturn();
+        com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif vue =
+                (com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif) resultat.getModelAndView()
+                        .getModel().get("vue");
+        assertThat(vue.puces()).extracting(com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Puce::valeur)
+                .containsExactly("Sans direction");
+        assertThat(vue.personnes()).singleElement().satisfies(p -> {
+            assertThat(p.matricule()).isEqualTo("D09");
+            assertThat(p.caseEtiquette()).isEqualTo("—");
+            assertThat(p.viviersTexte()).isEqualTo("—");
+            assertThat(p.performance()).isNull();
+        });
+        String page = resultat.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        String ligne = page.substring(page.indexOf("<td class=\"mono\">D09</td>"));
+        ligne = ligne.substring(0, ligne.indexOf("</tr>"));
+        assertThat(ligne).contains("<td>Sans direction</td>", "<td>—</td>").doesNotContain("null");
     }
 
     // ------------------------------------------------------------ outils

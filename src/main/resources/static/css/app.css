@@ -1,0 +1,198 @@
+/* Complements a prototype.css, avec ses classes et ses jetons : seulement ce que le prototype
+   (une seule page, sans serveur) n'a pas besoin de styler. Charge apres prototype.css. */
+
+/* Pages separees : transition de document a document (Edge / Chrome), sans ecran blanc. */
+@view-transition { navigation: auto; }
+
+/* Les entrees du menu sont des liens (une page par module) : meme rendu que .navitem. */
+nav a.navitem:hover { text-decoration: none; }
+/* Entree grisee : le profil attend d'abord une personne (MenuProfilService). */
+nav .navitem.nav-item-grisee { cursor: not-allowed; color: rgba(196,202,218,.4); flex-wrap: wrap; row-gap: 0; }
+nav .navitem.nav-item-grisee:hover { background: transparent; color: rgba(196,202,218,.4); }
+nav .navitem.nav-item-grisee .n { color: rgba(176,141,79,.45); }
+.nav-item-indication { flex-basis: 100%; padding-left: 26px; font-size: 10.5px; font-style: italic; }
+
+/* Choix de la personne (profils Collaborateur et Manager), sur le modele du select du prototype. */
+.role-block .cible-label { margin-top: 10px; }
+.role-block input[type=search] { width: 100%; min-width: 0; background: #1B2A4A; color: #fff;
+    border: 1px solid rgba(255,255,255,.2); padding: 7px 8px; font-family: 'IBM Plex Sans'; font-size: 12.5px; }
+.role-block input[type=search]::placeholder { color: #8F97AC; }
+.role-block .retour-rh { display: inline-block; margin-top: 6px; font-size: 11px; color: var(--gold); text-decoration: none; }
+.role-block .retour-rh:hover { color: #fff; }
+.role-block .btn { margin-top: 8px; width: 100%; }
+
+/* Cases de la 9-Box et lignes cliquables rendues en liens (sans JavaScript, le lien reste utilisable). */
+a.box9-cell { text-decoration: none; color: inherit; }
+td a, .txt a { color: var(--blue); text-decoration: none; }
+td a:hover, .txt a:hover { text-decoration: underline; }
+
+/* Barre de filtres : libelles au-dessus des champs (le prototype n'en a pas besoin). */
+.filters .champ { display: flex; flex-direction: column; gap: 4px; }
+.filters .champ > label { font-size: 10.3px; letter-spacing: .03em; color: var(--muted); }
+
+/* Lien d'en-tete de panneau (ex. "voir tout"). */
+.panel-head a.hint { text-decoration: none; }
+.panel-head a.hint:hover { color: var(--navy); }
+
+/* 9-Box : case dont le detail est ouvert (page 9-Box). */
+.box9-cell.selectionnee { outline: 2px solid var(--navy); outline-offset: -2px; }
+/* Panneau de detail de la page 9-Box (neufbox.js). */
+.neufbox-panneau tbody tr[hidden] { display: none; }
+.neufbox-panneau .filters input[type=search] { min-width: 0; flex: 1; font-family: 'IBM Plex Sans', sans-serif; font-size: 12.5px;
+    padding: 7px 10px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+
+/* Champs de formulaire que le prototype n'a pas (nombre, date, fichier, case a cocher) : memes valeurs que
+   ses select / input[type=text]. */
+input[type=number], input[type=date], input[type=file], input[type=search] { font-family:'IBM Plex Sans',sans-serif; font-size:12.5px;
+    padding:7px 10px; border:1px solid var(--line); background:#fff; color:var(--ink); }
+input[type=file] { padding:5px 8px; max-width:100%; }
+label.case { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink); margin-bottom:6px; cursor:pointer; }
+.champ-aide { display:block; font-size:11px; color:var(--muted); margin-top:4px; }
+.champ-erreur { font-size:11.5px; color:var(--rust); margin-top:4px; }
+.btn:disabled { opacity:.6; cursor:default; }
+
+/* ---------- Organigramme (templates/entites.html, fragments/arbre-entites.html) ----------
+   Page propre a l'application : cartes au style .vivier-card du prototype, arbre depliable. */
+.organigramme-recherche { max-width: 420px; margin-bottom: 14px; }
+.organigramme-recherche input { width: 100%; }
+.organigramme-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.organigramme-carte { background: #fff; border: 1px solid var(--line); }
+.organigramme-carte > summary { list-style: none; cursor: pointer; padding: 14px 16px; transition: background .12s ease; }
+.organigramme-carte > summary::-webkit-details-marker { display: none; }
+.organigramme-carte > summary:hover { background: #F7F8F6; }
+.organigramme-carte[open] > summary { border-bottom: 1px solid var(--line); }
+.organigramme-carte-titre { display: block; font-family: 'Fraunces', serif; font-weight: 600; font-size: 15px; color: var(--navy); }
+.organigramme-chiffres { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.organigramme-chiffres strong { color: var(--ink); font-family: 'IBM Plex Mono', monospace; font-weight: 500; }
+.organigramme-carte-corps { padding: 10px 16px 14px; }
+.organigramme-lien-direction { display: inline-block; font-size: 12px; margin-bottom: 6px; color: var(--blue); text-decoration: none; }
+.organigramme-noeud > summary { list-style: none; cursor: pointer; }
+.organigramme-noeud > summary::-webkit-details-marker { display: none; }
+.organigramme-noeud > summary::before { content: "\203A"; display: inline-block; width: 14px; color: var(--gold); transition: transform .15s ease; }
+.organigramme-noeud[open] > summary::before { transform: rotate(90deg); }
+.organigramme-ligne { display: flex; align-items: baseline; gap: 6px; padding: 4px 0; font-size: 12.8px; border-bottom: 1px dashed #E7E8E3; }
+.organigramme-feuille { padding-left: 14px; }
+.organigramme-ligne a { color: var(--ink); text-decoration: none; flex: 1; }
+.organigramme-ligne a:hover { color: var(--navy); text-decoration: underline; }
+.organigramme-effectif { margin-left: auto; color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; }
+.organigramme-enfants { padding-left: 16px; }
+[hidden] { display: none !important; }
+
+/* Pages sans sidebar (connexion, erreurs) : un panneau centre, la marque du prototype en tete. */
+.page-seule { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.page-seule .boite { background: #fff; width: 100%; max-width: 440px; border-top: 3px solid var(--gold); }
+.page-seule .boite-tete { padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.page-seule .boite-corps { padding: 16px 20px 20px; }
+.page-seule .marque { display: flex; align-items: center; gap: 12px; }
+.page-seule .marque .mark { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+    border: 1.5px solid var(--gold); color: var(--gold); font-family: 'Fraunces', serif; font-weight: 700; font-size: 16px; flex: none; }
+.page-seule .marque p { margin: 2px 0 0; font-size: 11px; color: var(--muted); }
+.page-seule .form-row { grid-template-columns: 110px 1fr; }
+.page-seule input[type=text], .page-seule input[type=password] { width: 100%; min-width: 0; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12.5px; padding: 7px 10px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+
+/* Liens dans les lignes du prototype (bench strength, cartes) : meme rendu que le texte du prototype. */
+.comp-row a, .succ-row .nm a, .vivier-card a { color: inherit; text-decoration: none; }
+.comp-row a:hover, .succ-row .nm a:hover { text-decoration: underline; }
+/* Tableau large (Collaborateurs) : une ligne par collaborateur, comme le prototype ; defilement horizontal. */
+.table-defile { overflow-x: auto; }
+.table-defile td, .table-defile th { white-space: nowrap; }
+/* Talent Passport : liens de la ligne .tp-meta au rendu du texte du prototype (mono, encre). */
+.tp-meta a { color: var(--ink); font-family: 'IBM Plex Mono', monospace; text-decoration: none; }
+.tp-meta a:hover { text-decoration: underline; }
+/* Choix de la personne : meme rendu que le select du profil (.role-block select du prototype). */
+.role-block select#profil-cible { margin-top: 0; }
+
+/* Fonctions du prototype pas encore disponibles (decisions du comite, interrupteurs de notification) :
+   meme balisage, grise, "En cours de developpement" au survol. */
+.indispo, .kpi-indispo { opacity: .45; }
+.indispo .dbtn:disabled, .switch.indispo { cursor: not-allowed; }
+.indispo .dbtn:disabled:hover { background: #fff; border-color: var(--line); }
+
+/* Barres du prototype (.bar-track / .bar-fill / .cov-bar) : apparition en croissance depuis la gauche.
+   Ajout a prototype.css (le prototype n'anime pas ses barres). Largeur = la valeur du moteur. */
+@keyframes barre-croissance { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.bar-fill, .cov-bar-fill { transform-origin: left center; animation: barre-croissance .7s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .bar-fill, .cov-bar-fill { animation: none; } }
+/* Valeurs a 2 decimales du moteur : la derniere colonne des lignes de barres s'elargit au besoin. */
+.match-bd { grid-template-columns: 130px 1fr auto; }
+.vivier-card .barre { margin: 2px 0 6px; }
+/* Liens dans les lignes de notification : meme rendu que les autres liens du prototype. */
+.notif-item a { color: var(--blue); text-decoration: none; }
+.notif-item a:hover { text-decoration: underline; }
+.panel-body p a { color: var(--blue); text-decoration: none; }
+.panel-body p a:hover { text-decoration: underline; }
+
+/* ---------- Impression de la liste d'une case 9-Box (templates/9box.html, bouton "Imprimer") ----------
+   Seuls le panneau de detail ouvert et son en-tete d'impression (trimestre, date, recherche, tri) sont
+   imprimes : sidebar, barre du haut, matrice, seuils, formulaires et boutons sont masques. */
+.impression-seule { display: none; }
+@media print {
+    .impression-9box #sidebar, .impression-9box .topbar, .impression-9box #view-box9 > form.filters,
+    .impression-9box #panneau-matrice, .impression-9box #panneau-seuils, .impression-9box .neufbox-panneau form,
+    .impression-9box button, .impression-9box .btn, .impression-9box #modal-backdrop { display: none !important; }
+    .impression-9box { background: #fff; }
+    .impression-9box .view { padding: 0; }
+    .impression-9box .grid-2 { display: block; }
+    .impression-9box .panel { border: none; background: #fff; }
+    .impression-9box .impression-seule { display: block; }
+    .impression-9box .impression-entete { margin-bottom: 12px; font-size: 12px; color: var(--muted); }
+    .impression-9box .impression-titre { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; color: var(--navy); }
+    .impression-9box td a { color: inherit; text-decoration: none; }
+    .impression-9box tr { break-inside: avoid; }
+}
+
+/* Talent Passport : reponses au questionnaire (fiche-collaborateur.html). */
+#questionnaire .panel-head select { font-size: 12px; }
+
+/* ---------- Tableau de bord RH interactif (templates/dashboard.html, js/tableau-de-bord.js) ----------
+   Cartes en haut, graphiques au milieu, listes en bas ; jetons et cartes du prototype. */
+/* Les 10 cartes du prototype, 2 rangees de 5 (3 puis 2 colonnes sur les ecrans etroits). */
+.tdb-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+@media (max-width: 980px) { .tdb-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .tdb-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tdb-filtres { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; margin-bottom: 18px;
+    background: var(--paper-2); border: 1px solid var(--line); border-left: 3px solid var(--gold); min-height: 46px; }
+.tdb-filtres-titre { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+#tdb-puces { display: contents; }
+.tdb-filtres .hint { font-size: 12px; color: var(--muted); }
+.tdb-filtres .btn { margin-left: auto; padding: 5px 12px; font-size: 12px; text-decoration: none; }
+.puce { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; font-size: 12px; color: var(--navy);
+    background: var(--blue-light); border: 1px solid #C3CFE2; text-decoration: none; }
+.puce:hover { border-color: var(--blue); }
+.puce-x { font-size: 11px; color: var(--muted); padding: 0 3px; }
+.puce:hover .puce-x { color: var(--rust); }
+.tdb-graphiques { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 4px; }
+.tdb-graphiques .panel { margin-bottom: 0; }
+.tdb-graphiques .tdb-large { grid-column: span 2; }
+.tdb-graphiques .panel-body { padding: 14px 16px; }
+.tdb-graphe { position: relative; height: 210px; }
+.tdb-graphe-haut { height: 290px; }
+.tdb-graphiques .box9-grid { grid-template-rows: repeat(3, 78px); }
+.box9-cell.estompee, .tdb-vivier.estompee { opacity: .35; }
+.box9-cell.estompee:hover { opacity: .7; }
+#liste-collaborateurs { margin-top: 20px; }
+.tdb-defile { max-height: 430px; overflow-y: auto; }
+.tdb-defile table thead th { position: sticky; top: 0; background: var(--paper-2); }
+.tdb-compte { font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 400; color: var(--muted); }
+.tdb-viviers { display: grid; gap: 10px; }
+.tdb-vivier { border: 1px solid var(--line); background: #fff; padding: 10px 12px; }
+.tdb-vivier-tete { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+.tdb-vivier-membres { font-size: 12px; line-height: 1.6; color: var(--ink); }
+.tdb-vivier-membres a { color: var(--blue); text-decoration: none; }
+.tdb-vivier-membres a:hover { text-decoration: underline; }
+@media (max-width: 1180px) {
+    .tdb-graphiques { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tdb-graphiques .tdb-large { grid-column: span 2; }
+}
+@media (max-width: 760px) {
+    .tdb-graphiques { grid-template-columns: 1fr; }
+    .tdb-graphiques .tdb-large { grid-column: auto; }
+}
+
+/* Logo BP complet (images/BP-Logo-Complet.png, 170 x 52) dans la case de la marque (sidebar, connexion, 403,
+   404) : la case garde la bordure doree du prototype et s'elargit aux proportions du logo au lieu du carre
+   34 x 34 ; l'image est affichee a sa taille reelle (texte lisible, ni agrandie ni deformee), sur fond blanc. */
+.brand .mark.mark-logo, .page-seule .marque .mark.mark-logo { width: auto; height: auto; padding: 6px 8px;
+    background: #fff; display: inline-flex; }
+.mark.mark-logo img { display: block; width: 170px; max-width: 100%; height: auto; }

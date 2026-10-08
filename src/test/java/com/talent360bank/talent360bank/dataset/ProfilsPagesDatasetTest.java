@@ -192,14 +192,14 @@ class ProfilsPagesDatasetTest {
     void le_selecteur_est_sur_chaque_page_avec_les_options_des_donnees() throws Exception {
         long managers = collaborateurs.stream().map(l -> l.getOrDefault("N", "")).filter(m -> !m.isBlank())
                 .distinct().count();
-        for (String url : List.of("/", "/dashboard-dg", "/collaborateurs", "/9box", "/viviers", "/postes-critiques",
+        for (String url : List.of("/", "/collaborateurs", "/9box", "/viviers", "/postes-critiques",
                 "/competences", "/comite-talent", "/fiche-collaborateur", "/alertes", "/notifications", "/campagne",
                 "/import", "/parametres", "/managers", "/entites", "/managers/" + plusGrandeEquipe().getKey(),
                 "/entites?code=DIR:RESEAU_RETAIL")) {
             String html = html(page(url));
             assertThat(html).as(url).contains("id=\"profil-form\"", "action=\"/profil\"", "Comité Talent");
-            // Vue RH : pas de personne a choisir, donc pas de liste.
-            assertThat(html).as(url).doesNotContain("<datalist", "profils-entites");
+            // Vue RH : pas de personne a choisir, donc pas de liste dans le selecteur de profil.
+            assertThat(html).as(url).doesNotContain("<datalist id=\"profils-", "profils-entites");
         }
         // La liste de la personne a choisir n'apparait que pour son profil.
         MockHttpSession manager = new MockHttpSession();
@@ -209,20 +209,23 @@ class ProfilsPagesDatasetTest {
         for (String url : List.of("/", "/9box", "/entites")) {
             String m = mockMvc.perform(get(url).session(manager)).andReturn().getResponse()
                     .getContentAsString(StandardCharsets.UTF_8);
-            assertThat(options(m, "profils-managers")).as(url).isEqualTo((int) managers);
+            assertThat(options(m)).as(url).isEqualTo((int) managers);
+            assertThat(m).as(url).contains("— un manager —");
             String c = mockMvc.perform(get(url).session(collaborateur)).andReturn().getResponse()
                     .getContentAsString(StandardCharsets.UTF_8);
-            assertThat(options(c, "profils-collaborateurs")).as(url).isEqualTo(collaborateurs.size());
+            assertThat(options(c)).as(url).isEqualTo(collaborateurs.size());
+            assertThat(c).as(url).contains("— un collaborateur —");
         }
         // Sans profil choisi, la session est en vue RH.
         assertThat(html(page("/managers/" + plusGrandeEquipe().getKey())))
                 .containsPattern("<option value=\"RH\" selected=\"selected\">");
     }
 
-    private static int options(String html, String liste) {
-        int debut = html.indexOf("<datalist id=\"" + liste + "\">");
-        int fin = html.indexOf("</datalist>", debut);
-        Matcher m = Pattern.compile("<option ").matcher(html.substring(debut, fin));
+    /** Les personnes proposees par la liste du profil (sans l'option vide "— un manager —"). */
+    private static int options(String html) {
+        int debut = html.indexOf("<select id=\"profil-cible\"");
+        int fin = html.indexOf("</select>", debut);
+        Matcher m = Pattern.compile("<option value=\"[^\"]+\"").matcher(html.substring(debut, fin));
         int n = 0;
         while (m.find()) {
             n++;
@@ -300,7 +303,7 @@ class ProfilsPagesDatasetTest {
         assertThat(html).contains("class=\"organigramme-carte\" open", "class=\"organigramme-noeud\" open",
                 "id=\"organigramme-recherche\"", "/js/organigramme.js");
         assertThat(html).containsPattern("id=\"organigramme-recherche-bloc\"\\s+hidden");
-        assertThat(html.substring(html.indexOf("<main"))).doesNotContain("<ul", "<li", "href=\"/api/");
+        assertThat(html.substring(html.indexOf("<div id=\"main\">"))).doesNotContain("<ul", "<li", "href=\"/api/");
         Branche premiere = organigramme.directions().get(0).branche();
         assertThat(html).contains("/entites?code=" + premiere.code() + "&amp;trimestre=2026-3",
                 "<strong>" + premiere.effectif() + "</strong> collaborateurs");
