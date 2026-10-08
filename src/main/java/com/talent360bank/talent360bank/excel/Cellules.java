@@ -2,6 +2,7 @@ package com.talent360bank.talent360bank.excel;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -16,16 +17,13 @@ import java.util.Locale;
 
 /**
  * Lecture des cellules du classeur TALENT 360 BANK pour l'import.
- *
- * <p>Plusieurs colonnes du classeur sont des formules : leur resultat en cache
- * est lu, jamais la formule. Aucune cellule n'est modifiee (pas de
- * setCellType). Une valeur illisible leve {@link ValeurIllisibleException}
- * avec un message pour le RH, que l'import range dans ses erreurs de ligne.
  */
 public final class Cellules {
 
     /** Nombre de lignes parcourues pour trouver l'en-tete d'une feuille. */
     private static final int LIGNES_MAX_AVANT_ENTETE = 10;
+
+    private static final DataFormatter FORMATTER = new DataFormatter();
 
     private static final List<DateTimeFormatter> FORMATS_DATE = List.of(
             DateTimeFormatter.ISO_LOCAL_DATE,
@@ -57,30 +55,95 @@ public final class Cellules {
     }
 
     /**
-     * Lignes de donnees sous l'en-tete, jusqu'a la premiere ligne dont la
-     * colonne A est vide. Ce qui suit (legende de 05, note de 09) n'est pas
-     * une donnee.
+     * Lignes de donnees sous l'en-tete.
+     * <p>
+     * S'arrete des qu'une ligne entierement vide est rencontree pour eviter
+     * de lire les lignes d'exemples ou de bas de page en erreur.
      */
     public static List<Row> lignesDonnees(Sheet feuille, int ligneEntete) {
         List<Row> lignes = new ArrayList<>();
         for (int i = ligneEntete + 1; i <= feuille.getLastRowNum(); i++) {
             Row ligne = feuille.getRow(i);
-            if (ligne == null || brut(ligne.getCell(0)) == null) {
-                break;
+            if (estLigneVide(ligne)) {
+                break; // On s'arrete au premier bloc/ligne vide
             }
             lignes.add(ligne);
         }
         return lignes;
     }
 
-    /** Texte de la cellule, nul si vide. Un nombre entier est rendu sans decimales. */
+    /**
+     * Verifie si une ligne est totalement vide.
+     */
+    public static boolean estLigneVide(Row ligne) {
+        if (ligne == null) {
+            return true;
+        }
+        for (int c = ligne.getFirstCellNum(); c < ligne.getLastCellNum(); c++) {
+            if (c < 0) continue;
+            Cell cell = ligne.getCell(c);
+            if (cell != null && type(cell) != CellType.BLANK && brut(cell) != null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Lecture d'un matricule.
+     */
+    public static String matricule(Row ligne, int colonne) {
+        if (ligne == null) {
+            return null;
+        }
+        Cell cellule = ligne.getCell(colonne);
+        if (cellule == null) {
+            return null;
+        }
+
+        if (estCelluleEnErreur(cellule)) {
+            throw new ValeurIllisibleException("colonne " + lettre(colonne) + " : valeur en erreur (#N/A)");
+        }
+
+        if (type(cellule) == CellType.STRING) {
+            String texte = cellule.getStringCellValue().trim();
+            if (texte.isEmpty() || "#N/A".equalsIgnoreCase(texte) || "#N/A!".equalsIgnoreCase(texte)) {
+                return null;
+            }
+            return texte;
+        }
+
+        String valeur = FORMATTER.formatCellValue(cellule).trim();
+        if (valeur.isEmpty() || "#N/A".equalsIgnoreCase(valeur) || "#N/A!".equalsIgnoreCase(valeur)) {
+            return null;
+        }
+        return valeur;
+    }
+
+    /** Texte de la cellule, nul si vide. */
     public static String texte(Row ligne, int colonne) {
-        return brut(ligne.getCell(colonne));
+        if (ligne == null) {
+            return null;
+        }
+        Cell cellule = ligne.getCell(colonne);
+        if (estCelluleEnErreur(cellule)) {
+            throw new ValeurIllisibleException("colonne " + lettre(colonne) + " : valeur en erreur (#N/A)");
+        }
+        return brut(cellule);
     }
 
     /** Nombre de la cellule, nul si vide. */
     public static BigDecimal nombre(Row ligne, int colonne) {
+        if (ligne == null) {
+            return null;
+        }
         Cell cellule = ligne.getCell(colonne);
+        if (cellule == null) {
+            return null;
+        }
+        if (estCelluleEnErreur(cellule)) {
+            throw new ValeurIllisibleException("colonne " + lettre(colonne) + " : valeur en erreur (#N/A)");
+        }
         CellType type = type(cellule);
         if (type == CellType.NUMERIC) {
             return BigDecimal.valueOf(cellule.getNumericCellValue());
@@ -111,23 +174,41 @@ public final class Cellules {
         }
     }
 
-    /** Date de la cellule (date Excel, AAAA-MM-JJ ou JJ/MM/AAAA), nulle si vide. */
+    /** Date de la cellule, nulle si vide. */
     public static LocalDate date(Row ligne, int colonne) {
-        Cell cellule = ligne.getCell(colonne);
-        if (type(cellule) == CellType.NUMERIC) {
-            return DateUtil.getLocalDateTime(cellule.getNumericCellValue()).toLocalDate();
+        if (ligne == null) {
+            return null;
         }
+        Cell cellule = ligne.getCell(colonne);
+        if (cellule == null) {
+            return null;
+        }
+        if (estCelluleEnErreur(cellule)) {
+            throw new ValeurIllisibleException("colonne " + lettre(colonne) + " : valeur en erreur (#N/A)");
+        }
+
+        CellType type = type(cellule);
+        if (type == CellType.NUMERIC) {
+            try {
+                return DateUtil.getLocalDateTime(cellule.getNumericCellValue()).toLocalDate();
+            } catch (Exception e) {
+                throw new ValeurIllisibleException("colonne " + lettre(colonne) + " : date invalide");
+            }
+        }
+
         String texte = brut(cellule);
         if (texte == null) {
             return null;
         }
+
         for (DateTimeFormatter format : FORMATS_DATE) {
             try {
                 return LocalDate.parse(texte, format);
             } catch (DateTimeParseException e) {
-                // format suivant
+                // essai suivant
             }
         }
+
         throw new ValeurIllisibleException(
                 "colonne " + lettre(colonne) + " : date attendue, lu \"" + texte + "\"");
     }
@@ -148,7 +229,7 @@ public final class Cellules {
                 "colonne " + lettre(colonne) + " : Oui ou Non attendu, lu \"" + texte + "\"");
     }
 
-    /** Lettre de colonne Excel (0 -> A), pour les messages. */
+    /** Lettre de colonne Excel (0 -> A, 1 -> B). */
     public static String lettre(int colonne) {
         StringBuilder lettres = new StringBuilder();
         for (int reste = colonne; reste >= 0; reste = reste / 26 - 1) {
@@ -157,7 +238,21 @@ public final class Cellules {
         return lettres.toString();
     }
 
+    private static boolean estCelluleEnErreur(Cell cellule) {
+        if (cellule == null) {
+            return false;
+        }
+        if (cellule.getCellType() == CellType.ERROR) {
+            return true;
+        }
+        return cellule.getCellType() == CellType.FORMULA
+                && cellule.getCachedFormulaResultType() == CellType.ERROR;
+    }
+
     private static String brut(Cell cellule) {
+        if (cellule == null || estCelluleEnErreur(cellule)) {
+            return null;
+        }
         CellType type = type(cellule);
         String valeur = switch (type) {
             case STRING -> cellule.getStringCellValue();
@@ -168,10 +263,17 @@ public final class Cellules {
             case BOOLEAN -> String.valueOf(cellule.getBooleanCellValue()).toLowerCase(Locale.ROOT);
             default -> null;
         };
-        return valeur == null || valeur.isBlank() ? null : valeur.trim();
+
+        if (valeur != null) {
+            String nettoye = valeur.trim();
+            if ("#N/A".equalsIgnoreCase(nettoye) || "#N/A!".equalsIgnoreCase(nettoye) || nettoye.isBlank()) {
+                return null;
+            }
+            return nettoye;
+        }
+        return null;
     }
 
-    /** Type de la valeur, resultat en cache pour une formule ; BLANK si pas de cellule. */
     private static CellType type(Cell cellule) {
         if (cellule == null) {
             return CellType.BLANK;

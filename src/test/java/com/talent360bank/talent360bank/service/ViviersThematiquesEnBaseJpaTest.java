@@ -1,6 +1,9 @@
 package com.talent360bank.talent360bank.service;
 
+import com.talent360bank.talent360bank.entity.Entite;
 import com.talent360bank.talent360bank.entity.RattachementVivier;
+import com.talent360bank.talent360bank.entity.TypeEntite;
+import com.talent360bank.talent360bank.repository.EntiteRepository;
 import com.talent360bank.talent360bank.repository.RattachementVivierRepository;
 import com.talent360bank.talent360bank.service.enums.VivierThematique;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,11 +28,25 @@ class ViviersThematiquesEnBaseJpaTest {
     private ViviersThematiquesEnBase source;
     @Autowired
     private RattachementVivierRepository repository;
+    @Autowired
+    private EntiteRepository entiteRepository;
 
     @BeforeEach
     void init() {
-        repository.save(new RattachementVivier("Reseau Retail", VivierThematique.COMMERCIAL));
-        repository.save(new RattachementVivier("Risques", VivierThematique.RISQUES));
+        Entite e1 = new Entite();
+        e1.setLibelle("Reseau Retail");
+        e1.setCode("RETAIL");
+        e1.setType(TypeEntite.DIRECTION); // Remplace TypeEntite.DIRECTION par l'enum ou le type exact défini dans ton projet
+        e1 = entiteRepository.save(e1);
+
+        Entite e2 = new Entite();
+        e2.setLibelle("Risques");
+        e2.setCode("RISQUES");
+        e2.setType(TypeEntite.DIRECTION); // Remplace TypeEntite.DIRECTION par l'enum ou le type exact défini dans ton projet
+        e2 = entiteRepository.save(e2);
+
+        repository.save(new RattachementVivier(e1, VivierThematique.COMMERCIAL));
+        repository.save(new RattachementVivier(e2, VivierThematique.RISQUES));
     }
 
     @Test

@@ -15,7 +15,10 @@ public class Competence {
     private String nom;
 
     private String categorie;
+    private boolean archivee = false;
 
+    public boolean isArchivee() { return archivee; }
+    public void setArchivee(boolean archivee) { this.archivee = archivee; }
     public Competence() {}
 
     public String getCompetenceId() { return competenceId; }

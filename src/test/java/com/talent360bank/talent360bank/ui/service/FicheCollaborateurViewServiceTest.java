@@ -155,7 +155,7 @@ class FicheCollaborateurViewServiceTest {
         Entite direction = entiteRepository.save(new Entite("Reseau Retail", TypeEntite.DIRECTION, null));
         Entite departement = entiteRepository.save(new Entite("Nord", TypeEntite.DEPARTEMENT, direction));
         Entite agence = entiteRepository.save(new Entite("Tanger", TypeEntite.AGENCE, departement));
-        rattachementVivierRepository.save(new RattachementVivier("Reseau Retail", VivierThematique.COMMERCIAL));
+        rattachementVivierRepository.save(new RattachementVivier(direction, VivierThematique.COMMERCIAL));
 
         Collaborateur chef = collaborateur("F001", "Idrissi", "Omar", agence, null, LocalDate.of(2010, 1, 1));
         Manager manager = managerRepository.save(new Manager(chef));
