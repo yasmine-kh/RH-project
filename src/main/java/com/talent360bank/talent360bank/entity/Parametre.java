@@ -139,7 +139,7 @@ public class Parametre {
     public static Parametre parDefaut(Trimestre trimestre) {
         Parametre parametre = new Parametre();
         parametre.setTrimestre(trimestre);
-        parametre.setLibelle("Reglages par defaut");
+        parametre.setLibelle("Réglages par défaut");
         parametre.setPoidsPerformance(new PoidsPerformance(
                 new BigDecimal("40"), new BigDecimal("20"), new BigDecimal("20"),
                 new BigDecimal("10"), new BigDecimal("10")));
@@ -398,7 +398,7 @@ public class Parametre {
      * points rendrait le niveau ELEVEE impossible a atteindre.
      */
     @Transient
-    @AssertTrue(message = "Le seuil de vigilance elevee depasse le total des points attribuables")
+    @AssertTrue(message = "Le seuil de vigilance élevée dépasse le total des points attribuables")
     public boolean isSeuilVigilanceAtteignable() {
         if (pointsVigilance == null || seuilsVigilance == null) {
             return true;

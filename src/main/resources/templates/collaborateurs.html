@@ -6,11 +6,11 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Collaborateurs : balisage de renderCollab() du prototype. Filtres, tri et pagination cote serveur
   (ListeCollaborateursViewService) ; un filtre choisi s'applique tout de suite, comme le prototype.
   Une ligne mene au Talent Passport.
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('collaborateurs')}"></aside>
 
@@ -82,7 +82,7 @@
                     <td th:text="${e.scorePerformance} ?: '—'">90</td>
                     <td th:text="${e.scorePotentiel} ?: '—'">90</td>
                     <td><th:block th:replace="~{fragments/box9 :: case9(${e.neufBox != null} ? ${e.neufBox.numero} : null, ${e.neufBox != null} ? ${e.neufBox.libelle} : null)}"></th:block></td>
-                    <td><span class="badge talent" th:if="${e.estTalentValide}">Talent</span><span class="badge talent"
+                    <td><span class="badge talent" th:if="${e.estTalentValide}">Talent validé</span><span class="badge talent"
                             th:if="${e.estTalent == true and !e.estTalentValide}">Talent proposé</span><span class="badge hp"
                             th:if="${e.estHautPotentiel == true and e.estTalent != true}">Haut potentiel</span><span class="badge none"
                             th:if="${e.estTalent != true and e.estHautPotentiel != true}">—</span></td>

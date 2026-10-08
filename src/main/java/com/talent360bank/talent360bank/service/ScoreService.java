@@ -48,7 +48,7 @@ public class ScoreService {
 
     /** Motif d'un collaborateur sans score officiel faute d'evaluation du manager. */
     public static final String MOTIF_MANAGER_ABSENT =
-            "Evaluation du manager absente : auto-evaluation seule, pas de score officiel";
+            "Évaluation du manager absente : auto-évaluation seule, pas de score officiel";
 
     private final ScoreRepository scoreRepository;
     private final CalculService calculService;
@@ -159,7 +159,7 @@ public class ScoreService {
             }
             if (!collaborateur.estCalculable()) {
                 ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
-                        "Statut " + collaborateur.getStatut() + ", hors perimetre de calcul"));
+                        "Statut " + collaborateur.getStatut() + ", hors périmètre de calcul"));
                 continue;
             }
             if (!evaluations.aDesNotesDePotentiel()) {

@@ -207,7 +207,7 @@ class NeufBoxServiceTest {
         assertThatThrownBy(() -> neufBoxService.placer(
                 new BigDecimal("90"), new BigDecimal("90"), parametre))
                 .isInstanceOf(RessourceIntrouvableException.class)
-                .hasMessageContaining("table de reference");
+                .hasMessageContaining("table de référence");
     }
 
     @Test
@@ -234,7 +234,7 @@ class NeufBoxServiceTest {
 
         assertThatThrownBy(() -> neufBoxService.placerEtEnregistrer(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
-                .hasMessageContaining("Aucun score calcule");
+                .hasMessageContaining("Aucun score calculé");
     }
 
     @Test

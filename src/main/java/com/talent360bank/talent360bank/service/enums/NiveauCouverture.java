@@ -8,7 +8,7 @@ public enum NiveauCouverture {
     ALERTE("Successeurs insuffisants - ALERTE"),
     READY_NOW("Couverte - Ready Now"),
     MOINS_1_AN("Couverte - < 1 an"),
-    PARTIELLE("Partielle - a renforcer");
+    PARTIELLE("Partielle - à renforcer");
 
     private final String libelle;
 

@@ -18,12 +18,11 @@ public class ComiteTalentRow {
     private final String positionBox;
     private final String statut;      // code : OUI, EN_ATTENTE, NON
     private final String statutLibelle;
-    private final String badgeClass;  // classes Bootstrap du badge de statut
 
     public ComiteTalentRow(String nomComplet, String direction,
                            BigDecimal performance, String categoriePerformance,
                            BigDecimal potentiel, String categoriePotentiel,
-                           String positionBox, String statut, String statutLibelle, String badgeClass) {
+                           String positionBox, String statut, String statutLibelle) {
         this.nomComplet = nomComplet;
         this.direction = direction;
         this.performance = performance;
@@ -33,7 +32,6 @@ public class ComiteTalentRow {
         this.positionBox = positionBox;
         this.statut = statut;
         this.statutLibelle = statutLibelle;
-        this.badgeClass = badgeClass;
     }
 
     public String getNomComplet() {
@@ -72,7 +70,4 @@ public class ComiteTalentRow {
         return statutLibelle;
     }
 
-    public String getBadgeClass() {
-        return badgeClass;
-    }
 }

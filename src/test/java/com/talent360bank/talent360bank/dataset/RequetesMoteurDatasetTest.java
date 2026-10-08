@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Nombre de requetes du recalcul des scores sur le vrai classeur (100
- * collaborateurs), AUDIT_REPORT 3.4 : avant, une recherche du score existant
+ * collaborateurs), audit initial 3.4 : avant, une recherche du score existant
  * et le chargement EAGER des entites par collaborateur (285 requetes au premier
  * passage, 185 au second). Maintenant cinq lectures fixes (reglages, notes de
  * performance, de potentiel, scores existants, suppression groupee), plus une

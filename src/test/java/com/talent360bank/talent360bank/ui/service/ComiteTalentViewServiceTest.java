@@ -113,9 +113,8 @@ class ComiteTalentViewServiceTest {
         ComiteTalentView vue = service.build(courante, null);
 
         assertThat(vue.getKpis()).singleElement().satisfies(kpi -> {
-            assertThat(kpi.getLabel()).isEqualTo("Talents valides (Comite)");
+            assertThat(kpi.getLabel()).isEqualTo("Talents validés (Comité)");
             assertThat(kpi.getValue()).isEqualTo("2");
-            assertThat(kpi.getColorClass()).isEqualTo("kpi-green");
         });
     }
 
@@ -130,11 +129,10 @@ class ComiteTalentViewServiceTest {
         assertThat(ligne.getPerformance()).isEqualByComparingTo("91.20");
         assertThat(ligne.getCategoriePerformance()).isEqualTo("Exceptionnelle");
         assertThat(ligne.getPotentiel()).isEqualByComparingTo("95.95");
-        assertThat(ligne.getCategoriePotentiel()).isEqualTo("Eleve");
+        assertThat(ligne.getCategoriePotentiel()).isEqualTo("Élevé");
         assertThat(ligne.getPositionBox()).isEqualTo("Talent cle");
         assertThat(ligne.getStatut()).isEqualTo("OUI");
         assertThat(ligne.getStatutLibelle()).isEqualTo("Oui");
-        assertThat(ligne.getBadgeClass()).isEqualTo("bg-success");
     }
 
     @Test
@@ -219,13 +217,4 @@ class ComiteTalentViewServiceTest {
         assertThat(vue.getKpis().get(0).getValue()).isEqualTo("0");
     }
 
-    @ParameterizedTest
-    @CsvSource({
-            "OUI, bg-success",
-            "EN_ATTENTE, bg-warning text-dark",
-            "NON, bg-danger"
-    })
-    void chaque_statut_a_sa_couleur_de_badge(StatutValidationComite statut, String attendue) {
-        assertThat(ComiteTalentViewService.badgeClass(statut)).isEqualTo(attendue);
-    }
 }

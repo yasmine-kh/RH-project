@@ -88,13 +88,13 @@ public final class FormatClasseur {
             String semblable = feuilleSemblable(classeur, nom);
             ecarts.add(new ErreurImport(nom, null, semblable == null
                     ? "Feuille absente du classeur"
-                    : "Feuille absente du classeur (renommee en \"" + semblable + "\" ?)"));
+                    : "Feuille absente du classeur (renommée en \"" + semblable + "\" ?)"));
             return;
         }
         String colonneA = colonnes.get(0);
         int entete = Cellules.ligneEntete(feuille, colonneA);
         if (entete < 0) {
-            ecarts.add(new ErreurImport(nom, null, "En-tete introuvable : la colonne A de la ligne d'en-tete doit "
+            ecarts.add(new ErreurImport(nom, null, "En-tête introuvable : la colonne A de la ligne d'en-tête doit "
                     + "porter \"" + colonneA + "\""));
             return;
         }
@@ -105,9 +105,9 @@ public final class FormatClasseur {
                 return;
             }
             int ailleurs = colonneDe(ligne, attendu);
-            String message = "colonne " + Cellules.lettre(index) + " : en-tete \"" + attendu + "\" attendu, "
-                    + (trouve == null ? "cellule vide" : "trouve \"" + trouve + "\"")
-                    + (ailleurs >= 0 ? " (colonne deplacee en " + Cellules.lettre(ailleurs) + ")" : "");
+            String message = "colonne " + Cellules.lettre(index) + " : en-tête \"" + attendu + "\" attendu, "
+                    + (trouve == null ? "cellule vide" : "trouvé \"" + trouve + "\"")
+                    + (ailleurs >= 0 ? " (colonne déplacée en " + Cellules.lettre(ailleurs) + ")" : "");
             ecarts.add(new ErreurImport(nom, entete + 1, message));
         });
     }

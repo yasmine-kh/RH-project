@@ -55,8 +55,10 @@ class LogoTest {
         BufferedImage complet = image("/images/BP-Logo-Complet.png");
         assertThat(complet.getWidth()).isEqualTo(170);
         assertThat(complet.getHeight()).isEqualTo(52);
-        // Le fichier d'origine reste servi.
-        image("/images/BP-Logo.png");
+        // Le fichier d'origine est rangé dans docs/assets/ : il n'est plus servi.
+        mockMvc.perform(get("/images/BP-Logo.png")).andExpect(status().isNotFound());
+        assertThat(Path.of("docs/assets/BP-Logo.png")).exists();
+        assertThat(Path.of("src/main/resources/static/images/BP-Logo.png")).doesNotExist();
     }
 
     @Test
@@ -84,7 +86,7 @@ class LogoTest {
         assertThat(resultat.getResponse().getStatus()).isIn(200, 403, 404);
         String page = resultat.getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertThat(page).contains(LOGO, ICONE).doesNotContain("<span class=\"mark\"></span>");
-        assertThat(page).containsAnyOf("Acces refuse", "Page introuvable");
+        assertThat(page).containsAnyOf("Accès refusé", "Page introuvable");
     }
 
     @Test

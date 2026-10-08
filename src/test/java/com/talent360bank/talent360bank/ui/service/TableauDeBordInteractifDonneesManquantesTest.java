@@ -71,9 +71,9 @@ class TableauDeBordInteractifDonneesManquantesTest {
     @Test
     void une_carte_du_moteur_sans_valeur_ou_absente_et_une_case_sans_libelle_donnent_un_tiret() {
         TableauDeBordView tableau = new TableauDeBordView("T3 2026",
-                List.of(new KpiCard("Postes critiques", null, null, null), new KpiCard(null, "3", null, null),
-                        new KpiCard("Couverture succession", "93.33 %", null, null)),
-                List.of(new CaseTableau(null, 3, 3, 4)), 4, 0, List.of(), 0, List.of(), 0, List.of(), List.of(), null);
+                List.of(new KpiCard("Postes critiques", null), new KpiCard(null, "3"),
+                        new KpiCard("Couverture succession", "93.33 %")),
+                List.of(new CaseTableau(null, 3, 3, 4)), null);
         Personne p = TableauDeBordInteractifService.personne(ligne("X03", "Ana Ben", null, null, null, List.of(), null),
                 null, "2026-3", VIVIERS);
         List<Kpi> kpis = TableauDeBordInteractifService.kpis(List.of(p), tableau);
@@ -96,8 +96,7 @@ class TableauDeBordInteractifDonneesManquantesTest {
 
     @Test
     void une_moyenne_d_engagement_est_calculee_sur_les_seules_reponses() {
-        TableauDeBordView tableau = new TableauDeBordView("T3 2026", List.of(), List.of(), 0, 0, List.of(), 0,
-                List.of(), 0, List.of(), List.of(), null);
+        TableauDeBordView tableau = new TableauDeBordView("T3 2026", List.of(), List.of(), null);
         Personne sans = TableauDeBordInteractifService.personne(ligne("X04", "A", null, null, null, null, null), null,
                 "2026-3", VIVIERS);
         Kpi engagement = TableauDeBordInteractifService.kpis(List.of(sans), tableau).get(7);

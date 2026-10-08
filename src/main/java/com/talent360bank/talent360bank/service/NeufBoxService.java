@@ -62,10 +62,10 @@ public class NeufBoxService {
     public NiveauGrille niveauPour(BigDecimal score, SeuilsNeufBox seuils) {
         Objects.requireNonNull(seuils, "seuils");
         if (score == null) {
-            throw new DonneesIncompletesException("Score absent, niveau indeterminable");
+            throw new DonneesIncompletesException("Score absent, niveau indéterminable");
         }
         if (seuils.getSeuilEleve() == null || seuils.getSeuilMoyen() == null) {
-            throw new DonneesIncompletesException("Les seuils de la matrice 9-box ne sont pas configures");
+            throw new DonneesIncompletesException("Les seuils de la matrice 9-box ne sont pas configurés");
         }
         if (score.compareTo(seuils.getSeuilEleve()) >= 0) {
             return NiveauGrille.ELEVE;
@@ -134,7 +134,7 @@ public class NeufBoxService {
                 .orElseThrow(() -> new RessourceIntrouvableException(
                         "Aucune case de matrice 9-box pour performance " + niveauPerformance
                                 + " et potentiel " + niveauPotentiel
-                                + " : la table de reference est incomplete"));
+                                + " : la table de référence est incomplète"));
     }
 
     /**
@@ -159,7 +159,7 @@ public class NeufBoxService {
 
         Score score = scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre)
                 .orElseThrow(() -> new RessourceIntrouvableException(
-                        "Aucun score calcule pour " + collaborateur.getIdCollaborateur()
+                        "Aucun score calculé pour " + collaborateur.getIdCollaborateur()
                                 + " sur " + decrire(trimestre)));
 
         Parametre parametre = calculService.chargerParametre(trimestre);
@@ -196,13 +196,13 @@ public class NeufBoxService {
             // Un score non place perd sa case : elle viendrait d'un placement precedent.
             if (!collaborateur.estCalculable()) {
                 ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
-                        "Statut " + collaborateur.getStatut() + ", hors perimetre de calcul"));
+                        "Statut " + collaborateur.getStatut() + ", hors périmètre de calcul"));
                 effacerCase(score);
                 continue;
             }
             if (score.getScorePerformance() == null || score.getScorePotentiel() == null) {
                 ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
-                        "Score incomplet, les deux axes sont necessaires au placement"));
+                        "Score incomplet, les deux axes sont nécessaires au placement"));
                 effacerCase(score);
                 continue;
             }
@@ -213,7 +213,7 @@ public class NeufBoxService {
 
             if (case9Box == null) {
                 ignores.add(new ResultatRecalcul.CollaborateurIgnore(matricule,
-                        "Aucune case de reference pour performance " + niveauPerformance
+                        "Aucune case de référence pour performance " + niveauPerformance
                                 + " et potentiel " + niveauPotentiel));
                 effacerCase(score);
                 continue;
@@ -249,7 +249,7 @@ public class NeufBoxService {
     private static SeuilsNeufBox exigerSeuils(SeuilsNeufBox seuils, String axe) {
         if (seuils == null) {
             throw new DonneesIncompletesException(
-                    "Les seuils de l'axe " + axe + " de la matrice 9-box ne sont pas configures");
+                    "Les seuils de l'axe " + axe + " de la matrice 9-box ne sont pas configurés");
         }
         return seuils;
     }
@@ -258,7 +258,7 @@ public class NeufBoxService {
         List<Matrice9Box> cases = matriceRepository.findAll();
         if (cases.isEmpty()) {
             throw new RessourceIntrouvableException(
-                    "La table de reference Matrice9Box est vide : aucun placement possible");
+                    "La table de référence Matrice9Box est vide : aucun placement possible");
         }
         Map<String, Matrice9Box> index = new HashMap<>();
         for (Matrice9Box case9Box : cases) {

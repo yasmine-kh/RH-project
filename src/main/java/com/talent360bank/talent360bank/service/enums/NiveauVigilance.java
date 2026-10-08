@@ -3,8 +3,8 @@ package com.talent360bank.talent360bank.service.enums;
 /** Niveau de l'indice de vigilance (risque de depart). */
 public enum NiveauVigilance {
     FAIBLE("Faible"),
-    MODEREE("Moderee"),
-    ELEVEE("Elevee");
+    MODEREE("Modérée"),
+    ELEVEE("Élevée");
 
     private final String libelle;
 

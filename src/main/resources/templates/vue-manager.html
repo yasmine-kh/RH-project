@@ -6,11 +6,11 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Vue manager (page propre a l'application ; menus Campagne, Collaborateurs, 9-Box et Alertes du profil
   Manager du prototype) : classes du prototype. Equipe, 9-Box, evaluations manquantes et alertes
   calculees par le moteur (VueManagerViewService). Ancres #equipe, #neufbox, #evaluations, #alertes.
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('vue-manager')}"></aside>
 
@@ -42,7 +42,7 @@
                     <div class="kpi"><div class="val" th:text="${vue.synthese.effectif}">5</div><div class="lbl">👥 Équipe directe</div></div>
                     <div class="kpi teal"><div class="val" th:text="${vue.synthese.moyennePerformance} ?: '—'">80</div><div class="lbl">Performance moyenne</div></div>
                     <div class="kpi teal"><div class="val" th:text="${vue.synthese.moyennePotentiel} ?: '—'">80</div><div class="lbl">Potentiel moyen</div></div>
-                    <div class="kpi gold"><div class="val" th:text="${vue.synthese.nbTalents}">1</div><div class="lbl">⭐ Talents</div></div>
+                    <div class="kpi gold"><div class="val" th:text="${vue.synthese.nbTalents}">1</div><div class="lbl">⭐ Talents proposés</div></div>
                     <div class="kpi rust"><div class="val" th:text="${#lists.size(vue.alertes)}">0</div><div class="lbl">🔔 Alertes de l'équipe</div></div>
                 </div>
 
@@ -51,7 +51,7 @@
                         <div class="panel-body"><div th:replace="~{fragments/box9 :: grille(${page.matrice}, null, null)}"></div></div></div>
 
                     <div class="panel" id="evaluations"><div class="panel-head"><h3>Évaluations manquantes</h3>
-                        <a class="hint" href="/evaluation-manager">Formulaire d'évaluation (en cours de développement)</a></div><div class="panel-body">
+                        <span class="hint">évaluations du manager importées avec le classeur</span></div><div class="panel-body">
                         <div class="empty-state" th:if="${#lists.isEmpty(vue.membres)}">Aucune donnée pour ce collaborateur.</div>
                         <div class="empty-state" th:if="${not #lists.isEmpty(vue.membres) and #lists.isEmpty(vue.alertes.?[type == 'EVALUATION_MANQUANTE'])}">Toute l'équipe a son évaluation du manager ce trimestre.</div>
                         <div class="succ-row" th:each="alerte : ${vue.alertes.?[type == 'EVALUATION_MANQUANTE']}">

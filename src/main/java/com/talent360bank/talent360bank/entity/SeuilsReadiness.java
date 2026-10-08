@@ -45,7 +45,7 @@ public class SeuilsReadiness {
     }
 
     @Transient
-    @AssertTrue(message = "Les seuils de readiness doivent etre strictement decroissants")
+    @AssertTrue(message = "Les seuils de readiness doivent être strictement décroissants")
     public boolean isOrdreValide() {
         return Poids.ordreDecroissant(seuilReadyNow, seuilMoins1An, seuilEntre1Et2Ans);
     }

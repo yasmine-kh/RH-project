@@ -9,46 +9,32 @@ import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.CollaborateurRepository;
 import com.talent360bank.talent360bank.repository.Matrice9BoxRepository;
 import com.talent360bank.talent360bank.repository.QuestionnaireEngagementRepository;
-import com.talent360bank.talent360bank.service.CompetenceCollaborateurService;
 import com.talent360bank.talent360bank.service.TableauDeBordService;
-import com.talent360bank.talent360bank.service.VivierSyntheseService;
-import com.talent360bank.talent360bank.service.VivierThematiqueService;
-import com.talent360bank.talent360bank.service.enums.NiveauVigilance;
-import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
-import com.talent360bank.talent360bank.service.resultat.ResultatViviersThematiques;
 import com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord;
-import com.talent360bank.talent360bank.ui.model.AlerteVue;
 import com.talent360bank.talent360bank.ui.model.KpiCard;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.CaseTableau;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordView.CompteNiveau;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordView.VivierTableau;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * Tableau de bord RH d'un trimestre (page "/").
+ * Tableau de bord RH d'un trimestre (page "/") : les chiffres du moteur que la page affiche, et
+ * seulement eux. Le reste de la page (cartes sur les personnes, graphiques, listes, alertes) est
+ * construit par {@link TableauDeBordInteractifService} sur la population du trimestre.
  *
- * <p>REGLE : aucun calcul ici et aucun chiffre ecrit en dur. Talents valides,
- * hauts potentiels, vivier de releve, vigilance, postes critiques, Ready Now et
- * repartition 9-box viennent de {@link TableauDeBordService} ; les viviers
- * thematiques de {@link VivierThematiqueService}, resumes par
- * {@link VivierSyntheseService} ; les gaps de competences de
- * {@link CompetenceCollaborateurService} ; les alertes prioritaires de
- * {@link AlertesViewService}, la source de l'ecran Alertes (les deux ne
- * peuvent pas diverger). Seules les syntheses d'affichage (compter, moyenner)
- * sont faites ici. Un chiffre sans source de donnees n'est pas affiche plutot
- * que d'etre invente.
+ * <p>REGLE : aucun calcul ici et aucun chiffre ecrit en dur. Postes critiques, couverture,
+ * successions Ready Now, postes sans successeur, postes en alerte et repartition 9-box viennent de
+ * {@link TableauDeBordService}. Un chiffre sans source de donnees n'est pas affiche plutot que
+ * d'etre invente.
  *
- * <p>Sans reglages pour le trimestre, le moteur ne peut rien calculer : seuls
- * l'effectif et l'engagement (qui n'en dependent pas) sont affiches, avec le
- * message d'erreur.
+ * <p>Sans reglages pour le trimestre, le moteur ne peut rien calculer : la page n'affiche alors que
+ * l'effectif et l'engagement (qui n'en dependent pas), avec le message d'erreur ; ils ne sont
+ * construits que dans ce cas.
  *
  * <p><strong>Requetes.</strong> Un nombre fixe quelle que soit la population
  * (voir SansSessionOuverteIntegrationTest).
@@ -59,116 +45,45 @@ public class DashboardService {
     private static final int PRECISION_MOYENNE = 2;
 
     private final TableauDeBordService tableauDeBordService;
-    private final VivierThematiqueService vivierThematiqueService;
-    private final CompetenceCollaborateurService competenceCollaborateurService;
     private final CollaborateurRepository collaborateurRepository;
     private final QuestionnaireEngagementRepository questionnaireRepository;
     private final Matrice9BoxRepository matrice9BoxRepository;
-    private final AlertesViewService alertesViewService;
-    private final VivierSyntheseService vivierSyntheseService;
 
-    public DashboardService(TableauDeBordService tableauDeBordService,
-                            VivierThematiqueService vivierThematiqueService,
-                            CompetenceCollaborateurService competenceCollaborateurService,
-                            CollaborateurRepository collaborateurRepository,
+    public DashboardService(TableauDeBordService tableauDeBordService, CollaborateurRepository collaborateurRepository,
                             QuestionnaireEngagementRepository questionnaireRepository,
-                            Matrice9BoxRepository matrice9BoxRepository,
-                            AlertesViewService alertesViewService,
-                            VivierSyntheseService vivierSyntheseService) {
-        this.alertesViewService = alertesViewService;
-        this.vivierSyntheseService = vivierSyntheseService;
+                            Matrice9BoxRepository matrice9BoxRepository) {
         this.tableauDeBordService = tableauDeBordService;
-        this.vivierThematiqueService = vivierThematiqueService;
-        this.competenceCollaborateurService = competenceCollaborateurService;
         this.collaborateurRepository = collaborateurRepository;
         this.questionnaireRepository = questionnaireRepository;
         this.matrice9BoxRepository = matrice9BoxRepository;
     }
 
     /**
-     * Le tableau de bord et la synthese du moteur dont il est tire : le
-     * tableau de bord DG reprend les memes cartes et les memes couvertures
-     * sans les recalculer.
-     *
-     * @param synthese null si elle n'a pas pu etre calculee (aucun trimestre, reglages absents)
-     */
-    public record Construction(TableauDeBordView vue, SyntheseTableauDeBord synthese) {
-    }
-
-    /**
      * @param trimestre trimestre affiche (TrimestreCourantService), null s'il n'en existe aucun
      */
     public TableauDeBordView construire(Trimestre trimestre) {
-        return construireAvecSynthese(trimestre).vue();
-    }
-
-    /** Comme {@link #construire}, avec la synthese du moteur. */
-    public Construction construireAvecSynthese(Trimestre trimestre) {
-        long actifs = collaborateurRepository.countByStatut(StatutCollaborateur.ACTIF);
-        KpiCard effectif = new KpiCard("Collaborateurs actifs", String.valueOf(actifs), "bi-people", "kpi-blue");
         if (trimestre == null) {
-            return new Construction(new TableauDeBordView(null, List.of(effectif), List.of(), 0, 0, List.of(), 0,
-                    List.of(), 0, List.of(), List.of(), null), null);
+            return new TableauDeBordView(null, List.of(), List.of(), null);
         }
         String libelle = TrimestreCourantService.libelle(trimestre);
-        KpiCard engagement = engagement(trimestre);
 
         SyntheseTableauDeBord synthese;
-        ResultatViviersThematiques viviers;
-        int gapsPrioritaires;
-        List<AlerteVue> alertes;
         try {
             synthese = tableauDeBordService.synthese(trimestre);
-            viviers = vivierThematiqueService.getViviersThematiques(trimestre);
-            gapsPrioritaires = competenceCollaborateurService.compterGapsPrioritaires(trimestre);
-            // Les memes alertes que l'ecran Alertes, deja triees par gravite.
-            alertes = alertesViewService.alertes(trimestre);
         } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
-            return new Construction(new TableauDeBordView(libelle, List.of(effectif, engagement), List.of(), 0, 0,
-                    List.of(), 0, List.of(), 0, List.of(), List.of(), e.getMessage()), null);
+            long actifs = collaborateurRepository.countByStatut(StatutCollaborateur.ACTIF);
+            return new TableauDeBordView(libelle,
+                    List.of(new KpiCard("Collaborateurs actifs", String.valueOf(actifs)), engagement(trimestre)),
+                    List.of(), e.getMessage());
         }
 
-        List<VivierTableau> lignesViviers = viviers(viviers, synthese.couvertures());
-        int nbEvaluesVigilance = synthese.vigilanceParNiveau().values().stream().mapToInt(Integer::intValue).sum();
-        List<CaseTableau> cases = neufBox(synthese);
-
         List<KpiCard> kpis = List.of(
-                effectif,
-                new KpiCard("Talents validés par le Comité", String.valueOf(synthese.nbTalentsValides()),
-                        "bi-patch-check", "kpi-green"),
-                new KpiCard("Hauts potentiels", String.valueOf(synthese.nbHautsPotentiels()),
-                        "bi-graph-up-arrow", "kpi-purple"),
-                new KpiCard("Vivier de succession (relève)", String.valueOf(synthese.nbVivierReleve()),
-                        "bi-diagram-3", "kpi-purple"),
-                new KpiCard("Viviers actifs", String.valueOf(lignesViviers.stream().filter(v -> v.effectif() > 0)
-                        .count()), "bi-collection", "kpi-blue"),
-                new KpiCard("Postes critiques", String.valueOf(synthese.nbPostesCritiques()),
-                        "bi-briefcase", "kpi-blue"),
-                new KpiCard("Couverture succession", pourcentage(synthese.tauxCouverture()),
-                        "bi-link-45deg", "kpi-green"),
-                new KpiCard("Successeurs Ready Now", String.valueOf(synthese.nbSuccessionsReadyNow()),
-                        "bi-check2-circle", "kpi-green"),
-                new KpiCard("Postes critiques sans successeur", String.valueOf(synthese.nbPostesSansSuccesseur()),
-                        "bi-x-circle", "kpi-red"),
-                new KpiCard("Postes critiques en alerte", String.valueOf(synthese.nbAlertesPostesCritiques()),
-                        "bi-exclamation-triangle", "kpi-orange"),
-                new KpiCard("À risque (vigilance modérée ou élevée)", String.valueOf(synthese.nbARisque()),
-                        "bi-exclamation-octagon", "kpi-red"),
-                new KpiCard("Compétences en gap prioritaire", String.valueOf(gapsPrioritaires),
-                        "bi-mortarboard", "kpi-orange"),
-                new KpiCard("Talents proposés", String.valueOf(synthese.nbTalents()), "bi-star", "kpi-green"),
-                new KpiCard("Talents clés (9-Box)", String.valueOf(cases.stream()
-                        .filter(c -> c.niveauPerformance() == 3 && c.niveauPotentiel() == 3)
-                        .mapToInt(CaseTableau::nombre).sum()), "bi-grid-3x3", "kpi-green"),
-                new KpiCard("Postes critiques couverts", String.valueOf(synthese.nbPostesCritiques()
-                        - synthese.nbPostesSansSuccesseur()), "bi-shield-check", "kpi-green"),
-                new KpiCard("Alertes ouvertes", String.valueOf(alertes.size()), "bi-bell", "kpi-red"),
-                engagement);
-
-        return new Construction(new TableauDeBordView(libelle, kpis, cases, synthese.nbPlaces9Box(),
-                synthese.nbNonPlaces9Box(), vigilance(synthese), (int) Math.max(0, actifs - nbEvaluesVigilance),
-                alertes.stream().limit(TableauDeBordView.ALERTES_AFFICHEES).toList(), alertes.size(),
-                lignesViviers, postesSansSuccesseur(synthese), null), synthese);
+                new KpiCard("Postes critiques", String.valueOf(synthese.nbPostesCritiques())),
+                new KpiCard("Couverture succession", pourcentage(synthese.tauxCouverture())),
+                new KpiCard("Successeurs Ready Now", String.valueOf(synthese.nbSuccessionsReadyNow())),
+                new KpiCard("Postes critiques sans successeur", String.valueOf(synthese.nbPostesSansSuccesseur())),
+                new KpiCard("Postes critiques en alerte", String.valueOf(synthese.nbAlertesPostesCritiques())));
+        return new TableauDeBordView(libelle, kpis, neufBox(synthese), null);
     }
 
     /** Moyenne des questionnaires d'engagement des actifs (score /100) et nombre de reponses. */
@@ -180,7 +95,7 @@ public class DashboardService {
                 .toList();
         BigDecimal moyenne = moyenne(scores);
         return new KpiCard("Engagement moyen /100 (" + scores.size() + " réponse" + (scores.size() > 1 ? "s" : "")
-                + ")", moyenne == null ? "—" : moyenne.toPlainString(), "bi-heart", "kpi-orange");
+                + ")", moyenne == null ? "—" : moyenne.toPlainString());
     }
 
     /** Les 9 cases, performance elevee en haut puis potentiel faible a gauche, comme la page 9-Box. */
@@ -191,36 +106,6 @@ public class DashboardService {
                 .map(case9Box -> new CaseTableau(case9Box.getCategorie(), case9Box.getNiveauPerformance(),
                         case9Box.getNiveauPotentiel(),
                         synthese.repartition9Box().getOrDefault(case9Box.getCategorie(), 0)))
-                .toList();
-    }
-
-    /** Meme regle que la carte "Postes critiques sans successeur" (SyntheseTableauDeBord) : aucun successeur. */
-    private static List<TableauDeBordView.PosteSansSuccesseur> postesSansSuccesseur(SyntheseTableauDeBord synthese) {
-        return synthese.couvertures().stream()
-                .filter(couverture -> couverture.nbSuccesseurs() == 0)
-                .map(couverture -> new TableauDeBordView.PosteSansSuccesseur(couverture.poste().getPosteId(),
-                        couverture.poste().getNomPoste(), couverture.poste().getDirection()))
-                .toList();
-    }
-
-    private static List<CompteNiveau> vigilance(SyntheseTableauDeBord synthese) {
-        List<CompteNiveau> comptes = new ArrayList<>();
-        for (NiveauVigilance niveau : NiveauVigilance.values()) {
-            comptes.add(new CompteNiveau(niveau.name(), niveau.getLibelle(),
-                    synthese.vigilanceParNiveau().getOrDefault(niveau, 0)));
-        }
-        return List.copyOf(comptes);
-    }
-
-    /**
-     * Une ligne par vivier thematique, chiffres de {@link VivierSyntheseService}
-     * sur les donnees deja lues (aucune requete de plus).
-     */
-    private List<VivierTableau> viviers(ResultatViviersThematiques viviers, List<CouverturePoste> couvertures) {
-        return vivierSyntheseService.resumerThematiques(viviers, couvertures).stream()
-                .map(vivier -> new VivierTableau(vivier.code(), vivier.libelle(), vivier.effectif(),
-                        vivier.performanceMoyenne(), vivier.potentielMoyen(), vivier.nbTalents(),
-                        vivier.nbReadyNow(), vivier.nbPostesCouverts()))
                 .toList();
     }
 

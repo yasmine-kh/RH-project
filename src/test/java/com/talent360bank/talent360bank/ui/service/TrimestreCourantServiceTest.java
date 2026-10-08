@@ -23,7 +23,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Trimestre affiche par les ecrans : le demande, sinon le plus recent qui a
- * des scores (AUDIT_REPORT B5 : un trimestre ouvert mais vide ne vide plus
+ * des scores (audit initial B5 : un trimestre ouvert mais vide ne vide plus
  * les ecrans).
  */
 @ExtendWith(MockitoExtension.class)

@@ -7,9 +7,9 @@ package com.talent360bank.talent360bank.entity;
  */
 public enum CategoriePerformance {
     EXCEPTIONNELLE("Exceptionnelle"),
-    ELEVEE("Elevee"),
+    ELEVEE("Élevée"),
     SOLIDE("Solide"),
-    A_RENFORCER("A renforcer"),
+    A_RENFORCER("À renforcer"),
     INSUFFISANTE("Insuffisante");
 
     private final String libelle;

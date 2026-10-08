@@ -86,14 +86,6 @@ public record MatriceNeufBox(List<CaseMatrice> cases, int total, int nbNonPlaces
         return new MatriceNeufBox(List.copyOf(cases), total, nbNonPlaces, caseSelectionnee);
     }
 
-    /** Effectifs seuls, depuis le tableau de bord (aucune requete de plus) ; un clic ouvre la liste de la case. */
-    public static MatriceNeufBox depuis(List<CaseTableau> cases, int nbNonPlaces, String trimestre) {
-        return construire(cases.stream()
-                        .map(c -> new Entree(c.niveauPerformance(), c.niveauPotentiel(), c.libelle(), c.nombre(), List.of()))
-                        .toList(), nbNonPlaces,
-                numero -> lienListe(trimestre, null, numero), null);
-    }
-
     /**
      * Effectifs seuls d'un groupe (equipe d'un manager, sous-arbre d'une entite) a partir
      * de sa synthese par numero de case ; les niveaux se deduisent du numero.

@@ -35,9 +35,9 @@ public class ImportExcel {
     private String statut;
 
     /**
-     * Compte RH qui a lance l'import. Encore nul : l'import ne le renseigne
-     * pas encore. Colonne creee NOT NULL a l'origine : ImportExcelInitializer
-     * la libere.
+     * Compte RH connecte qui a lance l'import (UtilisateurCourant) ; nul pour
+     * les imports d'avant ce suivi, ou lances hors requete. Colonne creee NOT
+     * NULL a l'origine : ImportExcelInitializer la libere.
      */
     @ManyToOne
     @JoinColumn(name = "id_utilisateur")

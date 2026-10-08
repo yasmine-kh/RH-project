@@ -212,7 +212,7 @@ class ImportPageIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("ne contient aucune donnée")))).rapport();
 
-        // AUDIT_REPORT B5 : l'import ouvre le trimestre avant d'ecrire les donnees.
+        // audit initial B5 : l'import ouvre le trimestre avant d'ecrire les donnees.
         assertThat(rapport.statut()).isEqualTo("ECHEC");
         assertThat(rapport.trimestreVide()).isTrue();
         assertThat(trimestreRepository.findByNumeroAndAnnee(2, 2027)).isPresent();

@@ -17,7 +17,7 @@ import java.math.BigDecimal;
  * chacun calcule avec les poids des criteres, puis melanges selon ces poids.
  *
  * <p>100 / 0 par defaut : le score officiel est celui du manager, comme dans le
- * classeur, tant que le client n'a pas choisi de melange (AUDIT_REPORT,
+ * classeur, tant que le client n'a pas choisi de melange (audit initial,
  * question 2). Les colonnes portent ces valeurs par defaut en base : quand
  * ddl-auto=update les ajoute a une table deja remplie, les reglages existants
  * restent a 100 % manager.
@@ -51,7 +51,7 @@ public class PonderationSources {
     }
 
     @Transient
-    @AssertTrue(message = "Les poids des sources d'evaluation (manager et auto-evaluation) doivent totaliser 100")
+    @AssertTrue(message = "Les poids des sources d'évaluation (manager et auto-évaluation) doivent totaliser 100")
     public boolean isSommeValide() {
         return Poids.sommeValide(poidsManager, poidsAuto);
     }

@@ -6,11 +6,11 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Vue entite (page propre a l'application) : classes du prototype. Indicateurs du sous-arbre, 9-Box,
   postes critiques, alertes et managers calcules par le moteur (VueEntiteViewService). Un clic sur une
   case ouvre la modale du prototype, limitee au sous-arbre (API collaborateurs, filtre entite).
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('entites')}"></aside>
 
@@ -30,7 +30,7 @@
                     <input type="hidden" name="code" th:value="${e.code}">
                     <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
                     <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
-                    <!-- Fil d'Ariane : chaque niveau, de la direction a l'entite. -->
+                    <!--/* Fil d'Ariane : chaque niveau, de la direction a l'entite. */-->
                     <nav aria-label="Organigramme" style="font-size:12px; color:var(--muted);">
                         <a th:href="@{/entites(trimestre=${trimestre.valeur})}">Organigramme</a>
                         <th:block th:each="niveau, etat : ${page.chemin}"> &gt;
@@ -47,13 +47,13 @@
                     <div class="kpi teal"><div class="val" th:text="${s.moyennePerformance} ?: '—'">79</div><div class="lbl">Performance moyenne</div></div>
                     <div class="kpi teal"><div class="val" th:text="${s.moyennePotentiel} ?: '—'">76</div><div class="lbl">Potentiel moyen</div></div>
                     <div class="kpi gold"><div class="val"><a style="color:inherit; text-decoration:none;"
-                            th:href="@{/collaborateurs(trimestre=${trimestre.valeur}, entite=${e.code}, talent=true)}" th:text="${s.nbTalents}">6</a></div><div class="lbl">⭐ Talents</div></div>
+                            th:href="@{/collaborateurs(trimestre=${trimestre.valeur}, entite=${e.code}, talent=true)}" th:text="${s.nbTalents}">6</a></div><div class="lbl">⭐ Talents proposés</div></div>
                     <div class="kpi teal"><div class="val" th:text="${s.nbHautsPotentiels}">8</div><div class="lbl">🚀 Hauts potentiels</div></div>
                     <div class="kpi"><div class="val" th:text="${s.moyenneEngagement} ?: '—'">70</div><div class="lbl">❤️ Engagement moyen</div></div>
                 </div>
 
                 <div class="panel" th:if="${not #lists.isEmpty(vue.enfants)}"><div class="panel-head"><h3>Entités filles</h3></div><div class="panel-body">
-                    <table><thead><tr><th>Entité</th><th>Effectif</th><th>Avec score</th><th>Perf. moy.</th><th>Pot. moy.</th><th>% talents</th><th>Engagement</th><th>Vigilance élevée</th></tr></thead>
+                    <table><thead><tr><th>Entité</th><th>Effectif</th><th>Avec score</th><th>Perf. moy.</th><th>Pot. moy.</th><th>% talents proposés</th><th>Engagement</th><th>Vigilance élevée</th></tr></thead>
                     <tbody><tr th:each="enfant : ${vue.enfants}" th:attr="data-href=@{/entites(code=${enfant.code}, trimestre=${trimestre.valeur})}">
                         <td><a th:href="@{/entites(code=${enfant.code}, trimestre=${trimestre.valeur})}" th:text="${enfant.libelle}">Region</a>
                             <span style="font-size:11px; color:var(--muted);" th:text="${enfant.type}">REGION</span></td>

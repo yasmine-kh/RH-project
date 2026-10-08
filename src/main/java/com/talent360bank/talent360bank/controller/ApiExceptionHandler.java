@@ -89,7 +89,7 @@ public class ApiExceptionHandler {
 
         return ResponseEntity.badRequest().body(new ErreurApi(
                 HttpStatus.BAD_REQUEST.value(), "corps_invalide",
-                "Le corps de la requete est invalide", details));
+                "Le corps de la requête est invalide", details));
     }
 
     /**
@@ -116,18 +116,18 @@ public class ApiExceptionHandler {
 
     private static String messageRequeteMalFormee(Exception exception) {
         if (exception instanceof MissingServletRequestParameterException absent) {
-            return "Parametre obligatoire absent : " + absent.getParameterName();
+            return "Paramètre obligatoire absent : " + absent.getParameterName();
         }
         if (exception instanceof MethodArgumentTypeMismatchException invalide) {
-            return "Valeur invalide pour le parametre " + invalide.getName();
+            return "Valeur invalide pour le paramètre " + invalide.getName();
         }
         if (exception instanceof MissingServletRequestPartException absente) {
             return "Partie obligatoire absente : " + absente.getRequestPartName();
         }
         if (exception instanceof HttpMessageNotReadableException) {
-            return "Corps de la requete illisible (JSON mal forme ou valeur invalide)";
+            return "Corps de la requête illisible (JSON mal formé ou valeur invalide)";
         }
-        return "Requete multipart invalide";
+        return "Requête multipart invalide";
     }
 
     /**

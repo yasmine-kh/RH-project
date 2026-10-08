@@ -163,7 +163,7 @@ class ImportControllerTest {
         mockMvc.perform(multipart("/api/imports").file(fichier).param("annee", "2026").header(EN_TETE, "1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erreur").value("requete_mal_formee"))
-                .andExpect(jsonPath("$.message").value("Parametre obligatoire absent : numero"));
+                .andExpect(jsonPath("$.message").value("Paramètre obligatoire absent : numero"));
     }
 
     @Test

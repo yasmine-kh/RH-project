@@ -106,7 +106,7 @@ label.case { display:flex; align-items:center; gap:8px; font-size:12.5px; color:
 /* Fonctions du prototype pas encore disponibles (decisions du comite, interrupteurs de notification) :
    meme balisage, grise, "En cours de developpement" au survol. */
 .indispo, .kpi-indispo { opacity: .45; }
-.indispo .dbtn:disabled, .switch.indispo { cursor: not-allowed; }
+.indispo .dbtn:disabled { cursor: not-allowed; }
 .indispo .dbtn:disabled:hover { background: #fff; border-color: var(--line); }
 
 /* Barres du prototype (.bar-track / .bar-fill / .cov-bar) : apparition en croissance depuis la gauche.

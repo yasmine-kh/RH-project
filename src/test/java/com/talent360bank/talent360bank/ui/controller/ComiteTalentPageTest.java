@@ -159,7 +159,7 @@ class ComiteTalentPageTest {
         mockMvc.perform(get("/comite-talent").param("statut", "NON"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(allOf(
-                        containsString("Aucun talent pour ce statut."),
+                        containsString("Aucun talent proposé pour ce statut."),
                         not(containsString("<table")))));
     }
 

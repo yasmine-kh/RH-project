@@ -2,6 +2,8 @@ package com.talent360bank.talent360bank.service;
 
 import com.talent360bank.talent360bank.entity.StatutImport;
 import com.talent360bank.talent360bank.entity.Trimestre;
+import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
+import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.resultat.ResultatCalculTrimestre;
 import com.talent360bank.talent360bank.service.resultat.ResultatCampagne;
@@ -51,11 +53,17 @@ public class CampagneService {
         try {
             ResultatCalculTrimestre resultat = calculTrimestreService.calculer(trimestre);
             return new ResultatCampagne(importation, resultat, null);
+        } catch (DonneesIncompletesException | RessourceIntrouvableException e) {
+            // Cause metier (reglages incomplets...) : son message est fait pour le RH.
+            log.warn("Calcul T{} {} apres import : echec ({})", numero, annee, e.getMessage());
+            return new ResultatCampagne(importation, null, "Import enregistré, mais le calcul a échoué : "
+                    + e.getMessage() + ". Corrigez les réglages du trimestre (page Paramètres) : leur "
+                    + "enregistrement relance le calcul.");
         } catch (RuntimeException e) {
+            // Erreur technique : le detail va au journal seulement.
             log.error("Calcul T{} {} apres import : echec", numero, annee, e);
-            return new ResultatCampagne(importation, null,
-                    "Import enregistre, mais le calcul a echoue : " + e.getMessage()
-                            + ". Corriger puis relancer POST /api/trimestres/" + annee + "/" + numero + "/calcul");
+            return new ResultatCampagne(importation, null, "Import enregistré, mais le calcul a échoué. "
+                    + "Vérifiez les réglages du trimestre (page Paramètres) et réessayez.");
         }
     }
 }

@@ -6,11 +6,11 @@
 </head>
 <body>
 
-<!-- Connexion, aux couleurs du prototype. Le formulaire est traite par Spring Security (POST /login). -->
+<!--/* Connexion, aux couleurs du prototype. Le formulaire est traite par Spring Security (POST /login). */-->
 <main class="page-seule">
     <div class="boite">
         <div class="boite-tete marque">
-            <!-- Logo BP complet dans la case de la marque (bordure doree, elargie aux proportions du logo). -->
+            <!--/* Logo BP complet dans la case de la marque (bordure doree, elargie aux proportions du logo). */-->
             <span class="mark mark-logo"><img th:src="@{/images/BP-Logo-Complet.png}" alt="Banque Populaire" width="170" height="52"></span>
             <div><h3>BP TALENT 360</h3><p>Vivier &amp; Succession — SIRH</p></div>
         </div>
@@ -18,7 +18,7 @@
             <div class="alert crit" th:if="${param.error}"><div class="sev">ERREUR</div><div class="txt">Identifiant ou mot de passe incorrect.</div></div>
             <div class="alert info" th:if="${param.deconnexion}"><div class="sev">INFO</div><div class="txt">Vous etes deconnecte.</div></div>
 
-            <!-- th:action ajoute le champ cache du jeton CSRF. -->
+            <!--/* th:action ajoute le champ cache du jeton CSRF. */-->
             <form method="post" th:action="@{/login}">
                 <div class="form-row"><label for="username">Identifiant</label>
                     <input type="text" id="username" name="username" autocomplete="username" required autofocus></div>

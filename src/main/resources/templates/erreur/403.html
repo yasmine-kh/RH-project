@@ -6,19 +6,19 @@
 </head>
 <body>
 
-<!-- Page autonome (sans sidebar), aux couleurs du prototype. -->
+<!--/* Page autonome (sans sidebar), aux couleurs du prototype. */-->
 <main class="page-seule">
     <div class="boite">
         <div class="boite-tete marque"><span class="mark mark-logo"><img th:src="@{/images/BP-Logo-Complet.png}" alt="Banque Populaire" width="170" height="52"></span>
             <div><h3>BP TALENT 360</h3><p>Vivier &amp; Succession — SIRH</p></div></div>
         <div class="boite-corps">
-            <h3 style="font-size:16px; margin-bottom:10px;">Acces refuse</h3>
+            <h3 style="font-size:16px; margin-bottom:10px;">Accès refusé</h3>
             <p style="font-size:12.8px;">Votre profil ne permet pas d'ouvrir cette page.</p>
             <p style="font-size:12.8px; color:var(--muted);" sec:authorize="isAuthenticated()">
-                Connecte en tant que <b sec:authentication="name">login</b>.</p>
-            <!-- Deconnexion en POST, avec le jeton CSRF ajoute par th:action. -->
+                Connecté en tant que <b sec:authentication="name">login</b>.</p>
+            <!--/* Deconnexion en POST, avec le jeton CSRF ajoute par th:action. */-->
             <form method="post" th:action="@{/logout}" sec:authorize="isAuthenticated()">
-                <button type="submit" class="btn ghost">Se deconnecter</button>
+                <button type="submit" class="btn ghost">Se déconnecter</button>
             </form>
         </div>
     </div>

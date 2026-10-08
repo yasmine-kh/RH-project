@@ -39,7 +39,7 @@ public class SeuilsNeufBox {
     }
 
     @Transient
-    @AssertTrue(message = "Le seuil eleve doit etre strictement superieur au seuil moyen")
+    @AssertTrue(message = "Le seuil élevé doit être strictement supérieur au seuil moyen")
     public boolean isOrdreValide() {
         return Poids.ordreDecroissant(seuilEleve, seuilMoyen);
     }

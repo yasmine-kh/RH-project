@@ -145,7 +145,7 @@ class VueEntiteControllerTest {
         mockMvc.perform(get(VUE))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erreur").value("requete_mal_formee"))
-                .andExpect(jsonPath("$.message").value("Parametre obligatoire absent : code"));
+                .andExpect(jsonPath("$.message").value("Paramètre obligatoire absent : code"));
         verifyNoInteractions(service);
     }
 

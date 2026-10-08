@@ -2,11 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<!--
+<!--/*
   Une ligne de l'organigramme et ses enfants, recursivement (page /entites).
   Avec enfants : <details open> (tout l'arbre est visible sans JavaScript ;
   organigramme.js le replie au chargement). Effectif a droite.
--->
+*/-->
 <th:block th:fragment="noeud(n)">
     <details th:if="${not #lists.isEmpty(n.enfants)}" class="organigramme-noeud" open
              th:attr="data-nom=${n.libelle}">

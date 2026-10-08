@@ -6,11 +6,11 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Campagne d'evaluation (vue DRH) : balisage de renderCampagne() du prototype. Avancement des
   evaluations du manager calcule par le moteur (SuiviCampagneViewService) ; pas de dates ni de
   statut de campagne (absents des donnees).
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('campagne')}"></aside>
 
@@ -39,7 +39,7 @@
                 <div class="panel"><div class="panel-head"><h3 th:text="|${vue.total.libelle} — ${vue.trimestre.libelle}|">Toute la banque — T3 2026</h3></div>
                 <div class="panel-body">
                     <div class="stat-block">
-                        <div class="stat"><div class="n" th:text="|${vue.total.nbAutoEvaluations}/${vue.total.nbActifs}|">0/100</div><div class="l">Auto-évaluations soumises</div></div>
+                        <div class="stat"><div class="n" th:text="${vue.total.nbAutoEvaluations > 0} ? |${vue.total.nbAutoEvaluations}/${vue.total.nbActifs}| : 'Non importé'">Non importé</div><div class="l">Auto-évaluations soumises</div></div>
                         <div class="stat"><div class="n" th:text="|${vue.total.nbEvalues}/${vue.total.nbActifs}|">100/100</div><div class="l">Évaluations manager complétées</div></div>
                         <div class="stat"><div class="n" th:text="${vue.total.nbManquants}">0</div><div class="l">Évaluations manquantes</div></div>
                     </div>

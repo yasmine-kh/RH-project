@@ -53,11 +53,11 @@ public class ChargeurRessources {
     public Trimestre exigerTrimestreOuDernier(Integer annee, Integer numero) {
         if (annee == null && numero == null) {
             return trimestreCourant.resoudre(null)
-                    .orElseThrow(() -> new RessourceIntrouvableException("Aucun trimestre enregistre"));
+                    .orElseThrow(() -> new RessourceIntrouvableException("Aucun trimestre enregistré"));
         }
         if (annee == null || numero == null) {
             throw new IllegalArgumentException(
-                    "annee et numero vont ensemble : fournir les deux, ou aucun pour le dernier trimestre");
+                    "année et numéro vont ensemble : fournir les deux, ou aucun pour le dernier trimestre");
         }
         return exigerTrimestre(annee, numero);
     }

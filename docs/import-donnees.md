@@ -52,7 +52,7 @@ Deux façons, qui font exactement le même traitement (import, puis calcul) : la
 6. **Calculer après l'import** : coché par défaut. Le décocher n'importe que les données ; le calcul se relance ensuite par l'API (`POST /api/trimestres/2026/3/calcul`).
 7. Cliquer sur **Importer**. Le bouton se désactive pendant l'import (quelques secondes pour le jeu de données).
 8. Lire le **bilan** affiché au-dessus du formulaire :
-   - le **statut** : `SUCCES` (tout est importé), `PARTIEL` (des lignes ont été écartées, le reste est en base), `ECHEC` (rien n'est importé, la cause est affichée) ;
+   - le **statut** : **Réussi** (tout est importé), **Partiel** (des lignes ont été écartées, le reste est en base), **Échec** (rien n'est importé, la cause est affichée ; une erreur imprévue affiche « L'import a échoué. Vérifiez le fichier et réessayez. », le détail technique va au journal du serveur) ;
    - les **lignes importées par feuille** (et celles retirées d'un fichier corrigé) ;
    - les **lignes écartées** : la feuille, le **numéro de ligne Excel** et le motif. Corriger le classeur à ces lignes, puis réimporter ;
    - les collaborateurs **passés INACTIF** (absents de `01_COLLABORATEURS`) ou remis ACTIF ;

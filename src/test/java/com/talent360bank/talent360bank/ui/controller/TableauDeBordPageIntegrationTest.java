@@ -45,7 +45,10 @@ import com.talent360bank.talent360bank.ui.model.OptionTrimestre;
 import com.talent360bank.talent360bank.ui.model.SeveriteAlerte;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.CaseTableau;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordView.VivierTableau;
+import com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif;
+import com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Kpi;
+import com.talent360bank.talent360bank.service.VivierSyntheseService;
+import com.talent360bank.talent360bank.service.resultat.SyntheseVivier;
 import com.talent360bank.talent360bank.ui.model.TypeAlerte;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -100,6 +103,8 @@ class TableauDeBordPageIntegrationTest {
     private TableauDeBordService tableauDeBordService;
     @Autowired
     private VivierThematiqueService vivierThematiqueService;
+    @Autowired
+    private VivierSyntheseService vivierSyntheseService;
     @Autowired
     private CompetenceCollaborateurService competenceCollaborateurService;
     @Autowired
@@ -193,48 +198,37 @@ class TableauDeBordPageIntegrationTest {
         SyntheseTableauDeBord synthese = tableauDeBordService.synthese(t1);
         ResultatViviersThematiques viviers = vivierThematiqueService.getViviersThematiques(t1);
 
-        Map<String, String> kpis = kpis(tableau);
-        assertThat(kpis).containsExactly(
-                Map.entry("Collaborateurs actifs", "6"),
-                Map.entry("Talents validés par le Comité", String.valueOf(synthese.nbTalentsValides())),
-                Map.entry("Hauts potentiels", String.valueOf(synthese.nbHautsPotentiels())),
-                Map.entry("Vivier de succession (relève)", String.valueOf(synthese.nbVivierReleve())),
-                Map.entry("Viviers actifs", String.valueOf(VivierThematique.values().length
-                        - (int) java.util.Arrays.stream(VivierThematique.values())
-                        .filter(v -> viviers.membresDe(v).isEmpty()).count())),
+        // Les cartes du moteur que la page affiche, et seulement elles.
+        assertThat(kpis(tableau)).containsExactly(
                 Map.entry("Postes critiques", String.valueOf(synthese.nbPostesCritiques())),
                 Map.entry("Couverture succession",
                         synthese.tauxCouverture().stripTrailingZeros().toPlainString() + " %"),
                 Map.entry("Successeurs Ready Now", String.valueOf(synthese.nbSuccessionsReadyNow())),
                 Map.entry("Postes critiques sans successeur", String.valueOf(synthese.nbPostesSansSuccesseur())),
-                Map.entry("Postes critiques en alerte", String.valueOf(synthese.nbAlertesPostesCritiques())),
-                Map.entry("À risque (vigilance modérée ou élevée)", String.valueOf(synthese.nbARisque())),
-                Map.entry("Compétences en gap prioritaire",
-                        String.valueOf(competenceCollaborateurService.compterGapsPrioritaires(t1))),
-                Map.entry("Talents proposés", String.valueOf(synthese.nbTalents())),
-                Map.entry("Talents clés (9-Box)", String.valueOf(tableau.neufBox().stream()
-                        .filter(c -> c.niveauPerformance() == 3 && c.niveauPotentiel() == 3)
-                        .mapToInt(CaseTableau::nombre).sum())),
-                Map.entry("Postes critiques couverts", String.valueOf(synthese.couvertures().stream()
-                        .filter(c -> c.nbSuccesseurs() > 0).count())),
-                Map.entry("Alertes ouvertes", String.valueOf(tableau.nbAlertes())),
-                Map.entry("Engagement moyen /100 (3 réponses)", "46.67"));
+                Map.entry("Postes critiques en alerte", String.valueOf(synthese.nbAlertesPostesCritiques())));
 
-        // Les memes chiffres, poses a la main sur cette population.
-        assertThat(kpis).containsEntry("Talents validés par le Comité", "1")
-                .containsEntry("Hauts potentiels", "3")
-                .containsEntry("Vivier de succession (relève)", "3")
-                .containsEntry("Viviers actifs", "2")
-                .containsEntry("Postes critiques", "2")
-                .containsEntry("Couverture succession", "50 %")
-                .containsEntry("Postes critiques sans successeur", "1")
-                .containsEntry("À risque (vigilance modérée ou élevée)", "2")
-                .containsEntry("Compétences en gap prioritaire", "1")
-                // D01 et D02 (95/95) : talents proposes, case Talent cle ; PA couvert (D01), PB non ; 5 alertes.
-                .containsEntry("Talents proposés", "2")
-                .containsEntry("Talents clés (9-Box)", "2")
-                .containsEntry("Postes critiques couverts", "1")
-                .containsEntry("Alertes ouvertes", "5");
+        // Les memes chiffres, poses a la main sur cette population : cartes de la page...
+        Map<String, String> cartes = cartes(vue(resultatAccueil()));
+        assertThat(cartes).containsEntry("population", "6")
+                .containsEntry("talentsValides", String.valueOf(synthese.nbTalentsValides())).containsEntry("talentsValides", "1")
+                .containsEntry("hautsPotentiels", String.valueOf(synthese.nbHautsPotentiels())).containsEntry("hautsPotentiels", "3")
+                .containsEntry("viviersActifs", String.valueOf(VivierThematique.values().length
+                        - (int) java.util.Arrays.stream(VivierThematique.values())
+                        .filter(v -> viviers.membresDe(v).isEmpty()).count())).containsEntry("viviersActifs", "2")
+                .containsEntry("postesCritiques", "2")
+                .containsEntry("couverture", "50 %")
+                .containsEntry("postesSansReleve", "1")
+                .containsEntry("engagement", "46.67");
+        // ... et chiffres du moteur qui ne sont plus des cartes (filtres et listes de la page).
+        assertThat(synthese.nbVivierReleve()).isEqualTo(3);
+        assertThat(synthese.nbARisque()).isEqualTo(2);
+        assertThat(competenceCollaborateurService.compterGapsPrioritaires(t1)).isEqualTo(1);
+        // D01 et D02 (95/95) : talents proposes, case Talent cle ; PA couvert (D01), PB non ; 5 alertes.
+        assertThat(synthese.nbTalents()).isEqualTo(2);
+        assertThat(tableau.neufBox().stream().filter(c -> c.niveauPerformance() == 3 && c.niveauPotentiel() == 3)
+                .mapToInt(CaseTableau::nombre).sum()).isEqualTo(2);
+        assertThat(synthese.couvertures().stream().filter(c -> c.nbSuccesseurs() > 0).count()).isEqualTo(1);
+        assertThat(vue(resultatAccueil()).alertes()).hasSize(5);
         assertThat(tableau.erreur()).isNull();
         assertThat(tableau.trimestreLibelle()).isEqualTo("T1 2026");
     }
@@ -250,30 +244,36 @@ class TableauDeBordPageIntegrationTest {
                 .isEqualTo(synthese.repartition9Box());
         assertThat(tableau.neufBox().get(0).niveauPerformance()).isEqualTo(3);
         assertThat(tableau.neufBox().get(0).niveauPotentiel()).isEqualTo(1);
-        assertThat(tableau.nbPlaces9Box()).isEqualTo(5);
-        assertThat(tableau.nbNonPlaces9Box()).isZero();
+        assertThat(synthese.nbPlaces9Box()).isEqualTo(5);
+        assertThat(synthese.nbNonPlaces9Box()).isZero();
 
-        assertThat(tableau.vigilance()).extracting(TableauDeBordView.CompteNiveau::nombre).containsExactly(
-                synthese.vigilanceParNiveau().get(NiveauVigilance.FAIBLE),
+        TableauDeBordInteractif vue = vue(resultatAccueil());
+        assertThat(java.util.List.of(synthese.vigilanceParNiveau().get(NiveauVigilance.FAIBLE),
                 synthese.vigilanceParNiveau().get(NiveauVigilance.MODEREE),
-                synthese.vigilanceParNiveau().get(NiveauVigilance.ELEVEE)).containsExactly(3, 1, 1);
-        assertThat(tableau.nbSansVigilance()).isEqualTo(1);
+                synthese.vigilanceParNiveau().get(NiveauVigilance.ELEVEE))).containsExactly(3, 1, 1);
+        assertThat(vue.personnes().stream().filter(x -> "MODEREE".equals(x.vigilance())).count()).isEqualTo(1);
+        assertThat(vue.personnes().stream().filter(x -> "ELEVEE".equals(x.vigilance())).count()).isEqualTo(1);
+        assertThat(vue.personnes().stream().filter(x -> x.vigilance() == null).count()).isEqualTo(1);
 
         // Les alertes de l'ecran Alertes (AlertesViewService), les plus graves d'abord.
-        assertThat(tableau.alertes()).extracting(AlerteVue::type, AlerteVue::severite, AlerteVue::matricule)
+        assertThat(vue.alertes()).extracting(TableauDeBordInteractif.AlerteLigne::type,
+                        TableauDeBordInteractif.AlerteLigne::severite, TableauDeBordInteractif.AlerteLigne::matricule)
                 .containsExactly(
-                        tuple(TypeAlerte.POSTE_SANS_SUCCESSEUR, SeveriteAlerte.CRITIQUE, "PB"),
+                        tuple(TypeAlerte.POSTE_SANS_SUCCESSEUR.name(), SeveriteAlerte.CRITIQUE.name(), "PB"),
                         // PA a exactement un successeur : regle "Un seul successeur", un cran sous Critique.
-                        tuple(TypeAlerte.UN_SEUL_SUCCESSEUR, SeveriteAlerte.ELEVEE, "PA"),
-                        tuple(TypeAlerte.VIGILANCE_ELEVEE, SeveriteAlerte.ELEVEE, "D04"),
-                        tuple(TypeAlerte.EVALUATION_MANAGER_MANQUANTE, SeveriteAlerte.ELEVEE, "D06"),
-                        tuple(TypeAlerte.GAPS_COMPETENCES_PRIORITAIRES, SeveriteAlerte.MOYENNE, "D01"));
-        assertThat(tableau.alertes().get(0).direction()).isEqualTo("Risques");
-        assertThat(tableau.alertes().get(2).message()).contains("60");
-        assertThat(tableau.nbAlertes()).isEqualTo(5);
+                        tuple(TypeAlerte.UN_SEUL_SUCCESSEUR.name(), SeveriteAlerte.ELEVEE.name(), "PA"),
+                        tuple(TypeAlerte.VIGILANCE_ELEVEE.name(), SeveriteAlerte.ELEVEE.name(), "D04"),
+                        tuple(TypeAlerte.EVALUATION_MANAGER_MANQUANTE.name(), SeveriteAlerte.ELEVEE.name(), "D06"),
+                        tuple(TypeAlerte.GAPS_COMPETENCES_PRIORITAIRES.name(), SeveriteAlerte.MOYENNE.name(), "D01"));
+        assertThat(vue.alertes().get(0).direction()).isEqualTo("Risques");
+        assertThat(vue.alertes().get(2).message()).contains("60");
 
-        Map<String, VivierTableau> viviers = tableau.viviers().stream()
-                .collect(Collectors.toMap(VivierTableau::code, v -> v));
+        // Viviers : listes de la page et chiffres de l'ecran Viviers.
+        Map<String, Integer> membres = vue.viviers().stream()
+                .collect(Collectors.toMap(TableauDeBordInteractif.VivierListe::code, v -> v.membres().size()));
+        assertThat(membres).containsEntry("COMMERCIAL", 3).containsEntry("RISQUES", 2).containsEntry("DIGITAL", 0);
+        Map<String, SyntheseVivier> viviers = vivierSyntheseService.synthese(t1).stream()
+                .collect(Collectors.toMap(SyntheseVivier::code, v -> v));
         assertThat(viviers.get("COMMERCIAL").effectif()).isEqualTo(3);
         assertThat(viviers.get("COMMERCIAL").performanceMoyenne()).isEqualByComparingTo("83.33");
         assertThat(viviers.get("COMMERCIAL").nbTalents()).isEqualTo(2);
@@ -323,15 +323,16 @@ class TableauDeBordPageIntegrationTest {
                         com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Kpi::valeur,
                         com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif.Kpi::filtre)
                 .containsExactly(
-                        tuple("population", "👥 Population", moteur.get("Collaborateurs actifs"), true),
-                        tuple("talentsValides", "⭐ Talents validés", moteur.get("Talents validés par le Comité"), true),
-                        tuple("hautsPotentiels", "🚀 Hauts potentiels", moteur.get("Hauts potentiels"), true),
-                        tuple("viviersActifs", "🔄 Viviers actifs", moteur.get("Viviers actifs"), true),
+                        tuple("population", "👥 Population", "6", true),
+                        tuple("talentsValides", "⭐ Talents validés",
+                                String.valueOf(tableauDeBordService.synthese(t1).nbTalentsValides()), true),
+                        tuple("hautsPotentiels", "🚀 Hauts potentiels",
+                                String.valueOf(tableauDeBordService.synthese(t1).nbHautsPotentiels()), true),
+                        tuple("viviersActifs", "🔄 Viviers actifs", "2", true),
                         tuple("postesCritiques", "👔 Postes critiques", moteur.get("Postes critiques"), false),
                         tuple("couverture", "🔗 Couverture succession", moteur.get("Couverture succession"), false),
-                        tuple("readyNow", "🟢 Ready Now", moteur.get("Successeurs Ready Now"), false),
-                        tuple("engagement", "❤️ Engagement (3 réponses)", moteur.get("Engagement moyen /100 (3 réponses)"),
-                                true),
+                        tuple("readyNow", "🟢 Successions Ready Now", moteur.get("Successeurs Ready Now"), false),
+                        tuple("engagement", "❤️ Engagement (3 réponses)", "46.67", true),
                         tuple("postesSansReleve", "🔴 Postes sans relève",
                                 moteur.get("Postes critiques sans successeur"), false),
                         tuple("gapsCritiques", "🧩 Gaps critiques", moteur.get("Postes critiques en alerte"), false));
@@ -384,8 +385,7 @@ class TableauDeBordPageIntegrationTest {
                             new OptionTrimestre("2026-2", "T2 2026", 2026, 2, false),
                             new OptionTrimestre("2026-1", "T1 2026", 2026, 1, true))));
         }
-        assertThat(kpis(tableau(mockMvc.perform(get("/")).andReturn())))
-                .containsEntry("Talents validés par le Comité", "1");
+        assertThat(cartes(vue(mockMvc.perform(get("/")).andReturn()))).containsEntry("talentsValides", "1");
         mockMvc.perform(get("/9box")).andExpect(content().string(org.hamcrest.Matchers.containsString("PrenomD01")));
 
         // T2 a la demande : pas de reglages, le tableau de bord le dit sans echouer.
@@ -394,11 +394,11 @@ class TableauDeBordPageIntegrationTest {
                 .andExpect(model().attribute("trimestre", new OptionTrimestre("2026-2", "T2 2026", 2026, 2, false)))
                 .andReturn());
         assertThat(t2.trimestreLibelle()).isEqualTo("T2 2026");
-        assertThat(t2.erreur()).contains("Aucun parametre");
+        assertThat(t2.erreur()).contains("Aucun paramètre");
         assertThat(kpis(t2)).containsOnlyKeys("Collaborateurs actifs", "Engagement moyen /100 (0 réponse)");
         assertThat(t2.neufBox()).isEmpty();
         mockMvc.perform(get("/").param("trimestre", "2026-2")).andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("pas encore calcule")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("pas encore calculé")));
         // Aucun nom dans la matrice de T2 (le selecteur de profil de la sidebar liste, lui, tout le monde).
         mockMvc.perform(get("/9box").param("trimestre", "2026-2")).andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.not(
@@ -448,6 +448,23 @@ class TableauDeBordPageIntegrationTest {
 
     private static TableauDeBordView tableau(MvcResult resultat) {
         return (TableauDeBordView) resultat.getModelAndView().getModel().get("tableau");
+    }
+
+    private MvcResult resultatAccueil() throws Exception {
+        return mockMvc.perform(get("/")).andExpect(status().isOk()).andReturn();
+    }
+
+    private static TableauDeBordInteractif vue(MvcResult resultat) {
+        return (TableauDeBordInteractif) resultat.getModelAndView().getModel().get("vue");
+    }
+
+    /** Les cartes de la page, par code, sans filtre. */
+    private static Map<String, String> cartes(TableauDeBordInteractif vue) {
+        Map<String, String> cartes = new LinkedHashMap<>();
+        for (Kpi kpi : vue.kpis()) {
+            cartes.put(kpi.code(), kpi.valeur());
+        }
+        return cartes;
     }
 
     private static Map<String, String> kpis(TableauDeBordView tableau) {

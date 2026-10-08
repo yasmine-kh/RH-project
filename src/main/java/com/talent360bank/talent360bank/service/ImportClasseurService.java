@@ -308,10 +308,10 @@ public class ImportClasseurService {
             Row ligne = ligneParCollaborateur.get(idCollaborateur);
             if (!collaborateurs.containsKey(managerId)) {
                 rapport.erreur(feuille, ligne, "colonne N : manager " + managerId
-                        + " inconnu, collaborateur " + idCollaborateur + " importe sans manager");
+                        + " inconnu, collaborateur " + idCollaborateur + " importé sans manager");
             } else if (managerId.equals(idCollaborateur)) {
                 rapport.erreur(feuille, ligne, "colonne N : le collaborateur " + idCollaborateur
-                        + " ne peut pas etre son propre manager, importe sans manager");
+                        + " ne peut pas être son propre manager, importé sans manager");
             } else {
                 // Un Manager par Manager_ID distinct, reutilise d'un import a l'autre.
                 Manager manager = managers.computeIfAbsent(managerId,
@@ -365,8 +365,8 @@ public class ImportClasseurService {
             Competence competence = nomCompetence == null ? null : competencesParNom.get(nomCompetence);
             if (competence == null) {
                 throw new LigneRejeteeException(nomCompetence == null
-                        ? "colonne C : competence absente"
-                        : "colonne C : competence \"" + nomCompetence + "\" absente du referentiel");
+                        ? "colonne C : compétence absente"
+                        : "colonne C : compétence \"" + nomCompetence + "\" absente du référentiel");
             }
             Integer actuel = niveauObligatoire(ligne, 4);
             Integer cible = niveauObligatoire(ligne, 5);
@@ -404,7 +404,7 @@ public class ImportClasseurService {
                     competences[i] = competencesParNom.get(nom);
                     if (competences[i] == null) {
                         throw new LigneRejeteeException("colonne " + Cellules.lettre(colonne)
-                                + " : competence \"" + nom + "\" absente du referentiel");
+                                + " : compétence \"" + nom + "\" absente du référentiel");
                     }}
                 niveaux[i] = niveau(ligne, colonne + 1);}
             Entite direction = entite(entites, ligne, 2, TypeEntite.DIRECTION);
@@ -546,8 +546,8 @@ public class ImportClasseurService {
             return;
         }
         if (rejetees > 0) {
-            rapport.erreurFeuille(feuille, retires.size() + " successeur(s) absent(s) de la feuille conserve(s) "
-                    + "en base : corriger les lignes ecartees puis reimporter pour les retirer");
+            rapport.erreurFeuille(feuille, retires.size() + " successeur(s) absent(s) de la feuille conservé(s) "
+                    + "en base : corriger les lignes écartées puis réimporter pour les retirer");
         } else {
             successeurRepository.deleteAll(retires);
             rapport.lignesRetirees(feuille, retires.size());}}
@@ -580,11 +580,11 @@ public class ImportClasseurService {
             VivierThematique vivier = vivierThematique(ligne);
             if (vivier != null && direction == null) {
                 throw new LigneRejeteeException("colonne C : direction absente, vivier "
-                        + vivier.getLibelle() + " non rattache");
+                        + vivier.getLibelle() + " non rattaché");
             }
             VivierThematique dejaVu = vivier == null ? null : vusDansLaFeuille.putIfAbsent(direction, vivier);
             if (dejaVu != null && dejaVu != vivier) {
-                throw new LigneRejeteeException("colonne I : la direction " + direction + " est deja rattachee au "
+                throw new LigneRejeteeException("colonne I : la direction " + direction + " est déjà rattachée au "
                         + dejaVu.getLibelle() + " plus haut dans la feuille, " + vivier.getLibelle() + " ignore");}
             if (statut != null) {
                 ValidationComite validation = validations.get(collaborateur.getIdCollaborateur());
@@ -701,7 +701,7 @@ public class ImportClasseurService {
         }
         int entete = Cellules.ligneEntete(feuille, enteteColonneA);
         if (entete < 0) {
-            rapport.feuilleAbsente(nomFeuille, "En-tete introuvable : la colonne A de la ligne d'en-tete doit "
+            rapport.feuilleAbsente(nomFeuille, "En-tête introuvable : la colonne A de la ligne d'en-tête doit "
                     + "porter \"" + enteteColonneA + "\"");
             return List.of();
         }
@@ -745,7 +745,7 @@ public class ImportClasseurService {
         }
         if (rejetees > 0) {
             rapport.erreurFeuille(feuille, retires.size() + " ligne(s) du trimestre absente(s) de la feuille "
-                    + "conservee(s) : corriger les lignes ecartees puis reimporter pour les retirer");
+                    + "conservée(s) : corriger les lignes écartées puis réimporter pour les retirer");
             return;
         }
         repository.deleteAll(retires);

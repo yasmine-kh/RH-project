@@ -239,7 +239,7 @@ class CalculServiceTest {
 
         assertThatThrownBy(() -> calculService.calculerScorePerformance(collaborateur, trimestre))
                 .isInstanceOf(RessourceIntrouvableException.class)
-                .hasMessageContaining("Aucun parametre");
+                .hasMessageContaining("Aucun paramètre");
     }
 
     @Test
@@ -290,6 +290,6 @@ class CalculServiceTest {
     void uneAutoEvaluationAMelangerExigeLaPonderationDesSources() {
         assertThatThrownBy(() -> calculService.scoreOfficiel(new BigDecimal("77"), new BigDecimal("90"), null))
                 .isInstanceOf(DonneesIncompletesException.class)
-                .hasMessageContaining("ponderation des sources");
+                .hasMessageContaining("pondération des sources");
     }
 }

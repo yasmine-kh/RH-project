@@ -50,7 +50,7 @@ class PagesSansTrimestreTest {
                 .getResponse().getContentAsString(StandardCharsets.UTF_8);
         // Ordre du prototype (NAV_DEF, role DRH), puis les pages propres a l'application.
         List<String> liens = List.of("href=\"/\"", "href=\"/campagne\"",
-                "href=\"/collaborateurs\"", "href=\"/9box\"", "href=\"/competences\"", "href=\"/carriere-mobilite\"",
+                "href=\"/collaborateurs\"", "href=\"/9box\"", "href=\"/competences\"",
                 "href=\"/engagement\"", "href=\"/viviers\"", "href=\"/postes-critiques\"", "href=\"/comite-talent\"",
                 "href=\"/fiche-collaborateur\"", "href=\"/alertes\"", "href=\"/historique\"", "href=\"/notifications\"",
                 "href=\"/managers\"", "href=\"/entites\"", "href=\"/import\"", "href=\"/parametres\"");

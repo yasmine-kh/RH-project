@@ -6,12 +6,11 @@
 </head>
 <body>
 
-<!--
-  Notifications : balisage exact de renderNotifications() du prototype (un panneau, une ligne
-  .notif-item par notification avec son interrupteur .switch). Les notifications sont les alertes les
-  plus graves du moteur (NotificationsViewService). Les preferences ne sont pas enregistrees :
-  interrupteurs grises "En cours de developpement".
--->
+<!--/*
+  Notifications : balisage de renderNotifications() du prototype (un panneau, une ligne .notif-item par
+  notification). Les notifications sont les alertes les plus graves du moteur (NotificationsViewService).
+  Pas d'interrupteurs de preference : l'application, hors ligne, n'envoie aucune notification.
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('notifications')}"></aside>
 
@@ -32,9 +31,9 @@
                 <div class="alert warn" th:if="${vue.erreur != null}"><div class="sev">ATTENTION</div><div class="txt" th:text="${vue.erreur}">Reglages absents</div></div>
                 <div class="alert info" th:each="information : ${vue.informations}"><div class="sev">INFO</div><div class="txt" th:text="${information}">Information</div></div>
 
-                <div class="panel"><div class="panel-head"><h3>Notifications</h3><span class="hint">interrupteurs : en cours de développement</span></div><div class="panel-body">
+                <div class="panel"><div class="panel-head"><h3>Notifications</h3>
+                    <a class="hint" th:href="@{/alertes(trimestre=${trimestre.valeur})}">toutes les alertes</a></div><div class="panel-body">
                     <div class="notif-item" th:each="a, etat : ${vue.alertes}">
-                        <div class="switch on indispo" th:id="|ntg-${etat.index}|" title="En cours de développement"><div class="knob"></div></div>
                         <div><span th:text="|${a.type.libelle} — ${a.sujet} : ${a.message}|">Poste critique sans successeur — Responsable Cybersecurite : Aucun successeur identifie</span>
                             <th:block th:if="${a.entiteCode != null}"> · <a th:href="@{/entites(code=${a.entiteCode}, trimestre=${trimestre.valeur})}" th:text="${a.entite}">Agence</a></th:block>
                             · <a th:href="${a.lien}" th:text="${a.lienLibelle}">Fiche collaborateur</a></div>

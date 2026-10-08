@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  *
  * <p>Cartes : les 10 du prototype (renderDashRH), dans son ordre. Population, Talents
  * valides, Hauts potentiels, Viviers actifs et Engagement suivent les filtres ; Postes
- * critiques, Couverture succession, Ready Now, Postes sans releve et Gaps critiques
+ * critiques, Couverture succession, Successions Ready Now, Postes sans releve et Gaps critiques
  * (postes en alerte) sont les cartes du moteur, toute la banque.
  *
  * <p>Regles de filtrage (toutes cumulees) :
@@ -140,7 +140,7 @@ public class TableauDeBordInteractifService {
         try {
             json = objectMapper.writeValueAsString(donnees);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Donnees du tableau de bord non serialisables", e);
+            throw new IllegalStateException("Données du tableau de bord non sérialisables", e);
         }
 
         return new TableauDeBordInteractif(filtres, puces(filtres, dimensions, valeurTrimestre),
@@ -318,7 +318,7 @@ public class TableauDeBordInteractifService {
                 new Kpi("viviersActifs", "🔄 Viviers actifs", String.valueOf(viviersActifs), "", true),
                 moteur(moteur, "Postes critiques", "postesCritiques", "👔 Postes critiques", ""),
                 moteur(moteur, "Couverture succession", "couverture", "🔗 Couverture succession", "teal"),
-                moteur(moteur, "Successeurs Ready Now", "readyNow", "🟢 Ready Now", "teal"),
+                moteur(moteur, "Successeurs Ready Now", "readyNow", "🟢 Successions Ready Now", "teal"),
                 new Kpi("engagement", "❤️ Engagement (" + engagements.size() + " réponse"
                         + (engagements.size() > 1 ? "s" : "") + ")", moyenne == null ? "—" : moyenne.toPlainString(),
                         classeEngagement(moyenne), true),

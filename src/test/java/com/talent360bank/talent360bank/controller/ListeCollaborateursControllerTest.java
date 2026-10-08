@@ -1,25 +1,18 @@
 package com.talent360bank.talent360bank.controller;
 
 import com.talent360bank.talent360bank.config.SecurityConfig;
-import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.CaseNeufBox;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.ManagerFiche;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur.TrimestreFiche;
-import com.talent360bank.talent360bank.ui.model.KpiCard;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.Criteres;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.LigneCollaborateur;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.PosteCibleLigne;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.Tri;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.VivierRef;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordDg;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordDg.PosteDg;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordDg.SuccesseurDg;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordDg.TalentDg;
 import com.talent360bank.talent360bank.ui.model.VueEntite.EntiteRef;
 import com.talent360bank.talent360bank.ui.service.ListeCollaborateursViewService;
-import com.talent360bank.talent360bank.ui.service.TableauDeBordDgViewService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -41,10 +34,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Contrat JSON de la liste des collaborateurs et du tableau de bord DG, tel que les ecrans de Ima le liront. */
+/** Contrat JSON de la liste des collaborateurs (GET /api/trimestres/{annee}/{numero}/collaborateurs). */
 @Import(SecurityConfig.class)
-@WebMvcTest({ListeCollaborateursController.class, TableauDeBordDgController.class})
-class ListeCollaborateursEtDgControllerTest {
+@WebMvcTest(ListeCollaborateursController.class)
+class ListeCollaborateursControllerTest {
 
     private static final String LISTE = "/api/trimestres/2026/3/collaborateurs";
 
@@ -53,8 +46,6 @@ class ListeCollaborateursEtDgControllerTest {
 
     @MockBean
     private ListeCollaborateursViewService listeService;
-    @MockBean
-    private TableauDeBordDgViewService dgService;
     @MockBean
     private ChargeurRessources chargeur;
 
@@ -132,48 +123,8 @@ class ListeCollaborateursEtDgControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "RH")
-    void le_tableau_de_bord_dg_rend_cartes_postes_et_talents() throws Exception {
-        Trimestre trimestre = new Trimestre();
-        when(chargeur.exigerTrimestre(2026, 3)).thenReturn(trimestre);
-        when(dgService.construire(trimestre, 5)).thenReturn(new TableauDeBordDg("T3 2026",
-                List.of(new KpiCard("Postes critiques", "15", "bi-briefcase", "kpi-blue")), List.of(),
-                List.of(new PosteDg("PST01", "Directeur regional", "Reseau Retail", "Tres elevee", "Omar Idrissi", 4, 3,
-                        new SuccesseurDg("BP035", "Aicha El Ouafi", new BigDecimal("95.20"), "READY_NOW", "Ready Now"),
-                        "READY_NOW", "Couverte - Ready Now", false)),
-                List.of(new TalentDg(1, "BP035", "Aicha El Ouafi", "Reseau Retail", new BigDecimal("96.30"),
-                        new BigDecimal("89.70"), new BigDecimal("186.00"), true, "OUI", true, null)),
-                null));
-
-        mockMvc.perform(get("/api/dashboard/dg").param("annee", "2026").param("numero", "3").param("limite", "5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.kpis[0].label").value("Postes critiques"))
-                .andExpect(jsonPath("$.kpis[0].value").value("15"))
-                .andExpect(jsonPath("$.postesCritiques[0].nbReadyNow").value(3))
-                .andExpect(jsonPath("$.postesCritiques[0].meilleurSuccesseur.matricule").value("BP035"))
-                .andExpect(jsonPath("$.topTalents[0].rang").value(1))
-                .andExpect(jsonPath("$.topTalents[0].scoreCumule").value(186.00))
-                .andExpect(jsonPath("$.topTalents[0].estTalentValide").value(true));
-    }
-
-    @Test
-    @WithMockUser(roles = "RH")
-    void le_tableau_de_bord_dg_prend_8_talents_par_defaut() throws Exception {
-        Trimestre trimestre = new Trimestre();
-        when(chargeur.exigerTrimestre(2026, 3)).thenReturn(trimestre);
-        when(dgService.construire(trimestre, 8)).thenReturn(new TableauDeBordDg("T3 2026", List.of(), List.of(),
-                List.of(), List.of(), null));
-
-        mockMvc.perform(get("/api/dashboard/dg").param("annee", "2026").param("numero", "3"))
-                .andExpect(status().isOk());
-        verify(dgService).construire(trimestre, 8);
-    }
-
-    @Test
-    void sans_connexion_les_deux_api_rendent_401() throws Exception {
+    void sans_connexion_la_liste_rend_401() throws Exception {
         mockMvc.perform(get(LISTE)).andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/dashboard/dg").param("annee", "2026").param("numero", "3"))
-                .andExpect(status().isUnauthorized());
-        verifyNoInteractions(listeService, dgService);
+        verifyNoInteractions(listeService);
     }
 }

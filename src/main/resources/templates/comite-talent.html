@@ -6,12 +6,12 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Comite Talent : balisage exact de renderComite() du prototype (kpi-row, "Talents a valider",
   "Successions a valider", succ-row + decision-btns). Donnees du moteur : talents proposes et decision
   importee (ComiteTalentViewService) ; successeurs de chaque poste critique (API /api/postes-critiques,
   prototype.js). La saisie des decisions n'existe pas encore : boutons grises "En cours de developpement".
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('comite-talent')}"></aside>
 
@@ -51,8 +51,8 @@
                             <button class="dbtn red" type="button" disabled>🔴 Ne pas retenir</button>
                         </div></div>
                     <div class="empty-state" th:if="${vue.erreur == null and vue.nbProposes == 0}">Aucun talent proposé par le moteur pour ce trimestre.</div>
-                    <div class="empty-state" th:if="${vue.nbProposes > 0 and #lists.isEmpty(vue.rows)}">Aucun talent pour ce statut.</div>
-                    <div class="empty-state" th:if="${not #lists.isEmpty(vue.rows) and #lists.isEmpty(enAttente)}">Aucun dossier talent en attente.</div>
+                    <div class="empty-state" th:if="${vue.nbProposes > 0 and #lists.isEmpty(vue.rows)}">Aucun talent proposé pour ce statut.</div>
+                    <div class="empty-state" th:if="${not #lists.isEmpty(vue.rows) and #lists.isEmpty(enAttente)}">Aucun talent proposé en attente.</div>
                 </div></div>
 
                 <div class="panel"><div class="panel-head"><h3>Successions à valider</h3><span class="hint">décisions : en cours de développement</span></div>
@@ -60,7 +60,7 @@
                         <div class="empty-state">Chargement des successeurs…</div>
                     </div></div>
 
-                <!-- Decisions deja enregistrees (import 10_TALENTS) : absentes du prototype, gardees pour ne rien perdre. -->
+                <!--/* Decisions deja enregistrees (import 10_TALENTS) : absentes du prototype, gardees pour ne rien perdre. */-->
                 <div class="panel" th:if="${not #lists.isEmpty(decides)}"><div class="panel-head"><h3>Décisions du comité</h3><span class="hint">issues de l'import (10_TALENTS)</span></div><div class="panel-body">
                     <div class="succ-row" th:each="row : ${decides}"><span class="nm" th:text="|${row.nomComplet} — ${row.direction} (Perf. ${row.performance ?: '—'}${row.categoriePerformance != null ? ', ' + row.categoriePerformance : ''} / Pot. ${row.potentiel ?: '—'}${row.categoriePotentiel != null ? ', ' + row.categoriePotentiel : ''})|">Nom — Direction</span>
                         <span th:text="${row.positionBox} ?: '—'">Talent clé</span>

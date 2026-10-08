@@ -6,11 +6,11 @@
 </head>
 <body>
 
-<!--
+<!--/*
   Viviers : balisage de renderViviers() du prototype (.vivier-card). Synthese par vivier calculee par
   le moteur (VivierSyntheseService) : 5 viviers thematiques puis le vivier de releve. "Voir les membres"
   ouvre la modale du prototype (prototype.js, API collaborateurs filtree sur le vivier).
--->
+*/-->
 <div id="app">
     <aside th:replace="~{fragments/prototype :: sidebar('viviers')}"></aside>
 
@@ -38,7 +38,7 @@
                     <div class="bar-track barre" th:if="${v.performanceMoyenne != null}"><div class="bar-fill" th:style="|width:${v.performanceMoyenne}%|"></div></div>
                     <div class="row"><span>Potentiel moyen</span><b th:text="${v.potentielMoyen} ?: '—'">76.68</b></div>
                     <div class="bar-track barre" th:if="${v.potentielMoyen != null}"><div class="bar-fill" th:style="|width:${v.potentielMoyen}%|"></div></div>
-                    <div class="row"><span>Talents</span><b th:text="${v.nbTalents}">6</b></div>
+                    <div class="row"><span>Talents proposés</span><b th:text="${v.nbTalents}">6</b></div>
                     <div class="row"><span>Hauts potentiels</span><b th:text="${v.nbHautsPotentiels}">8</b></div>
                     <div class="row"><span>Ready Now</span><b th:text="${v.nbReadyNow}">3</b></div>
                     <div class="row"><span>Postes couverts</span><b th:text="${v.nbPostesCouverts}">3</b></div>
@@ -51,7 +51,7 @@
                 </div>
             </div>
 
-            <!-- Membres enregistres dans les viviers (VivierService), chacun vers son Talent Passport. -->
+            <!--/* Membres enregistres dans les viviers (VivierService), chacun vers son Talent Passport. */-->
             <div class="panel" th:if="${not #lists.isEmpty(rows)}"><div class="panel-head"><h3>Membres des viviers enregistrés</h3></div><div class="panel-body">
                 <table><thead><tr><th>Matricule</th><th>Nom</th><th>Poste</th><th>Département</th><th>Performance</th><th>Potentiel</th><th>Vivier</th></tr></thead>
                 <tbody><tr th:each="row : ${rows}" th:attr="data-href=@{/fiche-collaborateur(matricule=${row.matricule}, trimestre=${trimestre.valeur})}">

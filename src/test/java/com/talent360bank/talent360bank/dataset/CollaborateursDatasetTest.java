@@ -12,12 +12,13 @@ import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.Criteres;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.LigneCollaborateur;
 import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs.Tri;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordDg;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordDg.PosteDg;
-import com.talent360bank.talent360bank.ui.model.TableauDeBordDg.TalentDg;
 import com.talent360bank.talent360bank.ui.service.DashboardService;
 import com.talent360bank.talent360bank.ui.service.ListeCollaborateursViewService;
-import com.talent360bank.talent360bank.ui.service.TableauDeBordDgViewService;
+import com.talent360bank.talent360bank.ui.service.TableauDeBordInteractifService;
+import com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif;
+import com.talent360bank.talent360bank.service.TableauDeBordService;
+import com.talent360bank.talent360bank.service.resultat.CouverturePoste;
+import com.talent360bank.talent360bank.service.enums.NiveauReadiness;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -45,8 +46,8 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Liste des collaborateurs et tableau de bord DG sur le vrai classeur, apres le
- * vrai import et le vrai calcul de T3 2026 (date de reference 15/09/2026).
+ * Liste des collaborateurs, releve des postes critiques et ordre des meilleurs talents sur le vrai
+ * classeur, apres le vrai import et le vrai calcul de T3 2026 (date de reference 15/09/2026).
  * Attendus lus dans 00_DASHBOARD, 01_COLLABORATEURS, 02, 03, 08, 09 et 10_TALENTS.
  *
  * <p>Ignore sans le classeur, qui n'est pas versionne. Base en memoire a part.
@@ -54,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:collaborateurs-dg-dataset;DB_CLOSE_DELAY=-1;MODE=MySQL")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @EnabledIf("classeurPresent")
-class CollaborateursDgDatasetTest {
+class CollaborateursDatasetTest {
 
     private static final Path FICHIER = Path.of("docs/data/TALENT_360_BANK_Dataset_V1.xlsx");
 
@@ -69,7 +70,9 @@ class CollaborateursDgDatasetTest {
     @Autowired
     private ListeCollaborateursViewService listeService;
     @Autowired
-    private TableauDeBordDgViewService dgService;
+    private TableauDeBordService tableauDeBordService;
+    @Autowired
+    private TableauDeBordInteractifService tableauDeBordInteractif;
     @Autowired
     private DashboardService dashboardService;
 
@@ -216,8 +219,8 @@ class CollaborateursDgDatasetTest {
 
     @Test
     void la_releve_de_chaque_poste_critique_est_celle_du_classeur() {
-        TableauDeBordDg dg = dgService.construire(t3, TableauDeBordDg.TOP_TALENTS_PAR_DEFAUT);
-        assertThat(dg.erreur()).isNull();
+        // La releve que montrent l'ecran Postes critiques et le tableau de bord (cartes) : le moteur.
+        List<CouverturePoste> couvertures = tableauDeBordService.synthese(t3).couvertures();
 
         Map<String, Map<String, String>> postes08 = new HashMap<>();
         for (Map<String, String> ligne : classeur.feuille("08_POSTES_CRITIQUES").values()) {
@@ -229,31 +232,32 @@ class CollaborateursDgDatasetTest {
                 .filter(l -> l.getOrDefault("A", "").matches("PST\\d+") && l.getOrDefault("B", "").matches("BP\\d+"))
                 .toList();
 
-        assertThat(dg.postesCritiques()).extracting(PosteDg::posteId)
+        assertThat(couvertures).extracting(c -> c.poste().getPosteId())
                 .containsExactlyInAnyOrderElementsOf(postes08.keySet());
-        for (PosteDg poste : dg.postesCritiques()) {
-            List<Map<String, String>> lignes = successions.stream()
-                    .filter(l -> poste.posteId().equals(l.get("A"))).toList();
-            assertThat(poste.nbSuccesseurs()).as(poste.posteId() + " successeurs")
-                    .isEqualTo((int) Double.parseDouble(postes08.get(poste.posteId()).get("G")));
-            assertThat(poste.nbReadyNow()).as(poste.posteId() + " Ready Now")
-                    .isEqualTo((int) lignes.stream().filter(l -> "Ready Now".equals(l.get("L"))).count());
+        for (CouverturePoste poste : couvertures) {
+            String id = poste.poste().getPosteId();
+            List<Map<String, String>> lignes = successions.stream().filter(l -> id.equals(l.get("A"))).toList();
+            assertThat(poste.nbSuccesseurs()).as(id + " successeurs")
+                    .isEqualTo((int) Double.parseDouble(postes08.get(id).get("G")));
+            assertThat(poste.successeurs().stream().filter(r -> r.readiness() == NiveauReadiness.READY_NOW).count())
+                    .as(id + " Ready Now")
+                    .isEqualTo(lignes.stream().filter(l -> "Ready Now".equals(l.get("L"))).count());
             if (lignes.isEmpty()) {
                 assertThat(poste.meilleurSuccesseur()).isNull();
-                assertThat(poste.alerte()).isTrue();
+                assertThat(poste.estEnAlerte()).isTrue();
             } else {
                 Map<String, String> meilleure = lignes.stream()
                         .max(Comparator.comparing((Map<String, String> l) -> decimal(l.get("K")))
                                 .thenComparing(l -> l.get("B"), Comparator.reverseOrder()))
                         .orElseThrow();
-                assertThat(poste.meilleurSuccesseur().matricule()).as(poste.posteId() + " meilleur")
+                assertThat(poste.meilleurSuccesseur().candidat().getIdCollaborateur()).as(id + " meilleur")
                         .isEqualTo(meilleure.get("B"));
                 assertThat(poste.meilleurSuccesseur().scoreMatching())
-                        .isEqualByComparingTo(decimal(postes08.get(poste.posteId()).get("H")));
+                        .isEqualByComparingTo(decimal(postes08.get(id).get("H")));
             }
         }
-        assertThat(dg.postesCritiques().stream().filter(p -> p.posteId().equals("PST01")).findFirst().orElseThrow()
-                .nbReadyNow()).isEqualTo(3);
+        assertThat(couvertures.stream().filter(p -> p.poste().getPosteId().equals("PST01")).findFirst().orElseThrow()
+                .successeurs().stream().filter(r -> r.readiness() == NiveauReadiness.READY_NOW).count()).isEqualTo(3);
     }
 
     @Test
@@ -270,24 +274,18 @@ class CollaborateursDgDatasetTest {
                         .thenComparing(id -> id))
                 .toList();
 
-        TableauDeBordDg dg = dgService.construire(t3, 8);
-        assertThat(dg.topTalents()).extracting(TalentDg::matricule).containsExactlyElementsOf(attendus.subList(0, 8));
-        assertThat(dg.topTalents()).extracting(TalentDg::rang).containsExactly(1, 2, 3, 4, 5, 6, 7, 8);
-        for (TalentDg talent : dg.topTalents()) {
-            assertThat(talent.scoreCumule()).isEqualByComparingTo(talent.scorePerformance().add(talent.scorePotentiel()));
+        // La liste des collaborateurs du tableau de bord suit cet ordre : les talents proposes y sont dans l'ordre.
+        TableauDeBordInteractif tableau = tableauDeBordInteractif.construire(t3, dashboardService.construire(t3),
+                Map.of());
+        List<TableauDeBordInteractif.Personne> proposes = tableau.personnes().stream()
+                .filter(TableauDeBordInteractif.Personne::estTalent).toList();
+        assertThat(proposes).extracting(TableauDeBordInteractif.Personne::matricule).containsExactlyElementsOf(attendus);
+        for (TableauDeBordInteractif.Personne talent : proposes) {
             assertThat(talent.estTalentValide()).isEqualTo("Oui".equals(talents.get(talent.matricule()).get("H")));
-            assertThat(talent.posteCible()).isNotNull();
         }
-        // Tous les talents quand la limite les depasse.
-        assertThat(dgService.construire(t3, 50).topTalents()).hasSize(attendus.size());
-    }
-
-    @Test
-    void les_cartes_du_tableau_de_bord_dg_sont_celles_du_tableau_de_bord_rh() {
-        TableauDeBordDg dg = dgService.construire(t3, 8);
-        assertThat(dg.kpis()).usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyElementsOf(dashboardService.construire(t3).kpis());
-        assertThat(dg.neufBox()).isEqualTo(dashboardService.construire(t3).neufBox());
+        // Chaque talent propose a un poste cible (liste des collaborateurs).
+        assertThat(toutes(new Constructeur().talent(true))).hasSize(attendus.size())
+                .allSatisfy(l -> assertThat(l.posteCible()).isNotNull());
     }
 
     // --- outils ---------------------------------------------------------------------------

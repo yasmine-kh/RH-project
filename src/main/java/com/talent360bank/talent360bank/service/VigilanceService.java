@@ -138,7 +138,7 @@ public class VigilanceService {
     public BigDecimal calculerIndice(Set<SignalVigilance> signaux, PointsVigilance points) {
         Objects.requireNonNull(signaux, "signaux");
         if (points == null) {
-            throw new DonneesIncompletesException("Les points de vigilance ne sont pas configures");
+            throw new DonneesIncompletesException("Les points de vigilance ne sont pas configurés");
         }
 
         BigDecimal indice = BigDecimal.ZERO;
@@ -146,7 +146,7 @@ public class VigilanceService {
             BigDecimal point = signal.pointsDans(points);
             if (point == null) {
                 throw new DonneesIncompletesException(
-                        "Points manquants pour le signal " + signal + ", indice indefini");
+                        "Points manquants pour le signal " + signal + ", indice indéfini");
             }
             indice = indice.add(point);
         }
@@ -163,10 +163,10 @@ public class VigilanceService {
     public NiveauVigilance niveauPour(BigDecimal indice, SeuilsVigilance seuils) {
         Objects.requireNonNull(seuils, "seuils");
         if (indice == null) {
-            throw new DonneesIncompletesException("Indice absent, niveau de vigilance indeterminable");
+            throw new DonneesIncompletesException("Indice absent, niveau de vigilance indéterminable");
         }
         if (seuils.getSeuilModere() == null || seuils.getSeuilEleve() == null) {
-            throw new DonneesIncompletesException("Les seuils de vigilance ne sont pas configures");
+            throw new DonneesIncompletesException("Les seuils de vigilance ne sont pas configurés");
         }
         if (indice.compareTo(seuils.getSeuilModere()) < 0) {
             return NiveauVigilance.FAIBLE;
@@ -219,7 +219,7 @@ public class VigilanceService {
         if (engagement != null && engagement.getScoreEngagement() != null) {
             if (seuils.getSeuilEngagementFaible() == null) {
                 throw new DonneesIncompletesException(
-                        "Le seuil d'engagement faible n'est pas configure");
+                        "Le seuil d'engagement faible n'est pas configuré");
             }
             if (engagement.getScoreEngagement().compareTo(seuils.getSeuilEngagementFaible()) < 0) {
                 signaux.add(SignalVigilance.ENGAGEMENT_FAIBLE);

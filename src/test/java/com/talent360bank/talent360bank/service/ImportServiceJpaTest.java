@@ -75,7 +75,7 @@ import static org.assertj.core.api.Assertions.tuple;
 @DataJpaTest
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @ImportAutoConfiguration(ValidationAutoConfiguration.class)
-@Import({ImportService.class, ImportClasseurService.class, TrimestreService.class,
+@Import({ImportService.class, com.talent360bank.talent360bank.securite.UtilisateurCourant.class, ImportClasseurService.class, TrimestreService.class,
         SuccesseursIdentifiesEnBase.class, ValidationsComiteEnBase.class, ViviersThematiquesEnBase.class,
         FaitsVigilanceEnBase.class})
 class ImportServiceJpaTest {
@@ -115,6 +115,8 @@ class ImportServiceJpaTest {
     private QuestionnaireEngagementRepository questionnaireRepository;
     @Autowired
     private DeclarationVigilanceRepository declarationRepository;
+    @Autowired
+    private com.talent360bank.talent360bank.repository.UtilisateurRepository utilisateurRepository;
     @Autowired
     private ImportExcelRepository importExcelRepository;
     @Autowired
@@ -285,6 +287,24 @@ class ImportServiceJpaTest {
         assertThat(journal.getNbErreurs()).isZero();
         assertThat(journal.getTrimestre().getAnnee()).isEqualTo(ANNEE);
         assertThat(journal.getUtilisateur()).isNull();
+    }
+
+    @Test
+    void l_import_garde_le_compte_rh_connecte() {
+        utilisateurRepository.save(new com.talent360bank.talent360bank.entity.Utilisateur("rh.import", "x",
+                com.talent360bank.talent360bank.entity.Role.RH));
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("rh.import", null,
+                        java.util.List.of()));
+        try {
+            importer(ClasseurDeTest.complet());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+        // Le journal lu comme l'ecran Import le lit (utilisateur charge avec la ligne).
+        ImportExcel journal = importExcelRepository.findAllRecentsDabord().get(0);
+        assertThat(journal.getUtilisateur()).isNotNull();
+        assertThat(journal.getUtilisateur().getLogin()).isEqualTo("rh.import");
     }
 
     // ------------------------------------------------------------------ sources des saisies RH
@@ -611,12 +631,12 @@ class ImportServiceJpaTest {
         assertThat(resultat.erreurs()).extracting(ErreurImport::feuille, ErreurImport::message)
                 .containsExactlyInAnyOrder(
                         tuple(FEUILLE_COLLABORATEURS,
-                                "colonne H : en-tete \"Direction\" attendu, trouve \"Direction RH\""),
-                        tuple(FEUILLE_PERFORMANCE, "colonne D : en-tete \"Objectifs (/100)\" attendu, "
-                                + "trouve \"Competences (/100)\" (colonne deplacee en E)"),
-                        tuple(FEUILLE_PERFORMANCE, "colonne E : en-tete \"Competences (/100)\" attendu, "
-                                + "trouve \"Objectifs (/100)\" (colonne deplacee en D)"),
-                        tuple(FEUILLE_VIGILANCE, "Feuille absente du classeur (renommee en \"12_Vigilance RH\" ?)"));
+                                "colonne H : en-tête \"Direction\" attendu, trouvé \"Direction RH\""),
+                        tuple(FEUILLE_PERFORMANCE, "colonne D : en-tête \"Objectifs (/100)\" attendu, "
+                                + "trouvé \"Competences (/100)\" (colonne déplacée en E)"),
+                        tuple(FEUILLE_PERFORMANCE, "colonne E : en-tête \"Competences (/100)\" attendu, "
+                                + "trouvé \"Objectifs (/100)\" (colonne déplacée en D)"),
+                        tuple(FEUILLE_VIGILANCE, "Feuille absente du classeur (renommée en \"12_Vigilance RH\" ?)"));
         // Ligne de l'en-tete, numerotee comme dans Excel.
         assertThat(resultat.erreurs()).filteredOn(e -> e.feuille().equals(FEUILLE_COLLABORATEURS))
                 .extracting(ErreurImport::ligne).containsExactly(4);
@@ -796,7 +816,7 @@ class ImportServiceJpaTest {
 
         assertThat(resultat.statut()).isEqualTo(StatutImport.ECHEC);
         assertThat(resultat.nbErreurs()).isEqualTo(10);
-        assertThat(resultat.message()).contains("Format du classeur non conforme (10 ecart(s))");
+        assertThat(resultat.message()).contains("Format du classeur non conforme (10 écart(s))");
     }
 
     @Test

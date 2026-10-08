@@ -461,7 +461,7 @@ public class AlertesViewService {
         List<Compteur> compteurs = new ArrayList<>();
         for (TypeAlerte type : TypeAlerte.values()) {
             compteurs.add(new Compteur(type.name(), type.getLibelle(),
-                    (int) alertes.stream().filter(alerte -> alerte.type() == type).count(), null));
+                    (int) alertes.stream().filter(alerte -> alerte.type() == type).count()));
         }
         return List.copyOf(compteurs);
     }
@@ -470,8 +470,7 @@ public class AlertesViewService {
         List<Compteur> compteurs = new ArrayList<>();
         for (SeveriteAlerte severite : SeveriteAlerte.values()) {
             compteurs.add(new Compteur(severite.name(), severite.getLibelle(),
-                    (int) alertes.stream().filter(alerte -> alerte.severite() == severite).count(),
-                    severite.getBadgeClass()));
+                    (int) alertes.stream().filter(alerte -> alerte.severite() == severite).count()));
         }
         return List.copyOf(compteurs);
     }
