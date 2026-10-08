@@ -12,6 +12,8 @@ import com.talent360bank.talent360bank.ui.service.ComiteTalentViewService;
 import com.talent360bank.talent360bank.ui.service.FicheCollaborateurPageViewService;
 import com.talent360bank.talent360bank.ui.service.NineBoxViewService;
 import com.talent360bank.talent360bank.ui.service.PosteCritiqueViewService;
+import com.talent360bank.talent360bank.ui.service.FicheCollaborateurViewService;
+import com.talent360bank.talent360bank.ui.service.ReponsesQuestionnaireViewService;
 import com.talent360bank.talent360bank.ui.service.TrimestreCourantService;
 import com.talent360bank.talent360bank.ui.service.VivierService;
 import org.springframework.stereotype.Controller;
@@ -45,13 +47,15 @@ public class PagesController {
     private final TrimestreCourantService trimestreCourant;
     private final FicheCollaborateurPageViewService ficheCollaborateurPageViewService;
     private final VivierSyntheseService vivierSyntheseService;
+    private final ReponsesQuestionnaireViewService reponsesQuestionnaire;
 
     public PagesController(NineBoxViewService nineBoxViewService, VivierService vivierService,
                            ComiteTalentViewService comiteTalentViewService,
                            PosteCritiqueViewService posteCritiqueViewService,
                            TrimestreCourantService trimestreCourant,
                            FicheCollaborateurPageViewService ficheCollaborateurPageViewService,
-                           VivierSyntheseService vivierSyntheseService) {
+                           VivierSyntheseService vivierSyntheseService,
+                           ReponsesQuestionnaireViewService reponsesQuestionnaire) {
         this.nineBoxViewService = nineBoxViewService;
         this.vivierService = vivierService;
         this.comiteTalentViewService = comiteTalentViewService;
@@ -59,6 +63,7 @@ public class PagesController {
         this.trimestreCourant = trimestreCourant;
         this.ficheCollaborateurPageViewService = ficheCollaborateurPageViewService;
         this.vivierSyntheseService = vivierSyntheseService;
+        this.reponsesQuestionnaire = reponsesQuestionnaire;
     }
 
     /**
@@ -160,9 +165,15 @@ public class PagesController {
         return "comite-talent";
     }
 
+    /**
+     * Le Talent Passport. {@code questionnaire} (AAAA-N) choisit le trimestre de la section
+     * "Reponses au questionnaire" ; par defaut, celui de la fiche. L'engagement n'y est pas
+     * affiche : la ligne "pas de questionnaire d'engagement" est ecartee des donnees manquantes.
+     */
     @GetMapping("/fiche-collaborateur")
     public String ficheCollaborateur(@RequestParam(required = false) String matricule,
-                                     @RequestParam(required = false) String trimestre, Model model) {
+                                     @RequestParam(required = false) String trimestre,
+                                     @RequestParam(required = false) String questionnaire, Model model) {
         if (matricule != null && !matricule.isBlank()) {
             try {
                 // ?trimestre=AAAA-N (liens des autres ecrans) : ce trimestre ; sinon le plus recent.
@@ -181,6 +192,15 @@ public class PagesController {
             model.addAttribute("trimestreFiche", fiche.trimestre().annee() + "-" + fiche.trimestre().numero());
             model.addAttribute("cheminEntite", fiche.identite().entite() == null ? List.of()
                     : LiensPages.chemin(fiche.identite().entite().code(), fiche.identite().entite().chemin()));
+            model.addAttribute("donneesManquantes", fiche.donneesManquantes().stream()
+                    .filter(m -> !FicheCollaborateurViewService.MANQUE_ENGAGEMENT.equals(m)).toList());
+            // Reponses au questionnaire : trimestre choisi dans la section (404 si inconnu), sinon celui de la fiche.
+            TrimestreCourantService.Selection choix = trimestreCourant.selectionner(
+                    questionnaire == null || questionnaire.isBlank()
+                            ? fiche.trimestre().annee() + "-" + fiche.trimestre().numero() : questionnaire);
+            model.addAttribute("questionnaire", reponsesQuestionnaire.construire(fiche.identite().matricule(),
+                    choix.trimestre()));
+            model.addAttribute("trimestresQuestionnaire", choix.trimestres());
         }
         model.addAttribute("activePage", "fiche-collaborateur");
         return "fiche-collaborateur";

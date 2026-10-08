@@ -1,24 +1,27 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Page introuvable</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Page introuvable</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
 <!-- Page autonome (sans sidebar) : rendue par ProfilsAdvice pour une ressource introuvable. -->
-<main class="container" style="max-width: 620px; margin-top: 10vh;">
-    <h1 class="h3 mb-3"><i class="bi bi-search"></i> Page introuvable</h1>
-    <p>Ce que vous cherchez n'existe pas (ou plus) : matricule, entité ou trimestre inconnu.</p>
-    <p class="text-muted" th:if="${message != null}" th:text="${message}">Aucun collaborateur BP999</p>
-    <div class="d-flex flex-wrap gap-2 mt-3">
-        <a href="/" class="btn btn-primary"><i class="bi bi-house"></i> Accueil</a>
-        <a href="/collaborateurs" class="btn btn-outline-secondary">Collaborateurs</a>
-        <a href="/managers" class="btn btn-outline-secondary">Managers</a>
-        <a href="/entites" class="btn btn-outline-secondary">Entités</a>
+<main class="page-seule">
+    <div class="boite" style="max-width:560px;">
+        <div class="boite-tete marque"><span class="mark mark-logo"><img th:src="@{/images/BP-Logo-Complet.png}" alt="Banque Populaire" width="170" height="52"></span>
+            <div><h3>BP TALENT 360</h3><p>Vivier &amp; Succession — SIRH</p></div></div>
+        <div class="boite-corps">
+            <h3 style="font-size:16px; margin-bottom:10px;">Page introuvable</h3>
+            <p style="font-size:12.8px;">Ce que vous cherchez n'existe pas (ou plus) : matricule, entité ou trimestre inconnu.</p>
+            <p style="font-size:12.8px; color:var(--muted);" th:if="${message != null}" th:text="${message}">Aucun collaborateur BP999</p>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;">
+                <a href="/" class="btn" style="text-decoration:none;">Tableau de bord RH</a>
+                <a href="/collaborateurs" class="btn ghost" style="text-decoration:none;">Collaborateurs</a>
+                <a href="/managers" class="btn ghost" style="text-decoration:none;">Managers</a>
+                <a href="/entites" class="btn ghost" style="text-decoration:none;">Organigramme</a>
+            </div>
+        </div>
     </div>
 </main>
 

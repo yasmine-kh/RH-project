@@ -1,161 +1,107 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Vue manager</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Vue manager</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<div class="app-layout">
+<!--
+  Vue manager (page propre a l'application ; menus Campagne, Collaborateurs, 9-Box et Alertes du profil
+  Manager du prototype) : classes du prototype. Equipe, 9-Box, evaluations manquantes et alertes
+  calculees par le moteur (VueManagerViewService). Ancres #equipe, #neufbox, #evaluations, #alertes.
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('vue-manager')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('vue-manager')}"></div>
-
-    <main class="main-content">
+    <div id="main">
         <th:block th:if="${trimestre == null}">
-            <header class="page-header"><h1>Vue manager</h1></header>
-            <div th:replace="~{fragments/commun :: aucunTrimestre}"></div>
+            <div th:replace="~{fragments/prototype :: topbar('Vue manager', 'Équipe d’un manager')}"></div>
+            <section class="view active"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></section>
         </th:block>
 
         <th:block th:if="${page != null}" th:with="vue=${page.vue}, m=${page.vue.manager}">
-            <header class="page-header">
-                <p class="small mb-1"><a th:href="@{/managers(trimestre=${trimestre.valeur})}">Managers</a></p>
-                <h1 th:text="|Équipe de ${m.prenom} ${m.nom}|">Equipe de</h1>
-                <p class="text-muted mb-0">
-                    <a th:href="@{/fiche-collaborateur(matricule=${m.matricule}, trimestre=${trimestre.valeur})}"
-                       th:text="${m.matricule}">BP026</a>
-                    <span th:text="| - ${m.fonction} - ${vue.trimestre.libelle}|"> - Fonction - T3 2026</span>
-                </p>
-                <p class="small mb-0" th:if="${m.entite != null}">
-                    <a th:href="@{/entites(code=${m.entite.code}, trimestre=${trimestre.valeur})}"
-                       th:text="${#strings.listJoin(m.entite.chemin, ' > ')}">Reseau Retail > Agence</a>
-                </p>
-            </header>
+            <th:block th:with="titre='Équipe de ' + ${m.prenom} + ' ' + ${m.nom}, sous=${m.fonction} + ' — ' + ${vue.trimestre.libelle}">
+                <div th:replace="~{fragments/prototype :: topbar(${titre}, ${sous})}"></div>
+            </th:block>
 
-            <form method="get" th:action="@{/managers/{matricule}(matricule=${m.matricule})}" class="filtre-bar">
-                <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
-                <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-            </form>
+            <section class="view active" id="view-manager">
+                <form method="get" th:action="@{/managers/{matricule}(matricule=${m.matricule})}" class="filters">
+                    <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
+                    <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+                    <span style="font-size:12px; color:var(--muted);"><a th:href="@{/managers(trimestre=${trimestre.valeur})}">Managers</a> ·
+                        <a class="mono" th:href="@{/fiche-collaborateur(matricule=${m.matricule}, trimestre=${trimestre.valeur})}" th:text="${m.matricule}">BP026</a>
+                        <th:block th:if="${m.entite != null}"> · <a th:href="@{/entites(code=${m.entite.code}, trimestre=${trimestre.valeur})}"
+                                th:text="${#strings.listJoin(m.entite.chemin, ' > ')}">Reseau Retail > Agence</a></th:block></span>
+                </form>
 
-            <div class="alert alert-light border mt-3 small" th:if="${not #lists.isEmpty(vue.donneesManquantes)}">
-                <div th:each="manque : ${vue.donneesManquantes}"><i class="bi bi-info-circle"></i>
-                    <span th:text="${manque}">Donnee manquante</span></div>
-            </div>
+                <div class="alert info" th:if="${not #lists.isEmpty(vue.donneesManquantes)}"><div class="sev">INFO</div>
+                    <div class="txt"><div th:each="manque : ${vue.donneesManquantes}" th:text="${manque}">Donnee manquante</div></div></div>
 
-            <div class="kpi-grid">
-                <div class="kpi-card kpi-blue">
-                    <div class="kpi-icon"><i class="bi bi-people"></i></div>
-                    <div class="kpi-body"><div class="kpi-value" th:text="${vue.synthese.effectif}">5</div>
-                        <div class="kpi-label">Équipe directe</div></div>
+                <div class="kpi-row">
+                    <div class="kpi"><div class="val" th:text="${vue.synthese.effectif}">5</div><div class="lbl">👥 Équipe directe</div></div>
+                    <div class="kpi teal"><div class="val" th:text="${vue.synthese.moyennePerformance} ?: '—'">80</div><div class="lbl">Performance moyenne</div></div>
+                    <div class="kpi teal"><div class="val" th:text="${vue.synthese.moyennePotentiel} ?: '—'">80</div><div class="lbl">Potentiel moyen</div></div>
+                    <div class="kpi gold"><div class="val" th:text="${vue.synthese.nbTalents}">1</div><div class="lbl">⭐ Talents</div></div>
+                    <div class="kpi rust"><div class="val" th:text="${#lists.size(vue.alertes)}">0</div><div class="lbl">🔔 Alertes de l'équipe</div></div>
                 </div>
-                <div class="kpi-card kpi-green">
-                    <div class="kpi-icon"><i class="bi bi-graph-up"></i></div>
-                    <div class="kpi-body"><div class="kpi-value" th:text="${vue.synthese.moyennePerformance} ?: '-'">80</div>
-                        <div class="kpi-label">Performance moyenne</div></div>
-                </div>
-                <div class="kpi-card kpi-purple">
-                    <div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
-                    <div class="kpi-body"><div class="kpi-value" th:text="${vue.synthese.moyennePotentiel} ?: '-'">80</div>
-                        <div class="kpi-label">Potentiel moyen</div></div>
-                </div>
-                <div class="kpi-card kpi-green">
-                    <div class="kpi-icon"><i class="bi bi-patch-check"></i></div>
-                    <div class="kpi-body"><div class="kpi-value" th:text="${vue.synthese.nbTalents}">1</div>
-                        <div class="kpi-label">Talents</div></div>
-                </div>
-                <div class="kpi-card kpi-red">
-                    <div class="kpi-icon"><i class="bi bi-exclamation-octagon"></i></div>
-                    <div class="kpi-body"><div class="kpi-value" th:text="${#lists.size(vue.alertes)}">0</div>
-                        <div class="kpi-label">Alertes de l'équipe</div></div>
-                </div>
-            </div>
 
-            <section class="card shadow-sm mt-4" id="neufbox">
-                <div class="card-header bg-white"><h2 class="h6 mb-0">9-Box de l'équipe</h2></div>
-                <div class="card-body">
-                    <div th:replace="~{fragments/matrice9box :: matrice(${page.matrice})}"></div>
-                </div>
-            </section>
+                <div class="grid-2">
+                    <div class="panel" id="neufbox"><div class="panel-head"><h3>9-Box de l'équipe</h3><span class="hint">cliquer une case</span></div>
+                        <div class="panel-body"><div th:replace="~{fragments/box9 :: grille(${page.matrice}, null, null)}"></div></div></div>
 
-            <section class="mt-4" id="equipe">
-                <h2 class="h6">Équipe
-                    <span class="text-muted small fw-normal" th:if="${caseFiltre != null}"
-                          th:text="|- case ${caseFiltre} de la 9-Box|">- case 9</span>
-                    <a class="small fw-normal ms-2" th:if="${caseFiltre != null}"
-                       th:href="@{/managers/{m}(m=${m.matricule}, trimestre=${trimestre.valeur})} + '#equipe'">toute l'équipe</a>
-                </h2>
-                <p class="text-muted" th:if="${#lists.isEmpty(vue.membres)}">Aucun collaborateur rattaché à ce manager.</p>
-                <div class="table-responsive" th:if="${not #lists.isEmpty(vue.membres)}">
-                    <table class="table table-hover bg-white rounded shadow-sm">
-                        <thead>
-                        <tr><th>Collaborateur</th><th>Fonction</th><th class="text-end">Perf.</th><th class="text-end">Pot.</th>
-                            <th>9-Box</th><th>Statut</th><th>Readiness (poste cible)</th><th>Vigilance</th></tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="membre : ${vue.membres}" th:with="cible=${page.cibles[membre.matricule]}"
-                            th:if="${caseFiltre == null or (membre.neufBox != null and membre.neufBox.numero == caseFiltre)}">
-                            <td>
-                                <a th:href="@{/fiche-collaborateur(matricule=${membre.matricule}, trimestre=${trimestre.valeur})}"
-                                   th:text="|${membre.prenom} ${membre.nom}|">Nom</a>
-                                <span class="text-muted small d-block" th:text="${membre.matricule}">BP001</span>
-                            </td>
-                            <td th:text="${membre.fonction} ?: '-'">Fonction</td>
-                            <td class="text-end" th:text="${membre.scorePerformance} ?: '-'">80</td>
-                            <td class="text-end" th:text="${membre.scorePotentiel} ?: '-'">80</td>
-                            <td th:text="${membre.neufBox != null} ? |${membre.neufBox.numero} - ${membre.neufBox.libelle}| : '-'">9</td>
-                            <td>
-                                <span class="badge bg-primary" th:if="${membre.estTalent == true}">Talent</span>
-                                <span class="badge bg-info text-dark" th:if="${membre.estHautPotentiel == true}">HP</span>
-                            </td>
-                            <td>
-                                <th:block th:if="${cible != null}">
-                                    <span th:text="${cible.readinessLibelle}">Ready Now</span>
-                                    <a class="text-muted small d-block"
-                                       th:href="@{/postes-critiques(trimestre=${trimestre.valeur})} + '#poste-' + ${cible.posteId}"
-                                       th:text="${cible.nomPoste}">Poste</a>
-                                </th:block>
-                                <span th:if="${cible == null}">-</span>
-                            </td>
-                            <td th:text="${membre.niveauVigilanceLibelle} ?: '-'">Faible</td>
-                        </tr>
-                        </tbody>
-                    </table>
+                    <div class="panel" id="evaluations"><div class="panel-head"><h3>Évaluations manquantes</h3>
+                        <a class="hint" href="/evaluation-manager">Formulaire d'évaluation (en cours de développement)</a></div><div class="panel-body">
+                        <div class="empty-state" th:if="${#lists.isEmpty(vue.membres)}">Aucune donnée pour ce collaborateur.</div>
+                        <div class="empty-state" th:if="${not #lists.isEmpty(vue.membres) and #lists.isEmpty(vue.alertes.?[type == 'EVALUATION_MANQUANTE'])}">Toute l'équipe a son évaluation du manager ce trimestre.</div>
+                        <div class="succ-row" th:each="alerte : ${vue.alertes.?[type == 'EVALUATION_MANQUANTE']}">
+                            <span class="m" th:text="${alerte.matricule}">BP001</span>
+                            <span class="nm"><a th:href="@{/fiche-collaborateur(matricule=${alerte.matricule}, trimestre=${trimestre.valeur})}" th:text="${alerte.nom}">Nom</a>
+                                <span style="color:var(--muted);" th:text="|— ${alerte.message}|">— Message</span></span>
+                        </div>
+                    </div></div>
                 </div>
-            </section>
 
-            <section class="mt-4" id="evaluations">
-                <h2 class="h6">Évaluations manquantes</h2>
-                <p class="text-muted" th:if="${#lists.isEmpty(vue.alertes.?[type == 'EVALUATION_MANQUANTE'])}">
-                    Toute l'équipe a son évaluation du manager ce trimestre.</p>
-                <div class="list-group" th:unless="${#lists.isEmpty(vue.alertes.?[type == 'EVALUATION_MANQUANTE'])}">
-                    <div class="list-group-item" th:each="alerte : ${vue.alertes.?[type == 'EVALUATION_MANQUANTE']}">
-                        <a th:href="@{/fiche-collaborateur(matricule=${alerte.matricule}, trimestre=${trimestre.valeur})}"
-                           th:text="${alerte.nom}">Nom</a>
-                        <span class="small text-muted" th:text="|- ${alerte.message}|">- Message</span>
-                    </div>
-                </div>
-            </section>
+                <div class="panel" id="equipe"><div class="panel-head"><h3>Équipe<th:block th:if="${caseFiltre != null}" th:text="| — case ${caseFiltre} de la 9-Box|"></th:block></h3>
+                    <a class="hint" th:if="${caseFiltre != null}" th:href="@{/managers/{m}(m=${m.matricule}, trimestre=${trimestre.valeur})} + '#equipe'">toute l'équipe</a></div>
+                <div class="panel-body" style="padding-top:6px;">
+                    <div class="empty-state" th:if="${#lists.isEmpty(vue.membres)}">Aucune donnée pour ce collaborateur : aucun collaborateur rattaché à ce manager.</div>
+                    <table th:unless="${#lists.isEmpty(vue.membres)}"><thead><tr><th>Matricule</th><th>Nom</th><th>Poste</th><th>Perf.</th><th>Potentiel</th><th>9-Box</th><th>Statut</th><th>Poste cible</th><th>Readiness</th><th>Vigilance</th></tr></thead>
+                    <tbody>
+                    <tr th:each="membre : ${vue.membres}" th:with="cible=${page.cibles[membre.matricule]}"
+                        th:if="${caseFiltre == null or (membre.neufBox != null and membre.neufBox.numero == caseFiltre)}"
+                        th:attr="data-href=@{/fiche-collaborateur(matricule=${membre.matricule}, trimestre=${trimestre.valeur})}">
+                        <td class="mono" th:text="${membre.matricule}">BP001</td>
+                        <td><a th:href="@{/fiche-collaborateur(matricule=${membre.matricule}, trimestre=${trimestre.valeur})}" th:text="|${membre.prenom} ${membre.nom}|">Nom</a></td>
+                        <td th:text="${membre.fonction} ?: '—'">Fonction</td>
+                        <td th:text="${membre.scorePerformance} ?: '—'">80</td>
+                        <td th:text="${membre.scorePotentiel} ?: '—'">80</td>
+                        <td><th:block th:replace="~{fragments/box9 :: case9(${membre.neufBox != null} ? ${membre.neufBox.numero} : null, ${membre.neufBox != null} ? ${membre.neufBox.libelle} : null)}"></th:block></td>
+                        <td><span class="badge talent" th:if="${membre.estTalent == true}">Talent proposé</span><span class="badge hp"
+                                th:if="${membre.estHautPotentiel == true and membre.estTalent != true}">Haut potentiel</span><span class="badge none"
+                                th:if="${membre.estTalent != true and membre.estHautPotentiel != true}">—</span></td>
+                        <td><a th:if="${cible != null}" th:href="@{/postes-critiques(trimestre=${trimestre.valeur})} + '#poste-' + ${cible.posteId}"
+                               th:text="${cible.nomPoste}">Poste</a><th:block th:if="${cible == null}">—</th:block></td>
+                        <td><th:block th:replace="~{fragments/prototype :: readiness(${cible != null} ? ${cible.readiness} : null, ${cible != null} ? ${cible.readinessLibelle} : null)}"></th:block></td>
+                        <td th:text="${membre.niveauVigilanceLibelle} ?: '—'">Faible</td>
+                    </tr>
+                    </tbody></table>
+                </div></div>
 
-            <section class="mt-4" id="alertes">
-                <h2 class="h6">Alertes de l'équipe</h2>
-                <p class="text-muted" th:if="${#lists.isEmpty(vue.alertes.?[type != 'EVALUATION_MANQUANTE'])}">
-                    Aucune alerte pour cette équipe.</p>
-                <div class="list-group" th:unless="${#lists.isEmpty(vue.alertes.?[type != 'EVALUATION_MANQUANTE'])}">
-                    <div class="list-group-item" th:each="alerte : ${vue.alertes.?[type != 'EVALUATION_MANQUANTE']}">
-                        <span class="badge me-1 bg-warning text-dark">Vigilance élevée</span>
-                        <a th:href="@{/fiche-collaborateur(matricule=${alerte.matricule}, trimestre=${trimestre.valeur})}"
-                           th:text="${alerte.nom}">Nom</a>
-                        <span class="small text-muted" th:text="|- ${alerte.message}|">- Message</span>
-                    </div>
-                </div>
+                <div class="panel" id="alertes"><div class="panel-head"><h3>Alertes de l'équipe</h3></div><div class="panel-body">
+                    <div class="empty-state" th:if="${#lists.isEmpty(vue.alertes.?[type != 'EVALUATION_MANQUANTE'])}"
+                         th:text="${#lists.isEmpty(vue.membres)} ? 'Aucune donnée pour ce collaborateur.' : 'Aucune alerte pour cette équipe.'">Aucune alerte pour cette équipe.</div>
+                    <div class="alert warn" th:each="alerte : ${vue.alertes.?[type != 'EVALUATION_MANQUANTE']}"><div class="sev">ATTENTION</div>
+                        <div class="txt">Vigilance élevée — <b th:text="${alerte.nom}">Nom</b> <span class="mono" style="font-size:11px; color:var(--muted);" th:text="${alerte.matricule}">BP001</span>
+                            : <span th:text="${alerte.message}">Message</span>
+                            · <a th:href="@{/fiche-collaborateur(matricule=${alerte.matricule}, trimestre=${trimestre.valeur})}">Fiche collaborateur</a></div></div>
+                </div></div>
             </section>
         </th:block>
-    </main>
-
+    </div>
 </div>
 
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 </body>
 </html>

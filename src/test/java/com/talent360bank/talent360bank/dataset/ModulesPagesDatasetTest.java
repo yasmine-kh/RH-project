@@ -13,6 +13,8 @@ import com.talent360bank.talent360bank.ui.model.ListeCollaborateurs;
 import com.talent360bank.talent360bank.ui.model.Notifications;
 import com.talent360bank.talent360bank.ui.model.SuiviCampagne;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordDg;
+import com.talent360bank.talent360bank.ui.model.TableauDeBordInteractif;
+import com.talent360bank.talent360bank.ui.service.TableauDeBordDgViewService;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.CaseTableau;
 import com.talent360bank.talent360bank.ui.model.TableauDeBordView.CompteNiveau;
@@ -39,6 +41,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,6 +77,8 @@ class ModulesPagesDatasetTest {
     private CalculTrimestreService calculTrimestreService;
     @Autowired
     private CollaborateurRepository collaborateurRepository;
+    @Autowired
+    private TableauDeBordDgViewService tableauDeBordDg;
 
     private LecteurXlsx classeur;
 
@@ -144,8 +149,12 @@ class ModulesPagesDatasetTest {
         assertThat(tableau.postesSansSuccesseur()).extracting(TableauDeBordView.PosteSansSuccesseur::posteId)
                 .containsExactly("PST13");
         String page = html(resultat);
-        assertThat(page).contains("Postes critiques sans successeur identifié", "PST13", "Categorie")
-                .contains("non disponibles, la feuille 11_DEVELOPMENT_PLAN");
+        assertThat(page).contains("#poste-PST13");
+        // Bloc 2 : chaque case de la matrice (balisage du prototype) porte son effectif.
+        for (CaseTableau c : tableau.neufBox()) {
+            assertThat(page).containsPattern("<span class=\"cnt\">" + c.nombre() + "</span></div><div class=\"lbl\">[^<]* "
+                    + java.util.regex.Pattern.quote(c.libelle()) + "</div>");
+        }
     }
 
     // --- nouveaux ecrans ----------------------------------------------------------------------
@@ -185,16 +194,30 @@ class ModulesPagesDatasetTest {
     @Test
     @Order(3)
     void le_dashboard_dg_les_competences_les_notifications_et_la_campagne() throws Exception {
-        MvcResult dg = page("/dashboard-dg");
-        TableauDeBordDg vueDg = modele(dg, "vue");
+        // Le tableau de bord DG est fusionne dans l'accueil : memes blocs, memes chiffres ; l'ancienne adresse y renvoie.
+        mockMvc.perform(get("/dashboard-dg")).andExpect(status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/"));
+        mockMvc.perform(get("/dashboard-dg?trimestre=2026-3"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .redirectedUrl("/?trimestre=2026-3"));
+        // Ses donnees restent servies par l'API (TableauDeBordDgViewService) ; sur l'accueil interactif, les
+        // meilleurs talents sont en tete de la liste des collaborateurs (meme ordre : performance + potentiel),
+        // et le poste sans successeur (PST13) est dans la liste des alertes.
+        TableauDeBordDg vueDg = tableauDeBordDg.construire(trimestreRepository.findByNumeroAndAnnee(3, 2026)
+                .orElseThrow(), TableauDeBordDg.TOP_TALENTS_PAR_DEFAUT);
         assertThat(vueDg.postesCritiques()).hasSize(15);
         assertThat(vueDg.topTalents()).hasSize(8);
-        assertThat(html(dg)).contains("Top talents", "PST13");
+        MvcResult dg = page("/");
+        TableauDeBordInteractif accueil = modele(dg, "vue");
+        assertThat(accueil.personnes().stream().filter(TableauDeBordInteractif.Personne::estTalent)
+                .map(TableauDeBordInteractif.Personne::matricule).limit(8).toList())
+                .containsExactlyElementsOf(vueDg.topTalents().stream().map(TableauDeBordDg.TalentDg::matricule).toList());
+        assertThat(html(dg)).contains("PST13", "id=\"liste-alertes\"");
 
         MvcResult competences = page("/competences?poste=PST01");
         SyntheseCompetences synthese = modele(competences, "vue");
         assertThat(synthese.nbCollaborateurs()).isEqualTo(4);
-        assertThat(html(competences)).contains("progress-bar", "Leadership");
+        assertThat(html(competences)).contains("id=\"cg-table\"", "Leadership");
         SyntheseCompetences toutes = modele(page("/competences"), "vue");
         assertThat(toutes.nbGapsPrioritaires()).isEqualTo(entier(10, "G"));
 
@@ -226,7 +249,184 @@ class ModulesPagesDatasetTest {
         assertThat(postes).contains("BP035", "BP013", "BP019", "BP005", "Aucun écart");
     }
 
+    // --- Accueil : indicateurs complementaires (en haut, comme le prototype) ----------------------
+
+    @Test
+    @Order(6)
+    void l_accueil_montre_les_10_cartes_du_prototype_avec_les_chiffres_du_classeur() throws Exception {
+        MvcResult resultat = page("/");
+        TableauDeBordView tableau = modele(resultat, "tableau");
+        Map<String, String> kpis = new HashMap<>();
+        tableau.kpis().forEach(kpi -> kpis.put(kpi.getLabel(), kpi.getValue()));
+        TableauDeBordInteractif vue = modele(resultat, "vue");
+        Map<String, String> cartes = new java.util.LinkedHashMap<>();
+        vue.kpis().forEach(k -> cartes.put(k.code(), k.valeur()));
+
+        // Les 10 cartes du prototype, dans son ordre, avec les chiffres du moteur et de 00_DASHBOARD.
+        assertThat(cartes.keySet()).containsExactly("population", "talentsValides", "hautsPotentiels",
+                "viviersActifs", "postesCritiques", "couverture", "readyNow", "engagement", "postesSansReleve",
+                "gapsCritiques");
+        assertThat(cartes.get("population")).isEqualTo(kpis.get("Collaborateurs actifs")).isEqualTo("100");
+        assertThat(cartes.get("talentsValides")).isEqualTo(String.valueOf(entier(6, "E"))).isEqualTo("8");
+        assertThat(cartes.get("hautsPotentiels")).isEqualTo(String.valueOf(entier(6, "G"))).isEqualTo("21");
+        assertThat(cartes.get("viviersActifs")).isEqualTo(kpis.get("Viviers actifs"));
+        assertThat(cartes.get("postesCritiques")).isEqualTo(String.valueOf(entier(6, "C"))).isEqualTo("15");
+        assertThat(cartes.get("couverture")).isEqualTo(kpis.get("Couverture succession"))
+                .startsWith(String.valueOf(entier(10, "A")));
+        assertThat(cartes.get("readyNow")).isEqualTo(String.valueOf(entier(10, "C"))).isEqualTo("16");
+        assertThat(cartes.get("engagement")).isEqualTo(kpis.entrySet().stream()
+                .filter(e -> e.getKey().startsWith("Engagement moyen")).findFirst().orElseThrow().getValue());
+        assertThat(cartes.get("postesSansReleve")).isEqualTo(String.valueOf(entier(10, "E"))).isEqualTo("1");
+        // 08_POSTES_CRITIQUES I "ALERTE" (moins de successeurs que le minimum) = gaps critiques du prototype.
+        long enAlerte = classeur.feuille("08_POSTES_CRITIQUES").values().stream()
+                .filter(l -> l.get("I") != null && l.get("I").contains("ALERTE")).count();
+        assertThat(cartes.get("gapsCritiques")).isEqualTo(String.valueOf(enAlerte)).isEqualTo("1");
+
+        String html = html(resultat);
+        String rangee = html.substring(html.indexOf("id=\"kpis\""), html.indexOf("id=\"tdb-filtres\""));
+        assertThat(rangee).contains("👥 Population", "⭐ Talents validés", "🚀 Hauts potentiels", "🔄 Viviers actifs",
+                "👔 Postes critiques", "🔗 Couverture succession", "🟢 Ready Now", "❤️ Engagement (100 réponses)",
+                "🔴 Postes sans relève", "🧩 Gaps critiques");
+        assertThat(rangee.split("class=\"kpi[ \"]", -1)).hasSize(11);
+        // Cartes en haut (comme le prototype), puis graphiques, puis listes.
+        assertThat(html.indexOf("id=\"kpis\"")).isLessThan(html.indexOf("id=\"tdb-neufbox\""));
+        assertThat(html.indexOf("id=\"graphe-alerte\"")).isLessThan(html.indexOf("id=\"liste-collaborateurs\""));
+        // Sans filtre : 100 collaborateurs, 23 alertes, aucune puce.
+        assertThat(vue.personnes()).hasSize(100);
+        assertThat(vue.alertes()).hasSize(23);
+        assertThat(vue.puces()).isEmpty();
+        assertThat(html).contains("id=\"tdb-nb-collaborateurs\">(100)</span>", "id=\"tdb-nb-alertes\">(23)</span>");
+    }
+
+    /**
+     * Les cartes retirees de l'accueil (talents proposes, talents cles, releve, a risque, alertes, campagne, postes
+     * couverts) : les memes chiffres, verifies la ou ils s'affichent encore.
+     */
+    @Test
+    @Order(6)
+    void les_chiffres_des_cartes_retirees_restent_justes_sur_les_autres_pages() throws Exception {
+        Map<Integer, Map<String, String>> talents = classeur.feuille("10_TALENTS");
+        // Collaborateurs : talents proposes (10_TALENTS E), vivier de releve (J), talents cles (00_DASHBOARD B21),
+        // a risque (vigilance moderee + elevee = E15 + G15).
+        assertThat(ModulesPagesDatasetTest.<ListeCollaborateurs>modele(page("/collaborateurs?talent=true"), "vue").nbFiltres())
+                .isEqualTo((int) compterOui(talents, "E")).isEqualTo(10);
+        assertThat(ModulesPagesDatasetTest.<ListeCollaborateurs>modele(page("/collaborateurs?vivier=RELEVE"), "vue").nbFiltres())
+                .isEqualTo((int) compterOui(talents, "J")).isEqualTo(21);
+        assertThat(ModulesPagesDatasetTest.<ListeCollaborateurs>modele(page("/collaborateurs?case=9"), "vue").nbFiltres())
+                .isEqualTo(entier(21, "B")).isEqualTo(10);
+        int moderee = ModulesPagesDatasetTest.<ListeCollaborateurs>modele(page("/collaborateurs?vigilance=MODEREE"), "vue").nbFiltres();
+        int elevee = ModulesPagesDatasetTest.<ListeCollaborateurs>modele(page("/collaborateurs?vigilance=ELEVEE"), "vue").nbFiltres();
+        assertThat(moderee + elevee).isEqualTo(entier(15, "E") + entier(15, "G")).isEqualTo(45);
+        // Alertes ouvertes : ecran Notifications (et liste du tableau de bord, voir ci-dessus) = 23.
+        Notifications notifications = modele(page("/notifications"), "vue");
+        assertThat(notifications.total()).isEqualTo(23);
+        // Campagne : 100 / 100 evaluations du manager, aucune auto-evaluation importee.
+        SuiviCampagne suivi = modele(page("/campagne"), "vue");
+        assertThat(suivi.total().nbEvalues()).isEqualTo(suivi.total().nbActifs()).isEqualTo(100);
+        assertThat(suivi.total().nbAutoEvaluations()).isZero();
+        // Postes critiques couverts : postes avec au moins un successeur = C6 - E10 = 14.
+        java.util.List<com.talent360bank.talent360bank.ui.model.PosteCritiqueRow> postes =
+                modele(page("/postes-critiques"), "rows");
+        assertThat(postes.stream().filter(r -> r.getNbSuccesseurs() > 0).count())
+                .isEqualTo(entier(6, "C") - entier(10, "E")).isEqualTo(14);
+    }
+
+    // --- Accueil : filtres de l'URL --------------------------------------------------------------
+
+    @Test
+    @Order(7)
+    void le_filtre_case_9_de_l_url_ne_montre_que_les_10_talents_cles() throws Exception {
+        Set<String> talentsCles = classeur.feuille("04_9BOX").values().stream()
+                .filter(l -> l.get("A") != null && l.get("A").matches("BP\\d+"))
+                .filter(l -> l.get("H") != null && (int) Double.parseDouble(l.get("H")) == 9)
+                .map(l -> l.get("A")).collect(Collectors.toSet());
+        assertThat(talentsCles).hasSize(10);
+
+        MvcResult resultat = page("/?trimestre=2026-3&case=9");
+        TableauDeBordInteractif vue = modele(resultat, "vue");
+        assertThat(vue.personnes()).extracting(TableauDeBordInteractif.Personne::matricule)
+                .containsExactlyInAnyOrderElementsOf(talentsCles);
+        String html = html(resultat);
+        String liste = html.substring(html.indexOf("id=\"tdb-collaborateurs\""), html.indexOf("id=\"liste-alertes\""));
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("<td class=\"mono\">(BP\\d+)</td>").matcher(liste);
+        Set<String> affiches = new java.util.HashSet<>();
+        int lignes = 0;
+        while (m.find()) {
+            affiches.add(m.group(1));
+            lignes++;
+        }
+        assertThat(lignes).isEqualTo(10);
+        assertThat(affiches).isEqualTo(talentsCles);
+        // Puce, carte Population, case choisie en avant, autres estompees, Reinitialiser visible.
+        assertThat(html).contains("9-Box : Talent clé", "id=\"tdb-nb-collaborateurs\">(10)</span>",
+                "/?trimestre=2026-3\" ", "Réinitialiser");
+        assertThat(vue.kpis().get(0).valeur()).isEqualTo("10");
+        assertThat(html).containsPattern("class=\"box9-cell talent selectionnee [^\"]*\"[^>]*data-case=\"9\"");
+        assertThat(html).containsPattern("class=\"box9-cell[^\"]*estompee\"[^>]*data-case=\"1\"");
+        // Les alertes et les viviers ne portent plus que sur ces 10 personnes (pas de poste critique).
+        assertThat(vue.alertes()).allSatisfy(a -> assertThat(talentsCles).contains(a.matricule()));
+        assertThat(vue.viviers()).allSatisfy(v -> assertThat(v.membres())
+                .allSatisfy(p -> assertThat(talentsCles).contains(p.matricule())));
+        // Cliquer la case choisie la retire : son lien revient a la vue sans filtre.
+        assertThat(vue.neufBox().stream().filter(TableauDeBordInteractif.CaseCompte::selectionnee).findFirst()
+                .orElseThrow().lien()).isEqualTo("/?trimestre=2026-3");
+    }
+
+    @Test
+    @Order(8)
+    void les_filtres_se_cumulent_et_une_valeur_inconnue_est_ignoree() throws Exception {
+        TableauDeBordInteractif tout = modele(page("/"), "vue");
+        TableauDeBordInteractif filtre = modele(page("/?case=9&vigilance=FAIBLE&vivier=RELEVE"), "vue");
+        assertThat(filtre.puces()).extracting(TableauDeBordInteractif.Puce::parametre)
+                .containsExactly("case", "vigilance", "vivier");
+        assertThat(filtre.personnes()).isNotEmpty().allSatisfy(p -> {
+            assertThat(p.caseNumero()).isEqualTo(9);
+            assertThat(p.vigilance()).isEqualTo("FAIBLE");
+            assertThat(p.viviers()).contains("RELEVE");
+        });
+        assertThat(filtre.personnes()).hasSize((int) tout.personnes().stream()
+                .filter(p -> Integer.valueOf(9).equals(p.caseNumero()) && "FAIBLE".equals(p.vigilance())
+                        && p.viviers().contains("RELEVE")).count());
+        // Retirer une puce garde les autres filtres.
+        assertThat(filtre.puces().get(1).lienRetrait()).isEqualTo("/?trimestre=2026-3&case=9&vivier=RELEVE");
+        // Filtre entite : alertes de la direction, postes compris.
+        TableauDeBordInteractif.Personne premiere = tout.personnes().get(0);
+        TableauDeBordInteractif parEntite = modele(page("/?entite=" + premiere.directionCode()), "vue");
+        assertThat(parEntite.personnes()).allSatisfy(p -> assertThat(p.direction()).isEqualTo(premiere.direction()));
+        assertThat(parEntite.alertes()).allSatisfy(a -> assertThat(a.direction()).isEqualTo(premiere.direction()));
+        // Une valeur inconnue est ignoree, sans erreur.
+        TableauDeBordInteractif inconnu = modele(page("/?case=12&vigilance=X&alerte=%3Cb%3E"), "vue");
+        assertThat(inconnu.puces()).isEmpty();
+        assertThat(inconnu.personnes()).hasSize(100);
+    }
+
+    private static long compterOui(Map<Integer, Map<String, String>> feuille, String colonne) {
+        return feuille.values().stream().filter(l -> l.get("A") != null && l.get("A").matches("BP\\d+"))
+                .filter(l -> "oui".equalsIgnoreCase(l.get(colonne))).count();
+    }
+
     // --- echappement -----------------------------------------------------------------------------
+
+    @Test
+    @Order(9)
+    void les_donnees_embarquees_dans_l_accueil_sont_echappees() throws Exception {
+        Collaborateur bp002 = collaborateurRepository.findById("BP002").orElseThrow();
+        String nom = bp002.getNom();
+        bp002.setNom("</script><script>alert(1)</script>\"'&");
+        collaborateurRepository.save(bp002);
+        try {
+            String html = html(page("/"));
+            assertThat(html).doesNotContain("<script>alert(1)</script>", "</script><script>alert");
+            String donnees = html.substring(html.indexOf("data-donnees=\""));
+            donnees = donnees.substring(0, donnees.indexOf("\">"));
+            // JSON dans un attribut : chevrons, guillemets, apostrophes et esperluettes echappes.
+            assertThat(donnees).contains("&lt;/script&gt;&lt;script&gt;alert(1)&lt;/script&gt;", "&quot;", "&#39;",
+                    "&amp;").doesNotContain("<", ">");
+        } finally {
+            bp002.setNom(nom);
+            collaborateurRepository.save(bp002);
+        }
+    }
 
     @Test
     @Order(5)

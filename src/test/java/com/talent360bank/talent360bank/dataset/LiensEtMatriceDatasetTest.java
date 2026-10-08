@@ -57,11 +57,11 @@ class LiensEtMatriceDatasetTest {
     private static final Path FICHIER = Path.of("docs/data/TALENT_360_BANK_Dataset_V1.xlsx");
     private static final Pattern HREF = Pattern.compile("href=\"([^\"]*)\"");
     /** Le numero de chaque case de la matrice (pas des panneaux de detail). */
-    private static final Pattern CASE = Pattern.compile("class=\"matrice9-case[^\"]*\"[^>]*data-case=\"(\\d)\"");
+    private static final Pattern CASE = Pattern.compile("class=\"box9-cell[^\"]*\"[^>]*data-case=\"(\\d)\"");
 
     /** Chaque ecran, avec des filtres qui font apparaitre des liens de chaque sorte. */
     private static final List<String> PAGES = List.of(
-            "/", "/dashboard-dg", "/collaborateurs", "/collaborateurs?talent=true&tri=PERFORMANCE",
+            "/", "/collaborateurs", "/collaborateurs?talent=true&tri=PERFORMANCE",
             "/collaborateurs?page=2", "/9box", "/viviers", "/postes-critiques", "/competences",
             "/competences?poste=PST01", "/comite-talent", "/fiche-collaborateur",
             "/fiche-collaborateur?matricule=BP019&trimestre=2026-3", "/alertes", "/notifications", "/campagne",
@@ -144,8 +144,10 @@ class LiensEtMatriceDatasetTest {
         assertThat(alertes).anyMatch(l -> l.matches("/fiche-collaborateur\\?matricule=BP\\d+&trimestre=2026-3"));
         assertThat(liens(html(page("/notifications")))).contains("/postes-critiques?trimestre=2026-3#poste-PST13");
         assertThat(liens(html(page("/")))).contains("/postes-critiques?trimestre=2026-3#poste-PST13");
-        assertThat(liens(html(page("/dashboard-dg")))).contains("/fiche-collaborateur?matricule=BP035&trimestre=2026-3",
-                "/postes-critiques?trimestre=2026-3#poste-PST01");
+        // Accueil interactif : chaque nom de la liste mene a sa fiche (BP035, premier des top talents) ; chaque
+        // poste critique a sa ligne sur l'ecran Postes critiques (l'ancien bloc "releve des postes" n'y est plus).
+        assertThat(liens(html(page("/")))).contains("/fiche-collaborateur?matricule=BP035&trimestre=2026-3");
+        assertThat(html(page("/postes-critiques"))).contains("id=\"poste-PST01\"");
         assertThat(liens(html(page("/postes-critiques")))).contains("/fiche-collaborateur?matricule=BP013&trimestre=2026-3");
         assertThat(html(page("/postes-critiques"))).contains("id=\"poste-PST01\"", "id=\"poste-PST13\"");
         assertThat(liens(html(page("/viviers")))).anyMatch(l -> l.startsWith("/fiche-collaborateur?matricule=BP"));
@@ -183,14 +185,15 @@ class LiensEtMatriceDatasetTest {
         assertThat(basGauche.nombre()).isEqualTo(attendus.get("a surveiller"));
         assertThat(basGauche.zone()).isEqualTo("risque");
 
-        // Meme ordre dans le HTML.
+        // Dans le HTML, l'ordre du prototype (renderBox9Grid) : potentiel eleve en haut, performance elevee
+        // a droite ; chaque case garde son numero, son libelle et son effectif.
         String html = html(resultat);
         List<String> ordre = new ArrayList<>();
         Matcher m = CASE.matcher(html);
         while (m.find()) {
             ordre.add(m.group(1));
         }
-        assertThat(ordre).containsExactly("7", "8", "9", "4", "5", "6", "1", "2", "3");
+        assertThat(ordre).containsExactly("3", "6", "9", "2", "5", "8", "1", "4", "7");
         assertThat(html).contains("Potentiel", "Performance", "Total : 100 collaborateur(s) placé(s)");
     }
 
@@ -207,7 +210,7 @@ class LiensEtMatriceDatasetTest {
 
         String html = html(resultat);
         // Aucune case ne contient de nom : seulement numero, libelle, effectif et %.
-        Matcher cellules = Pattern.compile("<a class=\"matrice9-case[^\"]*\"(.*?)</a>", Pattern.DOTALL).matcher(html);
+        Matcher cellules = Pattern.compile("<a class=\"box9-cell[^\"]*\"(.*?)</a>", Pattern.DOTALL).matcher(html);
         int nbCellules = 0;
         while (cellules.find()) {
             nbCellules++;
@@ -219,7 +222,7 @@ class LiensEtMatriceDatasetTest {
             }
         }
         assertThat(nbCellules).isEqualTo(9);
-        assertThat(html).contains("matrice9-selectionnee", "id=\"detail\"");
+        assertThat(html).containsPattern("class=\"box9-cell talent selectionnee\"[^>]*data-case=\"9\"").contains("id=\"detail\"");
 
         // Panneau ouvert = Talent cle : ses 10 collaborateurs, chacun vers sa fiche.
         Matcher debut = Pattern.compile("class=\"neufbox-panneau\"\\s+data-case=\"9\"").matcher(html);
@@ -251,12 +254,14 @@ class LiensEtMatriceDatasetTest {
                 page("/9box?case=9&q=" + unNom).getModelAndView().getModel().get("panneaux");
         assertThat(recherche.get(9)).extracting(MatriceNeufBox.Membre::matricule).containsExactly(unNom);
 
-        // Ailleurs, la matrice compacte : effectifs seuls, une case mene a la liste de la case.
-        for (String url : List.of("/", "/dashboard-dg")) {
+        // Accueil : la matrice compacte, effectifs seuls ; une case filtre tout le tableau de bord (?case=N).
+        for (String url : List.of("/")) {
             String autre = html(page(url));
-            assertThat(autre).contains("data-case=\"9\"", "matrice9-talent-cle")
-                    .doesNotContain("neufbox-panneau");
-            assertThat(liens(autre)).contains("/collaborateurs?trimestre=2026-3&case=9");
+            assertThat(autre).contains("data-case=\"9\"").doesNotContain("neufbox-panneau");
+            // La case 9 porte le libelle Talent cle et son effectif de 00_DASHBOARD (10).
+            assertThat(autre).as(url).containsPattern("class=\"box9-cell[^\"]*\"[^>]*data-case=\"9\"[^>]*>"
+                    + "<div><span class=\"cnt\">10</span></div><div class=\"lbl\">[^<]*Talent clé</div>");
+            assertThat(liens(autre)).contains("/?trimestre=2026-3&case=9");
         }
         assertThat(html(page("/collaborateurs?trimestre=2026-3&case=9"))).contains("10 collaborateur(s) sur 100");
     }

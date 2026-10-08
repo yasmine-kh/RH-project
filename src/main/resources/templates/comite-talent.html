@@ -1,101 +1,78 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Comite Talent</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Comité Talent</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<div class="app-layout">
+<!--
+  Comite Talent : balisage exact de renderComite() du prototype (kpi-row, "Talents a valider",
+  "Successions a valider", succ-row + decision-btns). Donnees du moteur : talents proposes et decision
+  importee (ComiteTalentViewService) ; successeurs de chaque poste critique (API /api/postes-critiques,
+  prototype.js). La saisie des decisions n'existe pas encore : boutons grises "En cours de developpement".
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('comite-talent')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('comite-talent')}"></div>
+    <div id="main">
+        <th:block th:with="sous=${vue.trimestreLibelle != null} ? 'Décisions de validation — Talent Review, ' + ${vue.trimestreLibelle} : 'Décisions de validation — Talent Review'">
+            <div th:replace="~{fragments/prototype :: topbar('Comité Talent', ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Comite Talent</h1>
-            <p class="text-muted" th:if="${vue.trimestreLibelle == null}">Aucun trimestre enregistre pour le moment.</p>
-            <p class="text-muted" th:if="${vue.trimestreLibelle != null}"
-               th:text="'Talents proposes par le moteur et decision du comite - ' + ${vue.trimestreLibelle}">
-                Talents proposes par le moteur et decision du comite</p>
-        </header>
+        <section class="view active" id="view-comite">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
-
-        <form method="get" action="/comite-talent" class="filtre-bar" th:if="${vue.trimestreLibelle != null}">
-            <div>
-                <label for="trimestre" class="form-label">Trimestre</label>
-                <select id="trimestre" name="trimestre" class="form-select">
-                    <option th:each="option : ${vue.trimestres}" th:value="${option.valeur}"
-                            th:text="${option.libelle}" th:selected="${option.selectionnee}">T3 2026</option>
+            <form method="get" action="/comite-talent" class="filters" th:if="${vue.trimestreLibelle != null}">
+                <select id="trimestre" name="trimestre" data-auto aria-label="Trimestre">
+                    <option th:each="option : ${vue.trimestres}" th:value="${option.valeur}" th:text="${option.libelle}" th:selected="${option.selectionnee}">T3 2026</option>
                 </select>
-            </div>
-            <div>
-                <label for="statut" class="form-label">Statut comite</label>
-                <select id="statut" name="statut" class="form-select">
-                    <option th:each="option : ${vue.statuts}" th:value="${option.valeur}"
-                            th:text="${option.libelle}" th:selected="${option.selectionnee}">Tous</option>
+                <select id="statut" name="statut" data-auto aria-label="Statut comité">
+                    <option th:each="option : ${vue.statuts}" th:value="${option.valeur}" th:text="${option.libelle}" th:selected="${option.selectionnee}">Tous</option>
                 </select>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-        </form>
+                <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+            </form>
 
-        <div class="kpi-grid" th:if="${vue.trimestreLibelle != null}">
-            <div class="kpi-card" th:each="kpi : ${vue.kpis}" th:classappend="${kpi.colorClass}">
-                <div class="kpi-icon"><i th:class="'bi ' + ${kpi.icon}"></i></div>
-                <div class="kpi-body">
-                    <div class="kpi-value" th:text="${kpi.value}">0</div>
-                    <div class="kpi-label" th:text="${kpi.label}">Libelle</div>
+            <div class="alert warn" th:if="${vue.erreur != null}"><div class="sev">ATTENTION</div><div class="txt" th:text="${vue.erreur}">Reglages absents</div></div>
+
+            <th:block th:if="${vue.trimestreLibelle != null}" th:with="enAttente=${vue.rows.?[statut == 'EN_ATTENTE']}, decides=${vue.rows.?[statut != 'EN_ATTENTE']}">
+                <div class="kpi-row">
+                    <div class="kpi gold"><div class="val" th:text="${#lists.size(enAttente)}">1</div><div class="lbl">Talents proposés en attente</div></div>
+                    <div class="kpi" th:attr="data-synthese-trimestre=${trimestre.valeur}" hidden><div class="val" data-synthese="nbPostesCritiques">15</div><div class="lbl">Postes critiques</div></div>
+                    <div class="kpi teal kpi-indispo" title="En cours de développement"><div class="val">—</div><div class="lbl">Successions à valider · en cours de développement</div></div>
+                    <div class="kpi rust" th:attr="data-synthese-trimestre=${trimestre.valeur}" hidden><div class="val" data-synthese="nbAlertesPostesCritiques">1</div><div class="lbl">Postes critiques en alerte</div></div>
                 </div>
-            </div>
-        </div>
 
-        <div class="alert alert-warning mt-4" th:if="${vue.erreur != null}" th:text="${vue.erreur}">Reglages absents</div>
+                <div class="panel"><div class="panel-head"><h3>Talents à valider</h3><span class="hint">décisions : en cours de développement</span></div><div class="panel-body">
+                    <div class="succ-row" th:each="row : ${enAttente}" th:attr="data-statut=${row.statut}"><span class="nm" th:text="|${row.nomComplet} — ${row.direction} (Perf. ${row.performance ?: '—'} / Pot. ${row.potentiel ?: '—'})|">Nom — Direction (Perf. 85 / Pot. 89)</span>
+                        <div class="decision-btns indispo" title="En cours de développement">
+                            <button class="dbtn green" type="button" disabled>🟢 Valider</button>
+                            <button class="dbtn grey" type="button" disabled>⚪ Réévaluer</button>
+                            <button class="dbtn red" type="button" disabled>🔴 Ne pas retenir</button>
+                        </div></div>
+                    <div class="empty-state" th:if="${vue.erreur == null and vue.nbProposes == 0}">Aucun talent proposé par le moteur pour ce trimestre.</div>
+                    <div class="empty-state" th:if="${vue.nbProposes > 0 and #lists.isEmpty(vue.rows)}">Aucun talent pour ce statut.</div>
+                    <div class="empty-state" th:if="${not #lists.isEmpty(vue.rows) and #lists.isEmpty(enAttente)}">Aucun dossier talent en attente.</div>
+                </div></div>
 
-        <p class="text-muted mt-4"
-           th:if="${vue.trimestreLibelle != null and vue.erreur == null and vue.nbProposes == 0}">
-            Aucun talent propose par le moteur pour ce trimestre.</p>
-        <p class="text-muted mt-4"
-           th:if="${vue.nbProposes > 0 and #lists.isEmpty(vue.rows)}">
-            Aucun talent pour ce statut.</p>
+                <div class="panel"><div class="panel-head"><h3>Successions à valider</h3><span class="hint">décisions : en cours de développement</span></div>
+                    <div class="panel-body" th:attr="data-successions-trimestre=${trimestre.valeur}">
+                        <div class="empty-state">Chargement des successeurs…</div>
+                    </div></div>
 
-        <div class="table-responsive mt-4" th:if="${not #lists.isEmpty(vue.rows)}">
-            <table class="table table-hover bg-white rounded shadow-sm">
-                <thead>
-                <tr>
-                    <th>Nom</th>
-                    <th>Direction</th>
-                    <th>Performance</th>
-                    <th>Potentiel</th>
-                    <th>Case 9-Box</th>
-                    <th>Statut comite</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="row : ${vue.rows}">
-                    <td th:text="${row.nomComplet}"></td>
-                    <td th:text="${row.direction}"></td>
-                    <td>
-                        <span th:text="${row.performance} ?: '-'">-</span>
-                        <span class="score-categorie" th:if="${row.categoriePerformance != null}"
-                              th:text="${row.categoriePerformance}"></span>
-                    </td>
-                    <td>
-                        <span th:text="${row.potentiel} ?: '-'">-</span>
-                        <span class="score-categorie" th:if="${row.categoriePotentiel != null}"
-                              th:text="${row.categoriePotentiel}"></span>
-                    </td>
-                    <td th:text="${row.positionBox} ?: '-'">-</td>
-                    <td><span class="badge" th:classappend="${row.badgeClass}" th:text="${row.statutLibelle}"></span></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </main>
-
+                <!-- Decisions deja enregistrees (import 10_TALENTS) : absentes du prototype, gardees pour ne rien perdre. -->
+                <div class="panel" th:if="${not #lists.isEmpty(decides)}"><div class="panel-head"><h3>Décisions du comité</h3><span class="hint">issues de l'import (10_TALENTS)</span></div><div class="panel-body">
+                    <div class="succ-row" th:each="row : ${decides}"><span class="nm" th:text="|${row.nomComplet} — ${row.direction} (Perf. ${row.performance ?: '—'}${row.categoriePerformance != null ? ', ' + row.categoriePerformance : ''} / Pot. ${row.potentiel ?: '—'}${row.categoriePotentiel != null ? ', ' + row.categoriePotentiel : ''})|">Nom — Direction</span>
+                        <span th:text="${row.positionBox} ?: '—'">Talent clé</span>
+                        <span class="statut-tag" th:attr="data-statut=${row.statut}" th:text="${row.statutLibelle}"
+                              th:style="${row.statut == 'OUI'} ? 'color:var(--teal); border-color:var(--teal); background:var(--teal-light)' : 'color:var(--rust); border-color:var(--rust); background:var(--rust-light)'">Oui</span></div>
+                </div></div>
+            </th:block>
+        </section>
+    </div>
 </div>
 
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 </body>
 </html>

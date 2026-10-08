@@ -1,25 +1,27 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Acces refuse</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Accès refusé</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<!-- Version minimale, a restyler (Ima). -->
-<main class="container" style="max-width: 560px; margin-top: 10vh;">
-    <h1 class="h3 mb-3">Acces refuse</h1>
-    <p>Votre profil ne permet pas d'ouvrir cette page.</p>
-    <p class="text-muted" sec:authorize="isAuthenticated()">
-        Connecte en tant que <strong sec:authentication="name">login</strong>.
-    </p>
-
-    <!-- Deconnexion en POST, avec le jeton CSRF ajoute par th:action. -->
-    <form method="post" th:action="@{/logout}" sec:authorize="isAuthenticated()">
-        <button type="submit" class="btn btn-outline-secondary">Se deconnecter</button>
-    </form>
+<!-- Page autonome (sans sidebar), aux couleurs du prototype. -->
+<main class="page-seule">
+    <div class="boite">
+        <div class="boite-tete marque"><span class="mark mark-logo"><img th:src="@{/images/BP-Logo-Complet.png}" alt="Banque Populaire" width="170" height="52"></span>
+            <div><h3>BP TALENT 360</h3><p>Vivier &amp; Succession — SIRH</p></div></div>
+        <div class="boite-corps">
+            <h3 style="font-size:16px; margin-bottom:10px;">Acces refuse</h3>
+            <p style="font-size:12.8px;">Votre profil ne permet pas d'ouvrir cette page.</p>
+            <p style="font-size:12.8px; color:var(--muted);" sec:authorize="isAuthenticated()">
+                Connecte en tant que <b sec:authentication="name">login</b>.</p>
+            <!-- Deconnexion en POST, avec le jeton CSRF ajoute par th:action. -->
+            <form method="post" th:action="@{/logout}" sec:authorize="isAuthenticated()">
+                <button type="submit" class="btn ghost">Se deconnecter</button>
+            </form>
+        </div>
+    </div>
 </main>
 
 </body>

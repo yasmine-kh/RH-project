@@ -1,51 +1,40 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Managers</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Managers</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
 
-<div class="app-layout">
+<!-- Managers (page propre a l'application) : la liste des managers, chacun vers la vue de son equipe. -->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('managers')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('managers')}"></div>
+    <div id="main">
+        <th:block th:with="sous=${managers != null} ? ${#lists.size(managers)} + ' manager(s) - choisir une équipe' : 'Choisir une équipe'">
+            <div th:replace="~{fragments/prototype :: topbar('Managers', ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Managers</h1>
-            <p class="text-muted" th:if="${managers != null}"
-               th:text="|${#lists.size(managers)} manager(s) - choisir une équipe|">20 managers</p>
-        </header>
+        <section class="view active" id="view-managers">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
-
-        <div class="table-responsive" th:if="${managers != null and not #lists.isEmpty(managers)}">
-            <table class="table table-hover bg-white rounded shadow-sm">
-                <thead><tr><th>Manager</th><th>Fonction</th><th>Entité</th><th class="text-end">Équipe directe</th></tr></thead>
-                <tbody>
-                <tr th:each="manager : ${managers}">
+            <div class="panel" th:if="${managers != null and not #lists.isEmpty(managers)}"><div class="panel-body" style="padding-top:6px;">
+                <table><thead><tr><th>Matricule</th><th>Manager</th><th>Fonction</th><th>Entité</th><th>Équipe directe</th></tr></thead>
+                <tbody><tr th:each="manager : ${managers}" th:attr="data-href=@{/managers/{matricule}(matricule=${manager.matricule}, trimestre=${trimestre.valeur})}">
+                    <td class="mono" th:text="${manager.matricule}">BP026</td>
                     <td><a th:href="@{/managers/{matricule}(matricule=${manager.matricule}, trimestre=${trimestre.valeur})}"
-                           th:text="|${manager.prenom} ${manager.nom}|">Manager</a>
-                        <span class="text-muted small d-block" th:text="${manager.matricule}">BP026</span></td>
-                    <td th:text="${manager.fonction} ?: '-'">Fonction</td>
-                    <td>
-                        <a th:if="${manager.entite != null}"
-                           th:href="@{/entites(code=${manager.entite.code}, trimestre=${trimestre.valeur})}"
-                           th:text="${manager.entite.libelle}">Agence</a>
-                        <span th:if="${manager.entite == null}">-</span>
-                    </td>
-                    <td class="text-end" th:text="${manager.tailleEquipe}">5</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </main>
-
+                           th:text="|${manager.prenom} ${manager.nom}|">Manager</a></td>
+                    <td th:text="${manager.fonction} ?: '—'">Fonction</td>
+                    <td><a th:if="${manager.entite != null}" th:href="@{/entites(code=${manager.entite.code}, trimestre=${trimestre.valeur})}"
+                           th:text="${manager.entite.libelle}">Agence</a><th:block th:if="${manager.entite == null}">—</th:block></td>
+                    <td class="mono" th:text="${manager.tailleEquipe}">5</td>
+                </tr></tbody></table>
+            </div></div>
+        </section>
+    </div>
 </div>
 
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 </body>
 </html>

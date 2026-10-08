@@ -1,99 +1,72 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Viviers</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Viviers</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
 
-<div class="app-layout">
+<!--
+  Viviers : balisage de renderViviers() du prototype (.vivier-card). Synthese par vivier calculee par
+  le moteur (VivierSyntheseService) : 5 viviers thematiques puis le vivier de releve. "Voir les membres"
+  ouvre la modale du prototype (prototype.js, API collaborateurs filtree sur le vivier).
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('viviers')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('viviers')}"></div>
+    <div id="main">
+        <th:block th:with="sous=${trimestre != null} ? 'Pilotage des viviers de talents — ' + ${trimestre.libelle} : 'Pilotage des viviers de talents'">
+            <div th:replace="~{fragments/prototype :: topbar('Viviers', ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Viviers de talents</h1>
-            <p class="text-muted" th:if="${trimestre != null and #lists.isEmpty(rows) and #lists.isEmpty(syntheses)}">
-                Aucun collaborateur rattache a un vivier pour le trimestre en cours.
-            </p>
-        </header>
+        <section class="view active" id="view-viviers">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+            <form method="get" action="/viviers" class="filters" th:if="${trimestre != null}">
+                <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
+                <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+            </form>
 
-        <form method="get" action="/viviers" class="filtre-bar" th:if="${trimestre != null}">
-            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-        </form>
+            <div class="alert warn" th:if="${erreur != null}"><div class="sev">ATTENTION</div><div class="txt" th:text="${erreur}">Reglages absents</div></div>
+            <div class="empty-state" th:if="${trimestre != null and #lists.isEmpty(rows) and #lists.isEmpty(syntheses)}">
+                Aucun collaborateur rattaché à un vivier pour le trimestre en cours.</div>
 
-        <div class="alert alert-warning mt-4" th:if="${erreur != null}" th:text="${erreur}">Reglages absents</div>
-
-        <!-- Une carte par vivier thematique puis le vivier de releve (VivierSyntheseService). -->
-        <div class="row g-3 mt-1" th:if="${not #lists.isEmpty(syntheses)}">
-            <div class="col-md-6 col-xl-4" th:each="vivier : ${syntheses}">
-                <div class="card shadow-sm h-100" th:classappend="${vivier.releve} ? 'border-primary' : ''">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <strong th:text="${vivier.libelle}">Vivier Commercial</strong>
-                        <span class="badge bg-primary" th:text="|${vivier.effectif} membre(s)|">47 membres</span>
-                    </div>
-                    <div class="card-body small">
-                        <div class="row text-center g-2 mb-2">
-                            <div class="col-4"><div class="fw-bold fs-5" th:text="${vivier.nbTalents}">6</div><div class="text-muted">Talents</div></div>
-                            <div class="col-4"><div class="fw-bold fs-5" th:text="${vivier.nbHautsPotentiels}">8</div><div class="text-muted">Hauts potentiels</div></div>
-                            <div class="col-4"><div class="fw-bold fs-5" th:text="${vivier.nbReadyNow}">3</div><div class="text-muted">Ready Now</div></div>
-                        </div>
-                        <table class="table table-sm mb-2">
-                            <tbody>
-                            <tr><td>Performance moyenne</td><td class="text-end" th:text="${vivier.performanceMoyenne} ?: '-'">79.12</td></tr>
-                            <tr><td>Potentiel moyen</td><td class="text-end" th:text="${vivier.potentielMoyen} ?: '-'">76.68</td></tr>
-                            <tr><td>Postes critiques couverts</td><td class="text-end" th:text="${vivier.nbPostesCouverts}">3</td></tr>
-                            </tbody>
-                        </table>
-                        <div>
-                            <span class="text-muted">Gaps identifiés :</span>
-                            <span th:if="${#lists.isEmpty(vivier.gapsIdentifies)}">aucun</span>
-                            <span class="badge text-bg-light border me-1" th:each="gap : ${vivier.gapsIdentifies}"
-                                  th:text="|${gap.competence} (${gap.nombre})|">Audit (2)</span>
-                        </div>
-                    </div>
+            <div class="vivier-cards" th:if="${not #lists.isEmpty(syntheses)}">
+                <div class="vivier-card" th:each="v : ${syntheses}"><h4 th:text="${v.libelle}">Vivier Commercial</h4>
+                    <div class="row"><span>Effectif</span><b th:text="${v.effectif}">47</b></div>
+                    <div class="row"><span>Performance moyenne</span><b th:text="${v.performanceMoyenne} ?: '—'">79.12</b></div>
+                    <div class="bar-track barre" th:if="${v.performanceMoyenne != null}"><div class="bar-fill" th:style="|width:${v.performanceMoyenne}%|"></div></div>
+                    <div class="row"><span>Potentiel moyen</span><b th:text="${v.potentielMoyen} ?: '—'">76.68</b></div>
+                    <div class="bar-track barre" th:if="${v.potentielMoyen != null}"><div class="bar-fill" th:style="|width:${v.potentielMoyen}%|"></div></div>
+                    <div class="row"><span>Talents</span><b th:text="${v.nbTalents}">6</b></div>
+                    <div class="row"><span>Hauts potentiels</span><b th:text="${v.nbHautsPotentiels}">8</b></div>
+                    <div class="row"><span>Ready Now</span><b th:text="${v.nbReadyNow}">3</b></div>
+                    <div class="row"><span>Postes couverts</span><b th:text="${v.nbPostesCouverts}">3</b></div>
+                    <div class="row"><span>Gaps identifiés</span><b th:text="${#lists.isEmpty(v.gapsIdentifies)} ? 'aucun' : ''">aucun</b></div>
+                    <div class="pill-row" style="margin-top:6px;" th:if="${not #lists.isEmpty(v.gapsIdentifies)}">
+                        <span class="pill" th:each="gap : ${v.gapsIdentifies}" th:text="|${gap.competence} (${gap.nombre})|">Audit (2)</span></div>
+                    <div style="margin-top:10px;" th:if="${v.effectif > 0}"><span class="pill" style="cursor:pointer"
+                            th:attr="data-vivier=${v.code},data-nom=${v.libelle},data-trimestre=${trimestre.valeur}">Voir les membres</span></div>
+                    <div class="empty-state" style="padding:10px 0;" th:if="${v.effectif == 0}">Aucun membre pour le moment.</div>
                 </div>
             </div>
-        </div>
 
-        <h2 class="h6 mt-4" th:if="${not #lists.isEmpty(rows)}">Membres des viviers enregistrés</h2>
-        <div class="table-responsive" th:if="${not #lists.isEmpty(rows)}">
-            <table class="table table-hover bg-white rounded shadow-sm">
-                <thead>
-                <tr>
-                    <th>Nom</th>
-                    <th>Prenom</th>
-                    <th>Poste</th>
-                    <th>Departement</th>
-                    <th>Potentiel</th>
-                    <th>Performance</th>
-                    <th>Vivier</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="row : ${rows}">
-                    <td><a th:href="@{/fiche-collaborateur(matricule=${row.matricule}, trimestre=${trimestre.valeur})}"
-                           th:text="${row.nom}">Nom</a></td>
-                    <td th:text="${row.prenom}"></td>
-                    <td th:text="${row.poste}"></td>
-                    <td th:text="${row.departement}"></td>
-                    <td th:text="${row.potentiel}">-</td>
-                    <td th:text="${row.performance}">-</td>
-                    <td><span class="badge bg-primary" th:text="${row.categorieVivier}"></span></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </main>
-
+            <!-- Membres enregistres dans les viviers (VivierService), chacun vers son Talent Passport. -->
+            <div class="panel" th:if="${not #lists.isEmpty(rows)}"><div class="panel-head"><h3>Membres des viviers enregistrés</h3></div><div class="panel-body">
+                <table><thead><tr><th>Matricule</th><th>Nom</th><th>Poste</th><th>Département</th><th>Performance</th><th>Potentiel</th><th>Vivier</th></tr></thead>
+                <tbody><tr th:each="row : ${rows}" th:attr="data-href=@{/fiche-collaborateur(matricule=${row.matricule}, trimestre=${trimestre.valeur})}">
+                    <td class="mono" th:text="${row.matricule}">BP001</td>
+                    <td><a th:href="@{/fiche-collaborateur(matricule=${row.matricule}, trimestre=${trimestre.valeur})}" th:text="|${row.prenom} ${row.nom}|">Nom</a></td>
+                    <td th:text="${row.poste}">Poste</td><td th:text="${row.departement}">Departement</td>
+                    <td th:text="${row.performance} ?: '—'">90</td><td th:text="${row.potentiel} ?: '—'">90</td>
+                    <td><span class="badge talent" th:text="${row.categorieVivier}">Vivier</span></td>
+                </tr></tbody></table>
+            </div></div>
+        </section>
+    </div>
 </div>
 
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 </body>
 </html>

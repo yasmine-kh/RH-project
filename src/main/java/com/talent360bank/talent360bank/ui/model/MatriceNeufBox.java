@@ -13,7 +13,7 @@ import java.util.function.IntFunction;
 
 /**
  * La matrice 9-Box prete pour le composant d'affichage commun
- * (fragments/matrice9box.html) : la page 9-Box, l'accueil, le dashboard DG, la
+ * (fragments/box9.html) : la page 9-Box, l'accueil, le dashboard DG, la
  * vue manager et la vue entite.
  *
  * <p>Aucun calcul de placement ici : chaque case vient de Matrice9Box et les

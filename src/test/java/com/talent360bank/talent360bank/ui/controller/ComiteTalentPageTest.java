@@ -71,6 +71,8 @@ class ComiteTalentPageTest {
     @MockBean
     private VivierSyntheseService vivierSyntheseService;
     @MockBean
+    private com.talent360bank.talent360bank.ui.service.ReponsesQuestionnaireViewService reponsesQuestionnaireViewService;
+    @MockBean
     private ProfilsService profilsService;
 
     private Trimestre t3;
@@ -114,7 +116,7 @@ class ComiteTalentPageTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("comite-talent"))
                 .andExpect(content().string(allOf(
-                        containsString("Talents valides (Comite)"),
+                        containsString("Talents proposés en attente"),
                         containsString("T3 2026"),
                         containsString("Ilham Nom"),
                         containsString("Corporate Banking"),
@@ -122,11 +124,12 @@ class ComiteTalentPageTest {
                         containsString("Exceptionnelle"),
                         containsString("90.95"),
                         containsString("Talent clé"),
-                        containsString("badge bg-success"),
-                        containsString("badge bg-warning text-dark"),
+                        containsString("data-statut=\"OUI\""),
+                        containsString("data-statut=\"EN_ATTENTE\""),
                         containsString("Tous (2)"),
                         containsString("Oui (1)"),
-                        not(containsString("placeholder-box")))));
+                        // Pas la page "en cours de developpement" (son bandeau), meme si les decisions y sont grisees.
+                        not(containsString("<div class=\"sev\">EN COURS</div>")))));
     }
 
     @Test
@@ -134,7 +137,7 @@ class ComiteTalentPageTest {
         unTalentValideEtUnEnAttente();
 
         mockMvc.perform(get("/comite-talent"))
-                .andExpect(content().string(containsString("href=\"/comite-talent\" class=\"nav-item active\"")));
+                .andExpect(content().string(containsString("href=\"/comite-talent\" class=\"navitem active\"")));
     }
 
     @Test
@@ -167,8 +170,8 @@ class ComiteTalentPageTest {
         mockMvc.perform(get("/comite-talent"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(allOf(
-                        containsString("Aucun trimestre enregistre pour le moment."),
-                        not(containsString("filtre-bar")))));
+                        containsString("Aucun trimestre importé pour le moment"),
+                        not(containsString("class=\"filters\"")))));
     }
 
     @Test
@@ -178,6 +181,6 @@ class ComiteTalentPageTest {
 
         mockMvc.perform(get("/comite-talent"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Aucun talent propose par le moteur pour ce trimestre.")));
+                .andExpect(content().string(containsString("Aucun talent proposé par le moteur pour ce trimestre.")));
     }
 }

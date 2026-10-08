@@ -99,7 +99,7 @@ class SansSessionOuverteIntegrationTest {
             T + "/collaborateurs", T + "/collaborateurs?talent=false&tri=PERFORMANCE&page=1&taille=5",
             "/api/dashboard/dg" + PARAMS, T + "/competences", T + "/competences?vivier=RELEVE&ordre=asc&top=3",
             "/api/notifications", T + "/campagne",
-            "/collaborateurs", "/collaborateurs?talent=false&tri=PERFORMANCE&page=1", "/dashboard-dg",
+            "/collaborateurs", "/collaborateurs?talent=false&tri=PERFORMANCE&page=1",
             "/competences", "/competences?vivier=RELEVE&ordre=asc", "/notifications", "/campagne",
             "/campagne?entite=" + Entite.code(null, TypeEntite.DIRECTION, "Direction A"),
             "/managers", "/managers/A01", "/entites",

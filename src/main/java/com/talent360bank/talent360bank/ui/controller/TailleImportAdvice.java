@@ -32,7 +32,7 @@ public class TailleImportAdvice {
         Object origine = requete.getAttribute(RequestDispatcher.FORWARD_REQUEST_URI);
         String uri = origine instanceof String renvoi ? renvoi : requete.getRequestURI();
         String chemin = uri.substring(Math.min(uri.length(), requete.getContextPath().length()));
-        if (!"/import".equals(chemin)) {
+        if (!"/import".equals(chemin) && !"/import/questionnaire".equals(chemin)) {
             throw exception;
         }
         return "redirect:/import?" + ImportPageController.PARAMETRE_ERREUR + "=" + ImportPageController.ERREUR_TAILLE;

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+<!--
+  En-tete commun des pages refaites a partir du prototype (docs/prototype/index.html) :
+  polices auto-hebergees prechargees (aucun flash au changement de page), prototype.css
+  verbatim, puis app.css. Pas de Bootstrap.
+-->
+<th:block th:fragment="tete">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preload" href="/vendor/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/vendor/fonts/ibm-plex-sans-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/vendor/fonts/fraunces-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/vendor/fonts/ibm-plex-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<!-- Icone d'onglet : l'embleme Banque Populaire (cheval), carre (images/BP-Embleme.png, /images/** est public). -->
+<link rel="icon" type="image/png" th:href="@{/images/BP-Embleme.png}">
+<link rel="stylesheet" th:href="@{/css/fonts.css}">
+<link rel="stylesheet" th:href="@{/css/prototype.css}">
+<link rel="stylesheet" th:href="@{/css/app.css}">
+</th:block>
+</head>
+<body>
+
+<!--
+  #sidebar du prototype, meme balisage. Le profil n'est pas une connexion : c'est une vue que le RH
+  ouvre (session HTTP, /profil). Choisir un profil envoie le formulaire (prototype.js) ; Collaborateur
+  et Manager demandent ensuite la personne. Le menu vient de MenuProfilService (memes libelles et
+  numeros que NAV_DEF) ; chaque entree est un lien vers sa page.
+-->
+<aside id="sidebar" th:fragment="sidebar(active)">
+    <div class="brand">
+        <!-- Logo BP complet (embleme + BANQUE POPULAIRE) a la place de la marque "T" du prototype : la case garde la
+             bordure doree et s'elargit aux proportions du logo, affiche a sa taille reelle (lisible, sans deformation). -->
+        <span class="mark mark-logo"><img th:src="@{/images/BP-Logo-Complet.png}" alt="Banque Populaire" width="170" height="52"></span>
+        <h1>BP TALENT 360</h1>
+        <p>Vivier &amp; Succession — SIRH</p>
+    </div>
+    <form class="role-block" id="profil-form" method="get" action="/profil" th:if="${profils != null}"
+          th:with="courant=${profilActif != null} ? ${profilActif.type} : 'RH'">
+        <input type="hidden" name="trimestre" th:if="${trimestre != null}" th:value="${trimestre.valeur}">
+        <input type="hidden" name="retour" th:if="${pageCourante != null}" th:value="${pageCourante}">
+        <label for="role-select">Profil affiché</label>
+        <select id="role-select" name="profil">
+            <option value="COLLABORATEUR" th:selected="${courant == 'COLLABORATEUR'}">Collaborateur</option>
+            <option value="MANAGER" th:selected="${courant == 'MANAGER'}">Manager</option>
+            <option value="RH" th:selected="${courant == 'RH'}">DRH / Talent Manager</option>
+            <!-- Plus propose dans la liste ; affiche seulement si ce profil est deja actif (ancien lien /profil?profil=COMITE). -->
+            <option value="COMITE" th:if="${courant == 'COMITE'}" selected hidden>Comité Talent / Direction</option>
+        </select>
+        <!-- Personne du profil : une liste (select) comme le selecteur du prototype. Changer de personne recharge
+             la page courante pour cette personne (prototype.js). -->
+        <th:block th:if="${courant == 'MANAGER' or courant == 'COLLABORATEUR'}">
+            <label for="profil-cible" class="cible-label" th:text="|Choisir ${profilActif.personneAChoisir()}|">Choisir un manager</label>
+            <select id="profil-cible" name="cible" th:attr="data-actuel=${profilActif.matricule}">
+                <option value="" th:text="|— ${profilActif.personneAChoisir()} —|">— un manager —</option>
+                <option th:each="choix : ${courant == 'MANAGER'} ? ${profils.managers} : ${profils.collaborateurs}"
+                        th:value="${choix.valeur}" th:text="${choix.libelle}"
+                        th:selected="${profilActif.matricule != null and choix.valeur == profilActif.matricule}">Nom</option>
+            </select>
+        </th:block>
+        <div class="whoami" id="whoami"
+             th:text="${courant == 'RH'} ? 'Direction des Ressources Humaines'
+                    : (${courant == 'COMITE'} ? 'Comité de Direction'
+                    : (${profilActif.matricule != null} ? |${profilActif.nom} — ${profilActif.matricule}|
+                    : |Choisissez ${profilActif.personneAChoisir()} pour ouvrir le menu.|))">Direction des Ressources Humaines</div>
+        <a class="retour-rh" href="/profil?profil=RH" th:if="${courant != 'RH'}">Revenir à la vue RH</a>
+        <noscript><button type="submit" class="btn ghost">Appliquer</button></noscript>
+    </form>
+    <nav id="nav">
+        <th:block th:each="element : ${menu}">
+            <a th:if="${element.active()}" th:href="${element.lien}" class="navitem"
+               th:classappend="${element.page != null and element.page == active} ? 'active'"
+               th:attr="data-view=${element.page}"><span class="n" th:text="${element.numero}">01</span>[[${element.libelle}]]</a>
+            <div th:unless="${element.active()}" class="navitem nav-item-grisee" aria-disabled="true"
+                 th:title="${element.indication}"><span class="n" th:text="${element.numero}">04</span>[[${element.libelle}]]<small
+                    class="nav-item-indication" th:text="${element.indication}">choisir un manager</small></div>
+        </th:block>
+    </nav>
+    <div class="sidebar-foot">Module SIRH Talents &amp; Succession<th:block th:if="${trimestre != null}"><br>Trimestre affiché : <span th:text="${trimestre.libelle}">T3 2026</span></th:block></div>
+</aside>
+
+<!-- .topbar du prototype. La cloche mene aux notifications ; prototype.js y met le nombre d'alertes. -->
+<div class="topbar" th:fragment="topbar(titre, sousTitre)">
+    <div>
+        <h2 id="topbarTitle" th:text="${titre}">Tableau de bord RH</h2>
+        <div class="sub" id="topbarSub" th:text="${sousTitre}">Sous-titre</div>
+    </div>
+    <div class="topbar-right">
+        <div class="bell" id="bell" onclick="location.href='/notifications'" title="Notifications">🔔<span class="count" id="bellCount" hidden></span></div>
+        <div class="sub mono" id="topbarClock"></div>
+        <script>document.getElementById('topbarClock').textContent = new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});</script>
+    </div>
+</div>
+
+<!-- Etat vide quand aucun trimestre n'existe encore (.empty-state du prototype), avec le lien vers l'import. -->
+<div class="panel" th:fragment="aucunTrimestre"><div class="panel-body empty-state">
+    Aucun trimestre importé pour le moment : il n'y a encore rien à afficher.<br><br>
+    <a href="/import" class="btn">Importer le classeur</a></div></div>
+
+<!-- Liste du trimestre, a placer dans le form.filters de la page (s'applique des qu'il est choisi). -->
+<select th:fragment="choixTrimestre" id="trimestre" name="trimestre" data-auto aria-label="Trimestre">
+    <option th:each="option : ${trimestres}" th:value="${option.valeur}"
+            th:text="${option.hasData} ? ${option.libelle} : ${option.libelle} + ' (pas encore calcule)'"
+            th:selected="${trimestre != null and option.valeur == trimestre.valeur}">T3 2026</option>
+</select>
+
+<!-- readinessBadge() du prototype : pastille + libelle du moteur. Ready Now -> g, < 1 an / 1-2 ans -> o, > 2 ans -> b. -->
+<th:block th:fragment="readiness(code, libelle)"><th:block th:if="${libelle == null}">—</th:block><th:block th:if="${libelle != null}"><span class="dot"
+        th:classappend="${code == 'READY_NOW'} ? 'g' : (${code == 'PLUS_2_ANS'} ? 'b' : 'o')"></span>[[${libelle}]]</th:block></th:block>
+
+<!-- #modal-backdrop du prototype (9-Box, listes). -->
+<div id="modal-backdrop" th:fragment="modal">
+    <div id="modal">
+        <div class="mhead"><h3 id="modalTitle">Détail</h3><span class="mclose" onclick="closeModal()">&times;</span></div>
+        <div class="mbody" id="modalBody"></div>
+    </div>
+</div>
+
+</body>
+</html>

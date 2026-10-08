@@ -1,215 +1,145 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - Paramètres</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Paramètres</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
 
-<div class="app-layout">
+<!--
+  Parametres du moteur de calcul (page propre a l'application ; le prototype mentionne un ecran
+  Administration) : classes et jetons du prototype (.panel, .form-row, .grid-2). Lecture et
+  enregistrement inchanges : le script recopie les valeurs entre le formulaire et l'API parametre,
+  qui valide et recalcule.
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('parametres')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('parametres')}"></div>
+    <div id="main">
+        <th:block th:with="sous=${trimestre != null} ? 'Pondérations et seuils — ' + ${trimestre.libelle} + '. Enregistrer relance le calcul du trimestre.' : 'Pondérations et seuils'">
+            <div th:replace="~{fragments/prototype :: topbar('Paramètres du moteur de calcul', ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Paramètres du moteur de calcul</h1>
-            <p class="text-muted" th:if="${trimestre != null}"
-               th:text="|Pondérations et seuils - ${trimestre.libelle}. Enregistrer relance le calcul du trimestre.|">
-                Pondérations et seuils</p>
-        </header>
+        <section class="view active" id="view-parametres">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+            <form method="get" action="/parametres" class="filters" th:if="${trimestre != null}">
+                <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
+                <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+            </form>
 
-        <form method="get" action="/parametres" class="filtre-bar" th:if="${trimestre != null}">
-            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-        </form>
+            <!-- Messages (chargement, succes, erreurs) : remplis par le script, en texte seulement. -->
+            <div id="message" th:if="${trimestre != null}"></div>
 
-        <!-- Messages (chargement, succes, erreurs) : remplis par le script, en texte seulement. -->
-        <div id="message" class="mt-3" th:if="${trimestre != null}"></div>
+            <!--
+              Chaque champ porte le nom "bloc.champ" du JSON de ParametreForm : le script
+              remplit et relit le formulaire a partir de ces noms, sans rien verifier lui-meme
+              (novalidate : toute la validation est faite par l'API).
+            -->
+            <form id="form-parametres" novalidate hidden th:if="${trimestre != null}">
+                <div class="panel"><div class="panel-body">
+                    <div class="form-row" style="margin-bottom:0;"><label for="libelle">Libellé des réglages</label>
+                        <input type="text" id="libelle" name="libelle"></div>
+                </div></div>
 
-        <!--
-          Chaque champ porte le nom "bloc.champ" du JSON de ParametreForm : le script
-          remplit et relit le formulaire a partir de ces noms, sans rien verifier lui-meme
-          (novalidate : toute la validation est faite par l'API).
-        -->
-        <form id="form-parametres" class="mt-3" novalidate hidden th:if="${trimestre != null}">
-
-            <div class="card shadow-sm mb-3">
-                <div class="card-body">
-                    <label class="form-label" for="libelle">Libellé des réglages</label>
-                    <input class="form-control" type="text" id="libelle" name="libelle">
-                </div>
-            </div>
-
-            <div class="row g-3">
-
-                <!-- Poids du score de performance -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-graph-up"></i> Poids du score de performance (%)</div>
-                        <div class="card-body row g-2">
-                            <p class="small text-muted mb-1">Les cinq poids totalisent 100.</p>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPerformance.poidsObjectifs">Objectifs</label><input class="form-control" type="number" step="any" id="poidsPerformance.poidsObjectifs" name="poidsPerformance.poidsObjectifs"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPerformance.poidsCompetences">Compétences</label><input class="form-control" type="number" step="any" id="poidsPerformance.poidsCompetences" name="poidsPerformance.poidsCompetences"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPerformance.poidsComportement">Comportement</label><input class="form-control" type="number" step="any" id="poidsPerformance.poidsComportement" name="poidsPerformance.poidsComportement"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPerformance.poidsContribution">Contribution</label><input class="form-control" type="number" step="any" id="poidsPerformance.poidsContribution" name="poidsPerformance.poidsContribution"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPerformance.poidsDeveloppement">Développement</label><input class="form-control" type="number" step="any" id="poidsPerformance.poidsDeveloppement" name="poidsPerformance.poidsDeveloppement"></div>
-                        </div>
+                <div class="grid-2" style="grid-template-columns:1fr 1fr;">
+                    <div>
+                <div class="panel"><div class="panel-head"><h3>Poids du score de performance (%)</h3></div><div class="panel-body">
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Les cinq poids totalisent 100.</p>
+                        <div class="form-row"><label for="poidsPerformance.poidsObjectifs">Objectifs</label><input type="number" step="any" id="poidsPerformance.poidsObjectifs" name="poidsPerformance.poidsObjectifs"></div>
+                        <div class="form-row"><label for="poidsPerformance.poidsCompetences">Compétences</label><input type="number" step="any" id="poidsPerformance.poidsCompetences" name="poidsPerformance.poidsCompetences"></div>
+                        <div class="form-row"><label for="poidsPerformance.poidsComportement">Comportement</label><input type="number" step="any" id="poidsPerformance.poidsComportement" name="poidsPerformance.poidsComportement"></div>
+                        <div class="form-row"><label for="poidsPerformance.poidsContribution">Contribution</label><input type="number" step="any" id="poidsPerformance.poidsContribution" name="poidsPerformance.poidsContribution"></div>
+                        <div class="form-row"><label for="poidsPerformance.poidsDeveloppement">Développement</label><input type="number" step="any" id="poidsPerformance.poidsDeveloppement" name="poidsPerformance.poidsDeveloppement"></div>
+                </div></div>
+                <div class="panel"><div class="panel-head"><h3>Poids du matching succession (%)</h3></div><div class="panel-body">
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Les six poids totalisent 100.</p>
+                        <div class="form-row"><label for="poidsSuccession.poidsCompetences">Compétences</label><input type="number" step="any" id="poidsSuccession.poidsCompetences" name="poidsSuccession.poidsCompetences"></div>
+                        <div class="form-row"><label for="poidsSuccession.poidsPerformance">Performance</label><input type="number" step="any" id="poidsSuccession.poidsPerformance" name="poidsSuccession.poidsPerformance"></div>
+                        <div class="form-row"><label for="poidsSuccession.poidsPotentiel">Potentiel</label><input type="number" step="any" id="poidsSuccession.poidsPotentiel" name="poidsSuccession.poidsPotentiel"></div>
+                        <div class="form-row"><label for="poidsSuccession.poidsExperience">Expérience</label><input type="number" step="any" id="poidsSuccession.poidsExperience" name="poidsSuccession.poidsExperience"></div>
+                        <div class="form-row"><label for="poidsSuccession.poidsLeadership">Leadership</label><input type="number" step="any" id="poidsSuccession.poidsLeadership" name="poidsSuccession.poidsLeadership"></div>
+                        <div class="form-row"><label for="poidsSuccession.poidsMobilite">Mobilité</label><input type="number" step="any" id="poidsSuccession.poidsMobilite" name="poidsSuccession.poidsMobilite"></div>
+                </div></div>
+                <div class="panel"><div class="panel-head"><h3>Barèmes du matching succession</h3></div><div class="panel-body">
+                        <div class="form-row"><label for="baremeExperience.pointsParAnnee">Expérience : points par année d'ancienneté</label><input type="number" step="any" id="baremeExperience.pointsParAnnee" name="baremeExperience.pointsParAnnee"></div>
+                        <div class="form-row"><label for="baremeExperience.plafond">Expérience : plafond (points)</label><input type="number" step="any" id="baremeExperience.plafond" name="baremeExperience.plafond"></div>
+                        <div class="form-row"><label for="baremeCompetences.pointsParNiveauManquant">Compétences : points retirés par niveau manquant</label><input type="number" step="any" id="baremeCompetences.pointsParNiveauManquant" name="baremeCompetences.pointsParNiveauManquant"></div>
+                        <div class="form-row"><label for="baremeCompetences.niveauParDefaut">Compétences : niveau supposé si absente du profil</label><input type="number" step="1" id="baremeCompetences.niveauParDefaut" name="baremeCompetences.niveauParDefaut"></div>
+                </div></div>
+                <div class="panel"><div class="panel-head"><h3>Catégories de performance</h3></div><div class="panel-body">
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Score minimum de chaque catégorie ; en dessous du dernier : insuffisante.</p>
+                        <div class="form-row"><label for="seuilsCategoriePerformance.seuilExceptionnelle">Exceptionnelle</label><input type="number" step="any" id="seuilsCategoriePerformance.seuilExceptionnelle" name="seuilsCategoriePerformance.seuilExceptionnelle"></div>
+                        <div class="form-row"><label for="seuilsCategoriePerformance.seuilElevee">Élevée</label><input type="number" step="any" id="seuilsCategoriePerformance.seuilElevee" name="seuilsCategoriePerformance.seuilElevee"></div>
+                        <div class="form-row"><label for="seuilsCategoriePerformance.seuilSolide">Solide</label><input type="number" step="any" id="seuilsCategoriePerformance.seuilSolide" name="seuilsCategoriePerformance.seuilSolide"></div>
+                        <div class="form-row"><label for="seuilsCategoriePerformance.seuilARenforcer">À renforcer</label><input type="number" step="any" id="seuilsCategoriePerformance.seuilARenforcer" name="seuilsCategoriePerformance.seuilARenforcer"></div>
+                </div></div>
+                <div class="panel"><div class="panel-head"><h3>Compétences, readiness et couverture</h3></div><div class="panel-body">
+                        <div class="form-row"><label for="seuilsGapCompetence.seuilPrioritaire">Gap de compétence prioritaire à partir de (niveaux)</label><input type="number" step="1" id="seuilsGapCompetence.seuilPrioritaire" name="seuilsGapCompetence.seuilPrioritaire"></div>
+                        <div class="form-row"><label for="seuilsCouverture.nbMinSuccesseurs">Poste critique en alerte sous (successeurs)</label><input type="number" step="1" id="seuilsCouverture.nbMinSuccesseurs" name="seuilsCouverture.nbMinSuccesseurs"></div>
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Readiness : score de matching minimum ; en dessous du dernier, plus de 2 ans.</p>
+                        <div class="form-row"><label for="seuilsReadiness.seuilReadyNow">Prêt maintenant</label><input type="number" step="any" id="seuilsReadiness.seuilReadyNow" name="seuilsReadiness.seuilReadyNow"></div>
+                        <div class="form-row"><label for="seuilsReadiness.seuilMoins1An">Moins d'un an</label><input type="number" step="any" id="seuilsReadiness.seuilMoins1An" name="seuilsReadiness.seuilMoins1An"></div>
+                        <div class="form-row"><label for="seuilsReadiness.seuilEntre1Et2Ans">Entre 1 et 2 ans</label><input type="number" step="any" id="seuilsReadiness.seuilEntre1Et2Ans" name="seuilsReadiness.seuilEntre1Et2Ans"></div>
+                </div></div>
+                    </div>
+                    <div>
+                <div class="panel"><div class="panel-head"><h3>Poids du score de potentiel (%)</h3></div><div class="panel-body">
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Les sept poids totalisent 100.</p>
+                        <div class="form-row"><label for="poidsPotentiel.poidsLearning">Capacité d'apprentissage</label><input type="number" step="any" id="poidsPotentiel.poidsLearning" name="poidsPotentiel.poidsLearning"></div>
+                        <div class="form-row"><label for="poidsPotentiel.poidsLeadership">Leadership</label><input type="number" step="any" id="poidsPotentiel.poidsLeadership" name="poidsPotentiel.poidsLeadership"></div>
+                        <div class="form-row"><label for="poidsPotentiel.poidsAdaptabilite">Adaptabilité</label><input type="number" step="any" id="poidsPotentiel.poidsAdaptabilite" name="poidsPotentiel.poidsAdaptabilite"></div>
+                        <div class="form-row"><label for="poidsPotentiel.poidsComplexite">Gestion de la complexité</label><input type="number" step="any" id="poidsPotentiel.poidsComplexite" name="poidsPotentiel.poidsComplexite"></div>
+                        <div class="form-row"><label for="poidsPotentiel.poidsMobilite">Mobilité</label><input type="number" step="any" id="poidsPotentiel.poidsMobilite" name="poidsPotentiel.poidsMobilite"></div>
+                        <div class="form-row"><label for="poidsPotentiel.poidsStrategie">Vision stratégique</label><input type="number" step="any" id="poidsPotentiel.poidsStrategie" name="poidsPotentiel.poidsStrategie"></div>
+                        <div class="form-row"><label for="poidsPotentiel.poidsAutonomie">Autonomie</label><input type="number" step="any" id="poidsPotentiel.poidsAutonomie" name="poidsPotentiel.poidsAutonomie"></div>
+                </div></div>
+                <div class="panel"><div class="panel-head"><h3>Sources d'évaluation et auto-évaluation</h3></div><div class="panel-body">
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Part de chaque source dans les scores officiels (total 100).</p>
+                        <div class="form-row"><label for="ponderationSources.poidsManager">Évaluation du manager (%)</label><input type="number" step="any" id="ponderationSources.poidsManager" name="ponderationSources.poidsManager"></div>
+                        <div class="form-row"><label for="ponderationSources.poidsAuto">Auto-évaluation (%)</label><input type="number" step="any" id="ponderationSources.poidsAuto" name="ponderationSources.poidsAuto"></div>
+                        <div class="form-row"><label for="seuilsAutoEvaluation.seuilEcartImportant">Écart auto / manager signalé à partir de (points)</label><input type="number" step="any" id="seuilsAutoEvaluation.seuilEcartImportant" name="seuilsAutoEvaluation.seuilEcartImportant"></div>
+                </div></div>
+                <div class="panel"><div class="panel-head"><h3>Seuils de la matrice 9-Box</h3></div><div class="panel-body">
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Par axe : score au moins égal au seuil élevé, sinon au seuil moyen, sinon faible.</p>
+                        <div class="form-row"><label for="seuilsNeufBox.seuilEleve">Performance : seuil élevé</label><input type="number" step="any" id="seuilsNeufBox.seuilEleve" name="seuilsNeufBox.seuilEleve"></div>
+                        <div class="form-row"><label for="seuilsNeufBox.seuilMoyen">Performance : seuil moyen</label><input type="number" step="any" id="seuilsNeufBox.seuilMoyen" name="seuilsNeufBox.seuilMoyen"></div>
+                        <div class="form-row"><label for="seuilsNeufBoxPotentiel.seuilEleve">Potentiel : seuil élevé</label><input type="number" step="any" id="seuilsNeufBoxPotentiel.seuilEleve" name="seuilsNeufBoxPotentiel.seuilEleve"></div>
+                        <div class="form-row"><label for="seuilsNeufBoxPotentiel.seuilMoyen">Potentiel : seuil moyen</label><input type="number" step="any" id="seuilsNeufBoxPotentiel.seuilMoyen" name="seuilsNeufBoxPotentiel.seuilMoyen"></div>
+                </div></div>
+                <div class="panel"><div class="panel-head"><h3>Détection des talents</h3></div><div class="panel-body">
+                        <div class="form-row"><label for="seuilsTalent.seuilPerformance">Talent : performance minimum</label><input type="number" step="any" id="seuilsTalent.seuilPerformance" name="seuilsTalent.seuilPerformance"></div>
+                        <div class="form-row"><label for="seuilsTalent.seuilPotentiel">Talent : potentiel minimum</label><input type="number" step="any" id="seuilsTalent.seuilPotentiel" name="seuilsTalent.seuilPotentiel"></div>
+                        <div class="form-row"><label for="seuilsTalent.seuilHautPotentielPotentiel">Haut potentiel : potentiel minimum</label><input type="number" step="any" id="seuilsTalent.seuilHautPotentielPotentiel" name="seuilsTalent.seuilHautPotentielPotentiel"></div>
+                        <div class="form-row"><label for="seuilsTalent.seuilHautPotentielPerformance">Haut potentiel : performance minimum</label><input type="number" step="any" id="seuilsTalent.seuilHautPotentielPerformance" name="seuilsTalent.seuilHautPotentielPerformance"></div>
+                </div></div>
+                <div class="panel"><div class="panel-head"><h3>Vigilance (risque de départ)</h3></div><div class="panel-body">
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Points ajoutés à l'indice pour chaque signal.</p>
+                        <div class="form-row"><label for="pointsVigilance.pointEngagementFaible">Engagement faible</label><input type="number" step="any" id="pointsVigilance.pointEngagementFaible" name="pointsVigilance.pointEngagementFaible"></div>
+                        <div class="form-row"><label for="pointsVigilance.pointSansMobilite4Ans">Sans mobilité depuis 4 ans</label><input type="number" step="any" id="pointsVigilance.pointSansMobilite4Ans" name="pointsVigilance.pointSansMobilite4Ans"></div>
+                        <div class="form-row"><label for="pointsVigilance.pointMobiliteNonTraitee">Demande de mobilité non traitée</label><input type="number" step="any" id="pointsVigilance.pointMobiliteNonTraitee" name="pointsVigilance.pointMobiliteNonTraitee"></div>
+                        <div class="form-row"><label for="pointsVigilance.pointSansDeveloppementRecent">Pas de développement récent</label><input type="number" step="any" id="pointsVigilance.pointSansDeveloppementRecent" name="pointsVigilance.pointSansDeveloppementRecent"></div>
+                        <div class="form-row"><label for="pointsVigilance.pointBaissePerformance">Baisse de performance</label><input type="number" step="any" id="pointsVigilance.pointBaissePerformance" name="pointsVigilance.pointBaissePerformance"></div>
+                        <div class="form-row"><label for="pointsVigilance.pointFaibleReconnaissance">Faible reconnaissance</label><input type="number" step="any" id="pointsVigilance.pointFaibleReconnaissance" name="pointsVigilance.pointFaibleReconnaissance"></div>
+                        <div class="form-row"><label for="pointsVigilance.pointFormationNonFaite">Formation non faite</label><input type="number" step="any" id="pointsVigilance.pointFormationNonFaite" name="pointsVigilance.pointFormationNonFaite"></div>
+                        <p style="font-size:12px; color:var(--muted); margin:4px 0 12px;">Classement de l'indice et seuil d'engagement.</p>
+                        <div class="form-row"><label for="seuilsVigilance.seuilModere">Modérée à partir de</label><input type="number" step="any" id="seuilsVigilance.seuilModere" name="seuilsVigilance.seuilModere"></div>
+                        <div class="form-row"><label for="seuilsVigilance.seuilEleve">Élevée à partir de</label><input type="number" step="any" id="seuilsVigilance.seuilEleve" name="seuilsVigilance.seuilEleve"></div>
+                        <div class="form-row"><label for="seuilsVigilance.seuilEngagementFaible">Engagement faible sous</label><input type="number" step="any" id="seuilsVigilance.seuilEngagementFaible" name="seuilsVigilance.seuilEngagementFaible"></div>
+                </div></div>
                     </div>
                 </div>
 
-                <!-- Poids du score de potentiel -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-rocket-takeoff"></i> Poids du score de potentiel (%)</div>
-                        <div class="card-body row g-2">
-                            <p class="small text-muted mb-1">Les sept poids totalisent 100.</p>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPotentiel.poidsLearning">Capacité d'apprentissage</label><input class="form-control" type="number" step="any" id="poidsPotentiel.poidsLearning" name="poidsPotentiel.poidsLearning"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPotentiel.poidsLeadership">Leadership</label><input class="form-control" type="number" step="any" id="poidsPotentiel.poidsLeadership" name="poidsPotentiel.poidsLeadership"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPotentiel.poidsAdaptabilite">Adaptabilité</label><input class="form-control" type="number" step="any" id="poidsPotentiel.poidsAdaptabilite" name="poidsPotentiel.poidsAdaptabilite"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPotentiel.poidsComplexite">Gestion de la complexité</label><input class="form-control" type="number" step="any" id="poidsPotentiel.poidsComplexite" name="poidsPotentiel.poidsComplexite"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPotentiel.poidsMobilite">Mobilité</label><input class="form-control" type="number" step="any" id="poidsPotentiel.poidsMobilite" name="poidsPotentiel.poidsMobilite"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPotentiel.poidsStrategie">Vision stratégique</label><input class="form-control" type="number" step="any" id="poidsPotentiel.poidsStrategie" name="poidsPotentiel.poidsStrategie"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsPotentiel.poidsAutonomie">Autonomie</label><input class="form-control" type="number" step="any" id="poidsPotentiel.poidsAutonomie" name="poidsPotentiel.poidsAutonomie"></div>
-                        </div>
-                    </div>
+                <div style="display:flex; justify-content:flex-end; margin:4px 0 20px;">
+                    <button type="submit" id="bouton-enregistrer" class="btn">Enregistrer et recalculer</button>
                 </div>
-
-                <!-- Poids du matching succession -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-diagram-3"></i> Poids du matching succession (%)</div>
-                        <div class="card-body row g-2">
-                            <p class="small text-muted mb-1">Les six poids totalisent 100.</p>
-                            <div class="col-sm-6"><label class="form-label" for="poidsSuccession.poidsCompetences">Compétences</label><input class="form-control" type="number" step="any" id="poidsSuccession.poidsCompetences" name="poidsSuccession.poidsCompetences"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsSuccession.poidsPerformance">Performance</label><input class="form-control" type="number" step="any" id="poidsSuccession.poidsPerformance" name="poidsSuccession.poidsPerformance"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsSuccession.poidsPotentiel">Potentiel</label><input class="form-control" type="number" step="any" id="poidsSuccession.poidsPotentiel" name="poidsSuccession.poidsPotentiel"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsSuccession.poidsExperience">Expérience</label><input class="form-control" type="number" step="any" id="poidsSuccession.poidsExperience" name="poidsSuccession.poidsExperience"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsSuccession.poidsLeadership">Leadership</label><input class="form-control" type="number" step="any" id="poidsSuccession.poidsLeadership" name="poidsSuccession.poidsLeadership"></div>
-                            <div class="col-sm-6"><label class="form-label" for="poidsSuccession.poidsMobilite">Mobilité</label><input class="form-control" type="number" step="any" id="poidsSuccession.poidsMobilite" name="poidsSuccession.poidsMobilite"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sources d'evaluation et auto-evaluation -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-people"></i> Sources d'évaluation et auto-évaluation</div>
-                        <div class="card-body row g-2">
-                            <p class="small text-muted mb-1">Part de chaque source dans les scores officiels (total 100).</p>
-                            <div class="col-sm-6"><label class="form-label" for="ponderationSources.poidsManager">Évaluation du manager (%)</label><input class="form-control" type="number" step="any" id="ponderationSources.poidsManager" name="ponderationSources.poidsManager"></div>
-                            <div class="col-sm-6"><label class="form-label" for="ponderationSources.poidsAuto">Auto-évaluation (%)</label><input class="form-control" type="number" step="any" id="ponderationSources.poidsAuto" name="ponderationSources.poidsAuto"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsAutoEvaluation.seuilEcartImportant">Écart auto / manager signalé à partir de (points)</label><input class="form-control" type="number" step="any" id="seuilsAutoEvaluation.seuilEcartImportant" name="seuilsAutoEvaluation.seuilEcartImportant"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Baremes du matching succession -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-calculator"></i> Barèmes du matching succession</div>
-                        <div class="card-body row g-2">
-                            <div class="col-sm-6"><label class="form-label" for="baremeExperience.pointsParAnnee">Expérience : points par année d'ancienneté</label><input class="form-control" type="number" step="any" id="baremeExperience.pointsParAnnee" name="baremeExperience.pointsParAnnee"></div>
-                            <div class="col-sm-6"><label class="form-label" for="baremeExperience.plafond">Expérience : plafond (points)</label><input class="form-control" type="number" step="any" id="baremeExperience.plafond" name="baremeExperience.plafond"></div>
-                            <div class="col-sm-6"><label class="form-label" for="baremeCompetences.pointsParNiveauManquant">Compétences : points retirés par niveau manquant</label><input class="form-control" type="number" step="any" id="baremeCompetences.pointsParNiveauManquant" name="baremeCompetences.pointsParNiveauManquant"></div>
-                            <div class="col-sm-6"><label class="form-label" for="baremeCompetences.niveauParDefaut">Compétences : niveau supposé si absente du profil</label><input class="form-control" type="number" step="1" id="baremeCompetences.niveauParDefaut" name="baremeCompetences.niveauParDefaut"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Matrice 9-Box (un bloc par axe) -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-grid-3x3"></i> Seuils de la matrice 9-Box</div>
-                        <div class="card-body row g-2">
-                            <p class="small text-muted mb-1">Par axe : score au moins égal au seuil élevé, sinon au seuil moyen, sinon faible.</p>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsNeufBox.seuilEleve">Performance : seuil élevé</label><input class="form-control" type="number" step="any" id="seuilsNeufBox.seuilEleve" name="seuilsNeufBox.seuilEleve"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsNeufBox.seuilMoyen">Performance : seuil moyen</label><input class="form-control" type="number" step="any" id="seuilsNeufBox.seuilMoyen" name="seuilsNeufBox.seuilMoyen"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsNeufBoxPotentiel.seuilEleve">Potentiel : seuil élevé</label><input class="form-control" type="number" step="any" id="seuilsNeufBoxPotentiel.seuilEleve" name="seuilsNeufBoxPotentiel.seuilEleve"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsNeufBoxPotentiel.seuilMoyen">Potentiel : seuil moyen</label><input class="form-control" type="number" step="any" id="seuilsNeufBoxPotentiel.seuilMoyen" name="seuilsNeufBoxPotentiel.seuilMoyen"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Categories de performance -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-bar-chart-steps"></i> Catégories de performance</div>
-                        <div class="card-body row g-2">
-                            <p class="small text-muted mb-1">Score minimum de chaque catégorie ; en dessous du dernier : insuffisante.</p>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsCategoriePerformance.seuilExceptionnelle">Exceptionnelle</label><input class="form-control" type="number" step="any" id="seuilsCategoriePerformance.seuilExceptionnelle" name="seuilsCategoriePerformance.seuilExceptionnelle"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsCategoriePerformance.seuilElevee">Élevée</label><input class="form-control" type="number" step="any" id="seuilsCategoriePerformance.seuilElevee" name="seuilsCategoriePerformance.seuilElevee"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsCategoriePerformance.seuilSolide">Solide</label><input class="form-control" type="number" step="any" id="seuilsCategoriePerformance.seuilSolide" name="seuilsCategoriePerformance.seuilSolide"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsCategoriePerformance.seuilARenforcer">À renforcer</label><input class="form-control" type="number" step="any" id="seuilsCategoriePerformance.seuilARenforcer" name="seuilsCategoriePerformance.seuilARenforcer"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Talents et hauts potentiels -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-star"></i> Détection des talents</div>
-                        <div class="card-body row g-2">
-                            <div class="col-sm-6"><label class="form-label" for="seuilsTalent.seuilPerformance">Talent : performance minimum</label><input class="form-control" type="number" step="any" id="seuilsTalent.seuilPerformance" name="seuilsTalent.seuilPerformance"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsTalent.seuilPotentiel">Talent : potentiel minimum</label><input class="form-control" type="number" step="any" id="seuilsTalent.seuilPotentiel" name="seuilsTalent.seuilPotentiel"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsTalent.seuilHautPotentielPotentiel">Haut potentiel : potentiel minimum</label><input class="form-control" type="number" step="any" id="seuilsTalent.seuilHautPotentielPotentiel" name="seuilsTalent.seuilHautPotentielPotentiel"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsTalent.seuilHautPotentielPerformance">Haut potentiel : performance minimum</label><input class="form-control" type="number" step="any" id="seuilsTalent.seuilHautPotentielPerformance" name="seuilsTalent.seuilHautPotentielPerformance"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Competences, readiness, couverture -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-hourglass-split"></i> Compétences, readiness et couverture</div>
-                        <div class="card-body row g-2">
-                            <div class="col-sm-6"><label class="form-label" for="seuilsGapCompetence.seuilPrioritaire">Gap de compétence prioritaire à partir de (niveaux)</label><input class="form-control" type="number" step="1" id="seuilsGapCompetence.seuilPrioritaire" name="seuilsGapCompetence.seuilPrioritaire"></div>
-                            <div class="col-sm-6"><label class="form-label" for="seuilsCouverture.nbMinSuccesseurs">Poste critique en alerte sous (successeurs)</label><input class="form-control" type="number" step="1" id="seuilsCouverture.nbMinSuccesseurs" name="seuilsCouverture.nbMinSuccesseurs"></div>
-                            <p class="small text-muted mb-1 mt-3">Readiness : score de matching minimum ; en dessous du dernier, plus de 2 ans.</p>
-                            <div class="col-sm-4"><label class="form-label" for="seuilsReadiness.seuilReadyNow">Prêt maintenant</label><input class="form-control" type="number" step="any" id="seuilsReadiness.seuilReadyNow" name="seuilsReadiness.seuilReadyNow"></div>
-                            <div class="col-sm-4"><label class="form-label" for="seuilsReadiness.seuilMoins1An">Moins d'un an</label><input class="form-control" type="number" step="any" id="seuilsReadiness.seuilMoins1An" name="seuilsReadiness.seuilMoins1An"></div>
-                            <div class="col-sm-4"><label class="form-label" for="seuilsReadiness.seuilEntre1Et2Ans">Entre 1 et 2 ans</label><input class="form-control" type="number" step="any" id="seuilsReadiness.seuilEntre1Et2Ans" name="seuilsReadiness.seuilEntre1Et2Ans"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Vigilance -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header"><i class="bi bi-exclamation-triangle"></i> Vigilance (risque de départ)</div>
-                        <div class="card-body row g-2">
-                            <p class="small text-muted mb-1">Points ajoutés à l'indice pour chaque signal.</p>
-                            <div class="col-sm-6"><label class="form-label" for="pointsVigilance.pointEngagementFaible">Engagement faible</label><input class="form-control" type="number" step="any" id="pointsVigilance.pointEngagementFaible" name="pointsVigilance.pointEngagementFaible"></div>
-                            <div class="col-sm-6"><label class="form-label" for="pointsVigilance.pointSansMobilite4Ans">Sans mobilité depuis 4 ans</label><input class="form-control" type="number" step="any" id="pointsVigilance.pointSansMobilite4Ans" name="pointsVigilance.pointSansMobilite4Ans"></div>
-                            <div class="col-sm-6"><label class="form-label" for="pointsVigilance.pointMobiliteNonTraitee">Demande de mobilité non traitée</label><input class="form-control" type="number" step="any" id="pointsVigilance.pointMobiliteNonTraitee" name="pointsVigilance.pointMobiliteNonTraitee"></div>
-                            <div class="col-sm-6"><label class="form-label" for="pointsVigilance.pointSansDeveloppementRecent">Pas de développement récent</label><input class="form-control" type="number" step="any" id="pointsVigilance.pointSansDeveloppementRecent" name="pointsVigilance.pointSansDeveloppementRecent"></div>
-                            <div class="col-sm-6"><label class="form-label" for="pointsVigilance.pointBaissePerformance">Baisse de performance</label><input class="form-control" type="number" step="any" id="pointsVigilance.pointBaissePerformance" name="pointsVigilance.pointBaissePerformance"></div>
-                            <div class="col-sm-6"><label class="form-label" for="pointsVigilance.pointFaibleReconnaissance">Faible reconnaissance</label><input class="form-control" type="number" step="any" id="pointsVigilance.pointFaibleReconnaissance" name="pointsVigilance.pointFaibleReconnaissance"></div>
-                            <div class="col-sm-6"><label class="form-label" for="pointsVigilance.pointFormationNonFaite">Formation non faite</label><input class="form-control" type="number" step="any" id="pointsVigilance.pointFormationNonFaite" name="pointsVigilance.pointFormationNonFaite"></div>
-                            <p class="small text-muted mb-1 mt-3">Classement de l'indice et seuil d'engagement.</p>
-                            <div class="col-sm-4"><label class="form-label" for="seuilsVigilance.seuilModere">Modérée à partir de</label><input class="form-control" type="number" step="any" id="seuilsVigilance.seuilModere" name="seuilsVigilance.seuilModere"></div>
-                            <div class="col-sm-4"><label class="form-label" for="seuilsVigilance.seuilEleve">Élevée à partir de</label><input class="form-control" type="number" step="any" id="seuilsVigilance.seuilEleve" name="seuilsVigilance.seuilEleve"></div>
-                            <div class="col-sm-4"><label class="form-label" for="seuilsVigilance.seuilEngagementFaible">Engagement faible sous</label><input class="form-control" type="number" step="any" id="seuilsVigilance.seuilEngagementFaible" name="seuilsVigilance.seuilEngagementFaible"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-flex justify-content-end my-3">
-                <button type="submit" id="bouton-enregistrer" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Enregistrer et recalculer
-                </button>
-            </div>
-        </form>
-    </main>
-
+            </form>
+        </section>
+    </div>
 </div>
 
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 <script th:if="${trimestre != null}" th:inline="javascript">
     // Lecture et ecriture via l'API (docs/requetes-ecriture.md). Aucune regle metier ici :
     // le script recopie les valeurs entre le formulaire et le JSON, l'API valide et calcule.
@@ -224,20 +154,30 @@
 
     /** Affiche un message (texte seulement, jamais de HTML venu du serveur) et une liste facultative. */
     function afficher(type, texte, lignes) {
+        // Lignes .alert du prototype : danger -> crit, warning -> warn, success / secondary -> info.
+        const classe = { danger: 'crit', warning: 'warn', success: 'info', secondary: 'info' }[type] || 'info';
+        const gravite = { crit: 'ERREUR', warn: 'ATTENTION', info: 'INFO' }[classe];
         zoneMessage.replaceChildren();
         const alerte = document.createElement('div');
-        alerte.className = 'alert alert-' + type;
-        alerte.textContent = texte;
+        alerte.className = 'alert ' + classe;
+        const sev = document.createElement('div');
+        sev.className = 'sev';
+        sev.textContent = gravite;
+        const txt = document.createElement('div');
+        txt.className = 'txt';
+        txt.textContent = texte;
         if (lignes && lignes.length) {
             const liste = document.createElement('ul');
-            liste.className = 'mb-0 mt-2';
+            liste.style.margin = '6px 0 0';
             lignes.forEach(function (ligne) {
                 const item = document.createElement('li');
                 item.textContent = ligne;
                 liste.appendChild(item);
             });
-            alerte.appendChild(liste);
+            txt.appendChild(liste);
         }
+        alerte.appendChild(sev);
+        alerte.appendChild(txt);
         zoneMessage.appendChild(alerte);
     }
 

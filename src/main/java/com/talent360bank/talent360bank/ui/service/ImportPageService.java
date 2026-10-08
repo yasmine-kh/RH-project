@@ -6,12 +6,14 @@ import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RecalculEnCoursException;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.CampagneService;
+import com.talent360bank.talent360bank.service.ImportQuestionnaireService;
 import com.talent360bank.talent360bank.service.ImportService;
 import com.talent360bank.talent360bank.service.TrimestreService;
 import com.talent360bank.talent360bank.service.VerrouCalculTrimestre;
 import com.talent360bank.talent360bank.service.resultat.ResultatCalculTrimestre;
 import com.talent360bank.talent360bank.service.resultat.ResultatCampagne;
 import com.talent360bank.talent360bank.service.resultat.ResultatImport;
+import com.talent360bank.talent360bank.service.resultat.ResultatImportQuestionnaire;
 import com.talent360bank.talent360bank.service.resultat.ResultatRecalcul;
 import com.talent360bank.talent360bank.ui.model.ImportPageView;
 import com.talent360bank.talent360bank.ui.model.ImportPageView.Calcul;
@@ -23,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -62,11 +66,16 @@ public class ImportPageService {
     private final TrimestreService trimestreService;
     private final TrimestreRepository trimestreRepository;
     private final VerrouCalculTrimestre verrou;
+    private final ImportQuestionnaireService importQuestionnaireService;
+    private final TrimestreCourantService trimestreCourant;
     private final DataSize tailleMax;
 
     public ImportPageService(CampagneService campagneService, ImportService importService,
                              TrimestreService trimestreService, TrimestreRepository trimestreRepository,
-                             VerrouCalculTrimestre verrou, MultipartProperties multipart) {
+                             VerrouCalculTrimestre verrou, ImportQuestionnaireService importQuestionnaireService,
+                             TrimestreCourantService trimestreCourant, MultipartProperties multipart) {
+        this.importQuestionnaireService = importQuestionnaireService;
+        this.trimestreCourant = trimestreCourant;
         this.campagneService = campagneService;
         this.importService = importService;
         this.trimestreService = trimestreService;
@@ -166,6 +175,49 @@ public class ImportPageService {
                 && campagne.importation().statut() == StatutImport.ECHEC
                 && trimestreRepository.findByNumeroAndAnnee(numero, annee).isPresent();
         return vue(formulaire, rapport(campagne, dateReference, trimestreVide), null);
+    }
+
+    /**
+     * Envoi du formulaire "Reponses au questionnaire d'engagement".
+     *
+     * @param rapport  bilan de l'import, null si l'envoi a ete refuse avant
+     * @param erreur   envoi refuse (pas de fichier, pas un .xlsx, trimestre inconnu), null sinon
+     */
+    public record EnvoiQuestionnaire(ResultatImportQuestionnaire rapport, String erreur) {
+    }
+
+    /**
+     * Import des reponses brutes au questionnaire ({@link ImportQuestionnaireService})
+     * pour un trimestre deja ouvert : les collaborateurs doivent exister. Rien d'autre
+     * n'est modifie (ni le score d'engagement, ni les calculs).
+     *
+     * @param trimestre "AAAA-N" choisi dans la liste des trimestres
+     */
+    public EnvoiQuestionnaire importerQuestionnaire(MultipartFile fichier, String trimestre) {
+        if (fichier == null || fichier.isEmpty()) {
+            return new EnvoiQuestionnaire(null, "Choisir le fichier de réponses à importer (fichier .xlsx).");
+        }
+        String nom = fichier.getOriginalFilename() == null ? "" : fichier.getOriginalFilename();
+        if (!nom.toLowerCase(Locale.ROOT).endsWith(EXTENSION)) {
+            return new EnvoiQuestionnaire(null, "Seuls les classeurs Excel .xlsx sont acceptés : « " + nom
+                    + " » n'a pas été importé.");
+        }
+        if (tailleMax.toBytes() >= 0 && fichier.getSize() > tailleMax.toBytes()) {
+            return new EnvoiQuestionnaire(null, messageTailleMax());
+        }
+        Optional<Trimestre> choisi = trimestreCourant.lister().stream()
+                .filter(option -> option.valeur().equals(trimestre == null ? "" : trimestre.trim()))
+                .findFirst()
+                .flatMap(option -> trimestreRepository.findByNumeroAndAnnee(option.numero(), option.annee()));
+        if (choisi.isEmpty()) {
+            return new EnvoiQuestionnaire(null, "Choisir un trimestre déjà importé : les réponses sont rattachées "
+                    + "aux collaborateurs du classeur.");
+        }
+        try (InputStream contenu = fichier.getInputStream()) {
+            return new EnvoiQuestionnaire(importQuestionnaireService.importer(contenu, nom, choisi.get()), null);
+        } catch (IOException e) {
+            return new EnvoiQuestionnaire(null, "Fichier illisible : rien n'a été importé.");
+        }
     }
 
     public String messageTailleMax() {

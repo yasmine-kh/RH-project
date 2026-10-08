@@ -1,111 +1,80 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <body>
 
 <!--
-  Bilan d'un import (ImportPageView.Rapport). Fragment a part pour que
+  Bilan d'un import (ImportPageView.Rapport), classes du prototype. Fragment a part pour que
   l'import d'un dossier puisse en afficher un par fichier.
   th:text partout, jamais th:utext : noms de feuilles, motifs et messages
   reprennent le contenu du fichier envoye.
 -->
-<section th:fragment="rapport(r)" class="card shadow-sm mt-4" id="rapport">
-    <div class="card-header bg-white d-flex flex-wrap gap-2 align-items-center">
-        <h2 class="h6 mb-0">Bilan de l'import</h2>
-        <span class="badge" th:classappend="${r.statutBadge()}" th:text="${r.statut}">SUCCES</span>
-        <span class="badge text-bg-secondary" th:if="${r.simulation}">Simulation : rien n'a été enregistré</span>
-        <span class="small text-muted ms-auto" th:text="|${r.nomFichier} - ${r.trimestreLibelle}|">classeur.xlsx - T3 2026</span>
+<div th:fragment="rapport(r)" class="panel" id="rapport">
+    <div class="panel-head"><h3>Bilan de l'import</h3>
+        <span><span class="statut-tag" th:text="${r.statut}">SUCCES</span>
+            <span class="statut-tag" th:if="${r.simulation}">Simulation : rien n'a été enregistré</span>
+            <span class="hint" th:text="|${r.nomFichier} - ${r.trimestreLibelle}|">classeur.xlsx - T3 2026</span></span>
     </div>
-    <div class="card-body">
+    <div class="panel-body">
+        <div class="alert crit" th:if="${r.message != null}"><div class="sev">ERREUR</div><div class="txt" th:text="${r.message}">Cause de l'échec</div></div>
+        <div class="alert warn" th:if="${r.trimestreVide}"><div class="sev">ATTENTION</div>
+            <div class="txt" th:text="|Le trimestre ${r.trimestreLibelle} a été ouvert par cet import mais ne contient aucune donnée. Les écrans continuent d'afficher le dernier trimestre calculé ; corriger le fichier et réimporter.|">
+            Trimestre ouvert mais vide</div></div>
 
-        <div class="alert alert-danger" th:if="${r.message != null}" th:text="${r.message}">Cause de l'échec</div>
-        <div class="alert alert-warning" th:if="${r.trimestreVide}"
-             th:text="|Le trimestre ${r.trimestreLibelle} a été ouvert par cet import mais ne contient aucune donnée. Les écrans continuent d'afficher le dernier trimestre calculé ; corriger le fichier et réimporter.|">
-            Trimestre ouvert mais vide</div>
-
-        <p class="mb-3">
-            <strong th:text="${r.nbLignes}">0</strong> ligne(s) importée(s),
-            <strong th:text="${r.nbErreurs}">0</strong> ligne(s) ou feuille(s) signalée(s).
-            <span th:if="${r.dateReference != null}"
-                  th:text="|Date de référence du trimestre : ${#temporals.format(r.dateReference, 'dd/MM/yyyy')}.|">Date</span>
-        </p>
-
-        <div class="table-responsive" th:if="${not #lists.isEmpty(r.feuilles)}">
-            <table class="table table-sm align-middle">
-                <thead>
-                <tr>
-                    <th>Feuille</th>
-                    <th class="text-end">Lignes importées</th>
-                    <th class="text-end">Signalées</th>
-                    <th class="text-end">Retirées</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="feuille : ${r.feuilles}">
-                    <td>
-                        <span th:text="${feuille.feuille}">01_COLLABORATEURS</span>
-                        <span class="badge text-bg-danger" th:unless="${feuille.presente}">absente</span>
-                    </td>
-                    <td class="text-end" th:text="${feuille.nbLignes}">100</td>
-                    <td class="text-end" th:text="${feuille.nbErreurs}">0</td>
-                    <td class="text-end" th:text="${feuille.nbRetirees}">0</td>
-                </tr>
-                </tbody>
-            </table>
+        <div class="stat-block">
+            <div class="stat"><div class="n" th:text="${r.nbLignes}">0</div><div class="l">ligne(s) importée(s)</div></div>
+            <div class="stat"><div class="n" th:text="${r.nbErreurs}">0</div><div class="l">ligne(s) ou feuille(s) signalée(s)</div></div>
+            <div class="stat" th:if="${r.dateReference != null}"><div class="n" th:text="${#temporals.format(r.dateReference, 'dd/MM/yyyy')}">15/09/2026</div>
+                <div class="l">Date de référence du trimestre</div></div>
         </div>
 
-        <div th:if="${not #lists.isEmpty(r.erreurs)}">
-            <h3 class="h6 mt-3">Lignes et feuilles écartées</h3>
-            <div class="table-responsive">
-                <table class="table table-sm table-striped" id="erreurs-import">
-                    <thead>
-                    <tr>
-                        <th>Feuille</th>
-                        <th>Ligne Excel</th>
-                        <th>Motif</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="erreur : ${r.erreurs}">
-                        <td th:text="${erreur.feuille}">02_PERFORMANCE</td>
-                        <td th:text="${erreur.ligne} ?: 'toute la feuille'">12</td>
-                        <td th:text="${erreur.message}">colonne D : doit être inférieur ou égal à 100</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
+        <table th:if="${not #lists.isEmpty(r.feuilles)}">
+            <thead><tr><th>Feuille</th><th>Lignes importées</th><th>Signalées</th><th>Retirées</th></tr></thead>
+            <tbody><tr th:each="feuille : ${r.feuilles}">
+                <td><span class="mono" th:text="${feuille.feuille}">01_COLLABORATEURS</span>
+                    <span class="badge" style="background:var(--rust-light); color:var(--rust);" th:unless="${feuille.presente}">absente</span></td>
+                <td class="mono" th:text="${feuille.nbLignes}">100</td>
+                <td class="mono" th:text="${feuille.nbErreurs}">0</td>
+                <td class="mono" th:text="${feuille.nbRetirees}">0</td>
+            </tr></tbody></table>
+
+        <div th:if="${not #lists.isEmpty(r.erreurs)}" style="margin-top:16px;">
+            <h4 style="font-size:14px; margin-bottom:8px;">Lignes et feuilles écartées</h4>
+            <table id="erreurs-import">
+                <thead><tr><th>Feuille</th><th>Ligne Excel</th><th>Motif</th></tr></thead>
+                <tbody><tr th:each="erreur : ${r.erreurs}">
+                    <td class="mono" th:text="${erreur.feuille}">02_PERFORMANCE</td>
+                    <td class="mono" th:text="${erreur.ligne} ?: 'toute la feuille'">12</td>
+                    <td th:text="${erreur.message}">colonne D : doit être inférieur ou égal à 100</td>
+                </tr></tbody></table>
         </div>
 
-        <details class="mt-3" th:if="${not #lists.isEmpty(r.desactives)}">
+        <details style="margin-top:14px; font-size:12.8px;" th:if="${not #lists.isEmpty(r.desactives)}">
             <summary th:text="|${#lists.size(r.desactives)} collaborateur(s) ${r.simulation ? 'seraient passés' : 'passé(s)'} INACTIF (absents de 01_COLLABORATEURS)|">
                 Désactivations</summary>
-            <p class="small mt-2" th:text="${#strings.listJoin(r.desactives, ', ')}">BP001, BP002</p>
+            <p class="mono" style="font-size:12px;" th:text="${#strings.listJoin(r.desactives, ', ')}">BP001, BP002</p>
         </details>
-        <details class="mt-2" th:if="${not #lists.isEmpty(r.reactives)}">
+        <details style="margin-top:8px; font-size:12.8px;" th:if="${not #lists.isEmpty(r.reactives)}">
             <summary th:text="|${#lists.size(r.reactives)} collaborateur(s) remis ACTIF|">Réactivations</summary>
-            <p class="small mt-2" th:text="${#strings.listJoin(r.reactives, ', ')}">BP003</p>
+            <p class="mono" style="font-size:12px;" th:text="${#strings.listJoin(r.reactives, ', ')}">BP003</p>
         </details>
 
-        <div class="mt-3" th:if="${r.calcul != null}" id="calcul">
-            <h3 class="h6">Calcul du trimestre</h3>
-            <ul class="mb-2">
-                <li th:text="|${r.calcul.scores} score(s) calculé(s)${r.calcul.scoresIgnores > 0 ? ', ' + r.calcul.scoresIgnores + ' collaborateur(s) ignoré(s)' : ''}|">100 scores</li>
-                <li th:text="|${r.calcul.placements} placement(s) 9-Box${r.calcul.placementsIgnores > 0 ? ', ' + r.calcul.placementsIgnores + ' non placé(s)' : ''}|">100 placements</li>
-                <li th:text="|${r.calcul.vivierReleve} membre(s) du vivier de relève|">30 membres</li>
-            </ul>
-            <details th:if="${not #lists.isEmpty(r.calcul.ignores)}">
+        <div style="margin-top:16px;" th:if="${r.calcul != null}" id="calcul">
+            <h4 style="font-size:14px; margin-bottom:8px;">Calcul du trimestre</h4>
+            <div class="plan-action" th:text="|${r.calcul.scores} score(s) calculé(s)${r.calcul.scoresIgnores > 0 ? ', ' + r.calcul.scoresIgnores + ' collaborateur(s) ignoré(s)' : ''}|">100 scores</div>
+            <div class="plan-action" th:text="|${r.calcul.placements} placement(s) 9-Box${r.calcul.placementsIgnores > 0 ? ', ' + r.calcul.placementsIgnores + ' non placé(s)' : ''}|">100 placements</div>
+            <div class="plan-action" th:text="|${r.calcul.vivierReleve} membre(s) du vivier de relève|">30 membres</div>
+            <details style="margin-top:8px; font-size:12.8px;" th:if="${not #lists.isEmpty(r.calcul.ignores)}">
                 <summary>Collaborateurs ignorés au calcul des scores</summary>
-                <ul class="small mt-2">
-                    <li th:each="ignore : ${r.calcul.ignores}" th:text="${ignore}">BP001 : notes manquantes</li>
-                </ul>
+                <ul style="font-size:12px;"><li th:each="ignore : ${r.calcul.ignores}" th:text="${ignore}">BP001 : notes manquantes</li></ul>
             </details>
         </div>
-        <div class="alert alert-warning mt-3" th:if="${r.erreurCalcul != null}" th:text="${r.erreurCalcul}">
-            Import enregistré, mais le calcul a échoué</div>
+        <div class="alert warn" style="margin-top:12px;" th:if="${r.erreurCalcul != null}"><div class="sev">ATTENTION</div>
+            <div class="txt" th:text="${r.erreurCalcul}">Import enregistré, mais le calcul a échoué</div></div>
 
-        <a class="btn btn-success mt-3" th:if="${r.lienTableauDeBord != null}" th:href="${r.lienTableauDeBord}"
+        <a class="btn" style="display:inline-block; margin-top:12px; text-decoration:none;" th:if="${r.lienTableauDeBord != null}" th:href="${r.lienTableauDeBord}"
            th:text="|Voir le tableau de bord ${r.trimestreLibelle}|">Voir le tableau de bord</a>
     </div>
-</section>
+</div>
 
 </body>
 </html>

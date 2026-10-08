@@ -1,100 +1,103 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Talent 360 Bank - 9-Box</title>
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
-    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>BP TALENT 360 — Matrice 9-Box</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
-<body>
-<script th:src="@{/vendor/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<body class="impression-9box">
 
-<div class="app-layout">
+<!--
+  Matrice 9-Box : balisage de renderBox9View() du prototype. Un clic sur une case ouvre la modale du
+  prototype (prototype.js) et le panneau de detail a cote (neufbox.js : recherche et tri). Sans
+  JavaScript, chaque case recharge la page sur ?case=N#detail. Seuils : ceux du trimestre (API parametre).
+  Imprimer (neufbox.js, window.print) : seule la liste de la case ouverte, recherche et tri appliques,
+  avec le trimestre et la date en tete ; le reste est masque par @media print (app.css, .impression-9box).
+-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('9box')}"></aside>
 
-    <div th:replace="~{fragments/sidebar :: sidebar('9box')}"></div>
+    <div id="main">
+        <th:block th:with="sous=${trimestre != null} ? 'Positionnement Performance × Potentiel — ' + ${trimestre.libelle} : 'Positionnement Performance × Potentiel'">
+            <div th:replace="~{fragments/prototype :: topbar('Matrice 9-Box', ${sous})}"></div>
+        </th:block>
 
-    <main class="main-content">
-        <header class="page-header">
-            <h1>Matrice 9-Box</h1>
-            <p class="text-muted" th:if="${trimestre != null}"
-               th:text="|Performance x Potentiel - ${trimestre.libelle}|">Performance x Potentiel</p>
-        </header>
+        <section class="view active" id="view-box9">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
 
-        <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/commun :: aucunTrimestre}"></div></th:block>
+            <th:block th:if="${trimestre != null}">
+                <form method="get" action="/9box" class="filters">
+                    <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
+                    <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+                </form>
 
-        <form method="get" action="/9box" class="filtre-bar" th:if="${trimestre != null}">
-            <div th:replace="~{fragments/commun :: choixTrimestre}"></div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Afficher</button>
-        </form>
+                <div class="grid-2">
+                    <div class="panel" id="panneau-matrice"><div class="panel-head"><h3>Positionnement Performance × Potentiel</h3><span class="hint">cliquer une case pour la liste</span></div>
+                        <div class="panel-body" id="box9-full-holder">
+                            <div th:replace="~{fragments/box9 :: grille(${matrice}, ${trimestre.valeur}, null)}"></div>
+                            <p style="color:var(--muted); font-size:12px; margin:12px 0 0;"
+                               th:text="|Total : ${matrice.total} collaborateur(s) placé(s)| + (${matrice.nbNonPlaces} > 0 ? |, ${matrice.nbNonPlaces} non placé(s)| : '')">Total : 100</p>
+                        </div></div>
 
-        <div class="row g-4 mt-1" th:if="${trimestre != null}">
-            <!-- La matrice (cases sans noms) ; une case ouvre son detail a droite. -->
-            <section class="col-lg-7">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <div th:replace="~{fragments/matrice9box :: matrice(${matrice})}"></div>
-                    </div>
-                </div>
-            </section>
-
-            <!--
-              Panneau de detail : un panneau par case, seul celui de la case ouverte est visible.
-              Sans JavaScript, chaque case recharge la page sur ?case=N#detail ; neufbox.js bascule
-              le panneau sur place, filtre et trie avec les donnees deja dans la page.
-            -->
-            <section class="col-lg-5" id="detail">
-                <div class="card shadow-sm h-100 neufbox-detail">
-                    <div class="card-body">
+                    <!-- Detail : un panneau par case, seul celui de la case ouverte est visible. -->
+                    <div id="detail">
+                        <!-- En-tete de l'impression seulement (masque a l'ecran). -->
+                        <div class="impression-seule impression-entete">
+                            <div class="impression-titre">BP TALENT 360 — Matrice 9-Box</div>
+                            <div th:text="|${trimestre.libelle} · imprimé le ${#temporals.format(#temporals.createToday(), 'dd/MM/yyyy')}|">T3 2026 · imprimé le 08/10/2026</div>
+                            <div class="neufbox-criteres" th:text="|Recherche : ${recherche != null ? '« ' + recherche + ' »' : 'aucune'} · Tri : ${tri == 'PERFORMANCE' ? 'Performance' : (tri == 'POTENTIEL' ? 'Potentiel' : 'Nom')}|">Recherche : aucune · Tri : Nom</div>
+                        </div>
                         <div th:each="c : ${matrice.cases}" class="neufbox-panneau"
                              th:attr="data-case=${c.numero}" th:hidden="${c.numero != matrice.caseSelectionnee}">
-                            <p class="text-muted small mb-1" th:text="|Case ${c.numero}|">Case 9</p>
-                            <h2 class="h5 mb-1" th:text="${c.libelle}">Talent cle</h2>
-                            <p class="text-muted small mb-2" th:text="${c.sens}">Performance elevee et potentiel eleve.</p>
-                            <p class="mb-3"><span class="fs-4 fw-bold" th:text="${c.nombre}">10</span>
-                                <span class="text-muted" th:text="|collaborateur(s)| + (${c.pourcentage != null} ? | - ${c.pourcentage} %| : '')">collaborateurs - 10 %</span></p>
-
-                            <form method="get" action="/9box" class="neufbox-outils d-flex flex-wrap gap-2 mb-2">
-                                <input type="hidden" name="trimestre" th:value="${trimestre.valeur}">
-                                <input type="hidden" name="case" th:value="${c.numero}">
-                                <input type="search" name="q" class="form-control form-control-sm neufbox-recherche"
-                                       placeholder="Nom, matricule ou entité" th:value="${recherche}"
-                                       th:attr="aria-label=|Rechercher dans ${c.libelle}|">
-                                <select name="tri" class="form-select form-select-sm neufbox-tri" aria-label="Trier">
-                                    <option value="NOM" th:selected="${tri == 'NOM'}">Nom</option>
-                                    <option value="PERFORMANCE" th:selected="${tri == 'PERFORMANCE'}">Performance</option>
-                                    <option value="POTENTIEL" th:selected="${tri == 'POTENTIEL'}">Potentiel</option>
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-outline-primary">OK</button>
-                            </form>
-
-                            <p class="text-muted small" th:if="${#lists.isEmpty(panneaux[c.numero])}"
-                               th:text="${c.nombre == 0} ? 'Aucun collaborateur dans cette case.' : 'Aucun collaborateur pour cette recherche.'">Aucun</p>
-                            <div class="table-responsive" th:if="${not #lists.isEmpty(panneaux[c.numero])}">
-                                <table class="table table-sm align-middle mb-0">
-                                    <thead><tr><th>Collaborateur</th><th>Entité</th>
-                                        <th class="text-end">Perf.</th><th class="text-end">Pot.</th></tr></thead>
+                            <div class="panel"><div class="panel-head"><h3><th:block th:replace="~{fragments/box9 :: case9(${c.numero}, ${c.libelle})}"></th:block></h3>
+                                <span class="hint" th:text="|${c.nombre} collaborateur(s)| + (${c.pourcentage != null} ? | — ${c.pourcentage} %| : '')">10 collaborateur(s)</span></div>
+                            <div class="panel-body">
+                                <p style="color:var(--muted); font-size:12px; margin:0 0 12px;" th:text="${c.sens}">Performance elevee et potentiel eleve.</p>
+                                <form method="get" action="/9box" class="filters">
+                                    <input type="hidden" name="trimestre" th:value="${trimestre.valeur}">
+                                    <input type="hidden" name="case" th:value="${c.numero}">
+                                    <input type="search" name="q" class="neufbox-recherche" placeholder="Nom, matricule ou entité"
+                                           th:value="${recherche}" th:attr="aria-label=|Rechercher dans ${c.libelle}|">
+                                    <select name="tri" class="neufbox-tri" aria-label="Trier">
+                                        <option value="NOM" th:selected="${tri == 'NOM'}">Nom</option>
+                                        <option value="PERFORMANCE" th:selected="${tri == 'PERFORMANCE'}">Performance</option>
+                                        <option value="POTENTIEL" th:selected="${tri == 'POTENTIEL'}">Potentiel</option>
+                                    </select>
+                                    <button type="submit" class="btn ghost">OK</button>
+                                    <button type="button" class="btn ghost neufbox-imprimer" title="Imprimer la liste de cette case"
+                                            th:attr="aria-label=|Imprimer la liste ${c.libelle}|">🖨 Imprimer</button>
+                                </form>
+                                <div class="empty-state" th:if="${#lists.isEmpty(panneaux[c.numero])}"
+                                     th:text="${c.nombre == 0} ? 'Aucun collaborateur dans cette case.' : 'Aucun collaborateur pour cette recherche.'">Aucun</div>
+                                <table th:if="${not #lists.isEmpty(panneaux[c.numero])}">
+                                    <thead><tr><th>Matricule</th><th>Nom</th><th>Entité</th><th>Perf.</th><th>Potentiel</th></tr></thead>
                                     <tbody>
                                     <tr th:each="membre : ${panneaux[c.numero]}" class="neufbox-ligne"
-                                        th:attr="data-nom=${membre.nomComplet},data-recherche=|${membre.nomComplet} ${membre.matricule} ${membre.entite}|,data-performance=${membre.performance},data-potentiel=${membre.potentiel}">
-                                        <td><a th:href="${membre.lien}" th:text="${membre.nomComplet}">Prenom Nom</a>
-                                            <span class="text-muted small d-block" th:text="${membre.matricule}">BP001</span></td>
-                                        <td class="small" th:text="${membre.entite} ?: '-'">Agence</td>
-                                        <td class="text-end" th:text="${membre.performance} ?: '-'">90</td>
-                                        <td class="text-end" th:text="${membre.potentiel} ?: '-'">90</td>
+                                        th:attr="data-href=${membre.lien},data-nom=${membre.nomComplet},data-recherche=|${membre.nomComplet} ${membre.matricule} ${membre.entite}|,data-performance=${membre.performance},data-potentiel=${membre.potentiel}">
+                                        <td class="mono" th:text="${membre.matricule}">BP001</td>
+                                        <td><a th:href="${membre.lien}" th:text="${membre.nomComplet}">Prenom Nom</a></td>
+                                        <td th:text="${membre.entite} ?: '—'">Agence</td>
+                                        <td th:text="${membre.performance} ?: '—'">90</td>
+                                        <td th:text="${membre.potentiel} ?: '—'">90</td>
                                     </tr>
                                     </tbody>
                                 </table>
-                            </div>
+                            </div></div>
                         </div>
                     </div>
                 </div>
-            </section>
-        </div>
-    </main>
 
+                <div class="panel" id="panneau-seuils"><div class="panel-head"><h3>Seuils appliqués</h3></div><div class="panel-body">
+                    <div class="pill-row" th:attr="data-seuils=${trimestre.valeur}"></div>
+                    <p style="color:var(--muted); font-size:12px; margin-top:10px;">Les seuils sont ceux du trimestre, modifiables dans l'écran
+                        <a href="/parametres">Paramètres</a>.</p>
+                </div></div>
+            </th:block>
+        </section>
+    </div>
 </div>
 
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
 <script th:if="${trimestre != null}" th:src="@{/js/neufbox.js}" defer></script>
 </body>
 </html>

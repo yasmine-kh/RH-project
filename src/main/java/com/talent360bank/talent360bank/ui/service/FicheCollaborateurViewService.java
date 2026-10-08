@@ -100,6 +100,12 @@ import java.util.stream.Collectors;
 @Service
 public class FicheCollaborateurViewService {
 
+    /**
+     * Donnee manquante "pas de score d'engagement" : le Talent Passport (page) ne montre pas
+     * l'engagement et ecarte cette ligne ; l'API de la fiche la garde.
+     */
+    public static final String MANQUE_ENGAGEMENT = "Pas de questionnaire d'engagement pour ce trimestre";
+
     private final CollaborateurRepository collaborateurRepository;
     private final TrimestreRepository trimestreRepository;
     private final ParametreRepository parametreRepository;
@@ -525,7 +531,7 @@ public class FicheCollaborateurViewService {
                 .map(QuestionnaireEngagement::getScoreEngagement)
                 .orElse(null);
         if (score == null) {
-            d.manque("Pas de questionnaire d'engagement pour ce trimestre");
+            d.manque(MANQUE_ENGAGEMENT);
         }
         d.engagement = score;
         return score;

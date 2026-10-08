@@ -2,8 +2,9 @@
 // par rechargement (?case=N#detail, ?q=, ?tri=). Avec lui :
 //  - un clic sur une case ouvre son panneau de detail sur place (les 9 panneaux sont deja dans la page) ;
 //  - la recherche filtre et le tri reordonne les lignes du panneau ouvert, sans recharger.
+//  - "Imprimer" imprime la liste du panneau ouvert (window.print, styles @media print d'app.css).
 (function () {
-    var cases = document.querySelectorAll('.matrice9-case[data-case]');
+    var cases = document.querySelectorAll('.box9-cell[data-case]');
     var panneaux = document.querySelectorAll('.neufbox-panneau[data-case]');
     if (!cases.length || !panneaux.length) {
         return;
@@ -12,7 +13,7 @@
     function ouvrir(numero) {
         cases.forEach(function (c) {
             var choisie = c.getAttribute('data-case') === numero;
-            c.classList.toggle('matrice9-selectionnee', choisie);
+            c.classList.toggle('selectionnee', choisie);
             if (choisie) {
                 c.setAttribute('aria-current', 'true');
             } else {
@@ -86,5 +87,21 @@
             e.preventDefault();
             appliquer(panneau);
         });
+        // Imprimer : la liste de ce panneau telle qu'affichee (recherche et tri appliques) ;
+        // @media print (app.css) masque la sidebar, l'en-tete, la matrice et les boutons.
+        var imprimer = panneau.querySelector('.neufbox-imprimer');
+        if (imprimer) {
+            imprimer.addEventListener('click', function () {
+                appliquer(panneau);
+                var criteres = document.querySelector('.impression-entete .neufbox-criteres');
+                if (criteres) {
+                    var recherche = panneau.querySelector('.neufbox-recherche').value.trim();
+                    var tri = panneau.querySelector('.neufbox-tri');
+                    criteres.textContent = 'Recherche : ' + (recherche ? '« ' + recherche + ' »' : 'aucune')
+                        + ' · Tri : ' + tri.options[tri.selectedIndex].text;
+                }
+                window.print();
+            });
+        }
     });
 })();
