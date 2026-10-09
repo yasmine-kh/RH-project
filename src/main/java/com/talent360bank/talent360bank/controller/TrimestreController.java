@@ -34,12 +34,15 @@ public class TrimestreController {
     private final TrimestreRepository trimestreRepository;
     private final ParametreRepository parametreRepository;
     private final ChargeurRessources chargeur;
+    private final com.talent360bank.talent360bank.service.JournalService journalService;
 
     public TrimestreController(TrimestreService trimestreService,
                                CalculTrimestreService calculTrimestreService,
                                TrimestreRepository trimestreRepository,
                                ParametreRepository parametreRepository,
-                               ChargeurRessources chargeur) {
+                               ChargeurRessources chargeur,
+                               com.talent360bank.talent360bank.service.JournalService journalService) {
+        this.journalService = journalService;
         this.trimestreService = trimestreService;
         this.calculTrimestreService = calculTrimestreService;
         this.trimestreRepository = trimestreRepository;
@@ -85,6 +88,10 @@ public class TrimestreController {
                                       @Valid @RequestBody ModificationTrimestreForm form) {
         Trimestre trimestre = trimestreService.modifierDateReference(
                 chargeur.exigerTrimestre(annee, numero), form.dateReference());
+        journalService.parametres(trimestre, "Date de référence de T" + numero + " " + annee + " : "
+                + (trimestre.getDateReference() == null ? "aucune"
+                : trimestre.getDateReference().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                + ".", "/parametres?trimestre=" + annee + "-" + numero);
         return TrimestreResponse.de(trimestre, parametreRepository.existsByTrimestre(trimestre));
     }
 

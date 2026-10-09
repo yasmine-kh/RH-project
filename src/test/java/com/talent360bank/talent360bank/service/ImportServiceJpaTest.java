@@ -76,7 +76,7 @@ import static org.assertj.core.api.Assertions.tuple;
 @DataJpaTest
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @ImportAutoConfiguration(ValidationAutoConfiguration.class)
-@Import({ImportService.class, com.talent360bank.talent360bank.securite.UtilisateurCourant.class, ImportClasseurService.class, TrimestreService.class,
+@Import({ImportService.class, com.talent360bank.talent360bank.securite.UtilisateurCourant.class, com.talent360bank.talent360bank.service.JournalService.class, ImportClasseurService.class, TrimestreService.class,
         SuccesseursIdentifiesEnBase.class, ValidationsComiteEnBase.class, ViviersThematiquesEnBase.class,
         FaitsVigilanceEnBase.class})
 class ImportServiceJpaTest {
@@ -178,6 +178,8 @@ class ImportServiceJpaTest {
                                 + " and not exists (select f from Entite f where f.parent = e)")
                         .setParameter("niveau", niveau).executeUpdate();
             }
+            // Historique : chaque import du test y laisse un evenement rattache au trimestre.
+            entityManager.createQuery("delete from JournalEvenement e").executeUpdate();
             entityManager.createQuery("delete from Parametre p where p.trimestre in "
                     + "(select t from Trimestre t where t.annee = " + ANNEE + ")").executeUpdate();
             entityManager.createQuery("delete from Trimestre t where t.annee = " + ANNEE).executeUpdate();

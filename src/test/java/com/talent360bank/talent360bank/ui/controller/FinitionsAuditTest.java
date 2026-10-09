@@ -60,16 +60,30 @@ class FinitionsAuditTest {
         mockMvc.perform(get(url)).andExpect(status().isNotFound());
     }
 
+    /** Plus aucun ecran "en cours de developpement" : ni page, ni gabarit, ni script, ni code. */
     @Test
-    void les_pages_restant_a_construire_le_disent() throws Exception {
-        assertThat(page("/engagement")).contains("En cours de développement");
-        assertThat(page("/historique")).contains("En cours de développement");
+    void plus_rien_n_est_en_cours_de_developpement_dans_l_application() throws IOException {
+        List<String> trouves;
+        try (Stream<Path> fichiers = Files.walk(Path.of("src/main"))) {
+            trouves = fichiers.filter(Files::isRegularFile)
+                    .filter(f -> List.of(".html", ".js", ".java", ".properties").stream().anyMatch(f.toString()::endsWith))
+                    .filter(f -> {
+                        try {
+                            String texte = Files.readString(f).toLowerCase();
+                            return texte.contains("en cours de développement") || texte.contains("en cours de developpement");
+                        } catch (IOException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    }).map(Path::toString).toList();
+        }
+        assertThat(trouves).isEmpty();
+        assertThat(Path.of("src/main/resources/templates/placeholder.html")).doesNotExist();
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"/", "/collaborateurs", "/9box", "/viviers", "/postes-critiques", "/competences",
             "/alertes", "/notifications", "/campagne", "/managers", "/entites", "/import", "/parametres",
-            "/comite-talent"})
+            "/comite-talent", "/engagement", "/historique"})
     void aucune_autre_page_n_est_en_cours_de_developpement(String url) throws Exception {
         assertThat(page(url).toLowerCase()).doesNotContain("en cours de développement", "en cours de developpement");
     }

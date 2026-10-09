@@ -76,8 +76,9 @@ Sidebar order (RH): Tableau de bord RH, Campagne d'évaluation, Collaborateurs, 
 |---|---|---|
 | `/` | Working | **Interactive** home dashboard ([below](#home-dashboard)): the prototype's 10 cards, charts (9-Box, entité, vigilance, performance, potential, viviers, alert types) and lists (collaborateurs, alertes, viviers), cross-filtered by clicking, filters kept in the URL (`?case=9&entite=…`). Quarter selector |
 | `/dashboard-dg` | Redirect | **Removed**: merged into `/`. `DashboardController` redirects to `/` (keeping `?trimestre=`) so old links don't 404. The JSON API `GET /api/dashboard/dg`, `TableauDeBordDg` and `TableauDeBordDgViewService` are removed too (audit round 1, #24). |
-| `/carriere-mobilite` | Redirect | **Removed** from every menu (no data source); the route redirects to `/` for now (`PagesEnDeveloppementController`). |
-| `/engagement`, `/historique` | In development | Placeholder pages (`templates/placeholder.html`), the only pages with "En cours de développement" (checked by `ModulesPagesDatasetTest` and `FinitionsAuditTest`). |
+| `/carriere-mobilite` | Redirect | **Removed** from every menu (no data source); the route redirects to `/` for now (`PagesController`). |
+| `/engagement` | Working | **Engagement & Fidélisation** ([below](#engagement--fidélisation)): response rate, average engagement, respondents, eNPS (or "Non configuré"), results per dimension, per direction and per question (Excel order). Quarter selector. `EngagementController` → `EngagementViewService` → `templates/engagement.html` |
+| `/historique` | Working | **Historique** ([below](#historique)): every import, Comité decision, settings change and collaborateur add/delete, newest first, filters type / quarter / period / search, links to the page or the fiche. `HistoriqueController` → `HistoriqueViewService` → `templates/historique.html`. No page of the app says "en cours de développement" any more (`FinitionsAuditTest` scans `src/main`). |
 | `/mon-engagement`, `/auto-evaluation`, `/evaluation-manager` | Removed (404) | Only HR logs in, so no form for employees or managers: "Mon engagement" opens the fiche's imported questionnaire answers, the Vue manager shows the imported manager evaluations. |
 | `/collaborateurs` | Working | Employee list: filters (entité with subtree, 9-Box case, talent, pool, readiness, vigilance, name/matricule), sort by clicking the column headers (name, performance, potential, matching, vigilance), 20 rows per page; each name links to the fiche. `ListeCollaborateursViewService` → `templates/collaborateurs.html` |
 | `/9box` | Working | The matrix on the left (about 60 %), a **detail panel** on the right (below it on a phone). Cells show only case number + label, the count and the % (no names), all the same height; the whole cell is a link to `/9box?trimestre=…&case=N#detail` (works without JavaScript). The panel shows the case's label, a one-line meaning from the placement rule (`04_9BOX` has no description column), the count and its people (name → fiche, matricule, entité, performance, potential) with a search field (`q`) and a sort (`tri` = NOM / PERFORMANCE / POTENTIEL), and a **🖨 Imprimer** button next to the search field: it prints only the open case's list (label, count, table) with the current search and sort, under a print-only header with the quarter, the print date and the search / sort used (`.impression-entete`). `neufbox.js` applies the search/sort then calls `window.print()`; `@media print` in `app.css` (scoped by `body.impression-9box`) hides the sidebar, the top bar, the matrix, the thresholds panel, the forms and the buttons. No library. Talent clé (case 9) is open by default. `static/js/neufbox.js` (vanilla) switches the panel, filters and sorts in place with the 9 panels already in the page. Shared matrix fragment: calm cells, only Talent clé tinted, selected cell outlined. On `/`, the Vue manager and the Vue entité the same compact matrix links each cell to `/collaborateurs?case=N` with the page's filters (the Vue manager filters its own team table, `?case=N#equipe`). |
@@ -91,7 +92,7 @@ Sidebar order (RH): Tableau de bord RH, Campagne d'évaluation, Collaborateurs, 
 | `/managers`, `/managers/{matricule}` | Working | Choice page (managers with team size), then the **Vue manager**: manager, entité, team size and averages, the team's 9-Box (shared matrix, with names), team table (name → fiche, scores, case, talent / HP, readiness on the target post, vigilance), the team's alerts and missing evaluations. `ProfilsPagesController` → `ProfilsPagesService` (reuses `VueManagerViewService` as is, plus `PosteCibleService` for readiness) → `templates/vue-manager.html` |
 | `/entites`, `/entites?code=…` | Working | **Organigramme** (RH menu): one card per direction (name, headcount, talents, alerts of the quarter), click → its départements as a collapsible tree (`<details>`, headcount on the right, each line links to its Vue entité), name search on top; then the **Vue entité**: clickable breadcrumb up the hierarchy, child entités with their figures (clickable), subtree KPIs (talents link to the filtered list), 9-Box (shared matrix; a box opens `/collaborateurs?entite=…&case=N`), critical positions of the subtree, high-vigilance alerts, managers. The code is a **query parameter** because it contains `/`. `VueEntiteViewService` as is → `templates/vue-entite.html` |
 | `/import` | Working | Uploads the dataset workbook (.xlsx) for a quarter, with simulation, "calculate after import" and an optional reference date; sees the report (status, rows per sheet, rejected rows with sheet + Excel row + reason, deactivations, calculation result or error, link to the quarter's dashboard) and the last 20 imports. [Below](#import-page) |
-| `/parametres` | Placeholder | — (settings are editable through the API only; see [`requetes-ecriture.md`](requetes-ecriture.md)) |
+| `/parametres` | Working | Engine settings of the quarter (JavaScript form, saved through the API with the write header, see [`requetes-ecriture.md`](requetes-ecriture.md)); below it, the **questionnaire settings** (dimension of each question, eNPS question), a plain POST form ([below](#engagement--fidélisation)). |
 
 **Profile selector and per-profile menu** (top of the sidebar, `fragments/sidebar.html`, on every page). The "profiles" are views RH opens, not logins: one RH account, no role or security change. The chosen profile (RH, Collaborateur, Manager, Comité Talent) and the chosen person are kept in the **HTTP session** (`ui/model/ProfilActif`, attribute `profilActif`), written only by `GET /profil?profil=&cible=&trimestre=&retour=` (`ProfilsPagesController`; one lookup of the person when choosing, via `ProfilsService.profil`).
 
@@ -107,7 +108,7 @@ The sidebar then shows, under the selector, a banner "Vue : Manager — Nom Pré
 | RH (DRH / Talent Manager) | the full menu (no "02 Tableau de bord DG": merged into the RH dashboard): Accueil, Collaborateurs, Managers (`/managers`), Organigramme (`/entites`), 9-Box … Paramètres |
 | Collaborateur | Mon profil → his fiche · Mon engagement → the fiche's imported questionnaire answers (`/fiche-collaborateur?matricule=…#questionnaire`) · Notifications → `/alertes?q=<matricule>` (his alerts). No form and no self-evaluation page: only HR logs in. |
 | Manager | Campagne d'évaluation → Vue manager `#evaluations` (missing evaluations) · Collaborateurs → Vue manager `#equipe` · Matrice 9-Box → Vue manager `#neufbox` · Talent Passport → `/fiche-collaborateur` · Alertes → Vue manager `#alertes` · Notifications → `/notifications` |
-| Comité Talent / Direction | Comité Talent · Postes critiques & Succession · Historique (`/historique`, in development) |
+| Comité Talent / Direction | Comité Talent · Postes critiques & Succession · Historique (`/historique`) |
 
 `static/js/profil.js` (vanilla) submits as soon as a profile or a listed person is picked; without JavaScript the **Appliquer** button does the same (when the profile changes, the previous person sent along by the field is ignored). Options: `ProfilsService`, two queries per page (people, managers); the profile and its menu add none (`ProfilsMenuDatasetTest` compares the query counts of the same page under each profile).
 
@@ -235,6 +236,68 @@ pages; re-import through `/import` keeps app decisions and reports the disagreem
 workbook still decides), `ModulesPagesDatasetTest` and `FinitionsAuditTest` (no "en cours de développement" on
 `/comite-talent`).
 
+### Historique
+
+`/historique` lists `journal_evenement`, newest first, 50 per page (`HistoriqueViewService`; two queries plus the
+quarter list). Filters in the URL, all optional and combined: `type` (`TypeEvenement`, unknown = all),
+`trimestre` (`AAAA-N`; unknown → 404; events without a quarter are then excluded), `du` / `au` (dates, both
+inclusive; unreadable or reversed → a message, no error), `q` (description or matricule, case-insensitive). Each
+line links to the related page (fiche, `/postes-critiques#poste-…`, `/import`, `/parametres`) and its matricule to
+the fiche.
+
+**What writes an event** (`service/JournalService`, in the action's transaction, author = `UtilisateurCourant`):
+
+| Action | Where | Type | Example |
+|---|---|---|---|
+| Workbook or questionnaire import (every status, simulations excluded) | `ImportService.enregistrer`, `ImportQuestionnaireService.journaliser` | IMPORT | « Import du classeur « dataset.xlsx » (T3 2026) : Réussi — 2 541 ligne(s) » |
+| Comité decision on a talent, and each change | `DecisionsComiteService.deciderTalent` | DECISION_TALENT | « Comité Talent : Aïcha El Ouafi (BP035) — talent non retenu (Non) (avant : validé (Oui)) · « commentaire » » |
+| Comité decision on a succession, and each change | `DecisionsComiteService.deciderSuccession` | DECISION_SUCCESSION | « Comité Talent : succession … → Directeur régional (PST01) — Validé avec plan » |
+| Engine settings created or saved (with the recalculation outcome), reference date, questionnaire settings | `ParametreController`, `TrimestreController` PUT, `ConfigurationQuestionnaireService` | PARAMETRES | « Réglages du moteur modifiés pour T3 2026 ; trimestre recalculé (100 score(s)). » |
+| Collaborateur created / deleted through the API (delete = INACTIF) | `CollaborateurController` | COLLABORATEUR | « Collaborateur BP101 (…) supprimé par l'API : passé INACTIF, ses données sont conservées. » |
+
+**Backfill** (`service/JournalRattrapage`, at every start, idempotent): one event per `import_excel` row (dated at
+the import date, 00:00, with its user) and per dated decision in `validation_comite` / `validation_succession`, unless
+an event with the same `reference` already exists. So the page is filled on day one and a restart never duplicates.
+
+**Fiche** (`/fiche-collaborateur`, section "Historique", `HistoriqueCollaborateurViewService`): one line per quarter
+where the collaborateur has a stored score (performance and potential with their categories, stored 9-Box case,
+vigilance level of that quarter by the vigilance screen's rule, "—" without vigilance data or settings), newest
+first, the displayed quarter marked; "Un seul trimestre importé" when there is only one; then the journal events
+about this collaborateur, with a link to `/historique?q=<matricule>`. The fiche API (`historique`: previous quarters
+only) is unchanged.
+
+Tests: `HistoriqueIntegrationTest` (H2, test workbook: import and failed import, reference date, questionnaire
+settings, collaborateur add/delete, backfill without duplicates, every filter, the fiche section),
+`ComiteDecisionsDatasetTest` (decision and change events, with "avant : …"), `EngagementDatasetTest` (settings and
+questionnaire import events).
+
+### Engagement & Fidélisation
+
+`/engagement?trimestre=AAAA-N` (`EngagementController` → `ui/service/EngagementViewService` → `templates/engagement.html`,
+prototype `renderEngagementRH`). Four queries: actives, answers of the quarter, engagement scores, question settings.
+Nothing is guessed.
+
+- **Cards.** *Taux de réponse* = actives with at least one answer in `reponse_questionnaire` for the quarter / actives
+  (1 decimal). *Engagement moyen* = average of the imported engagement scores /100 (`12_VIGILANCE`) of the actives, as
+  on the dashboard. *Répondants*. *eNPS*: "Non configuré" until RH chooses the eNPS question.
+- **Per question**, in the file's column order (`ordre`): number of answers; the **nature** is read from the answers
+  (`EngagementViewService.nature`): all numeric (`4`, `3,5`) → *échelle* (average, 2 decimals, and distribution);
+  otherwise, at most 10 distinct values with at least one repeated → *choix* (distribution); otherwise *réponse libre*
+  (count and the list, each answer with its author's name linking to the fiche). Columns without any answer (form
+  branches, Q15–Q18 in the sample file) have no line.
+- **Per direction**: actives, respondents, response rate, average engagement; "Sans direction" last.
+- **Dimensions and eNPS** (only once configured). On `/parametres`, section *Questionnaire d'engagement*
+  (`POST /parametres/questionnaire`, CSRF form, fields `dimension[Q03]`… and `enps`): RH types a dimension per question
+  code (free text, existing ones suggested) and picks the eNPS question (radio, or none). Stored per code in
+  `configuration_question` (`ConfigurationQuestionnaireService`, journaled), valid for every quarter. Dimension
+  average = average of the numeric answers of its questions (the eNPS question excluded). eNPS = % promoters (9–10) −
+  % detractors (0–6), 1 decimal, over the integer answers from 0 to 10 (others counted as "hors échelle" and ignored).
+  The dimension is also copied into `reponse_questionnaire.theme`.
+
+Figures on the test file (BP001–BP003, `EngagementDatasetTest`): 3 respondents / 100 actives = 3.0 %; Q03 (2, 3, 2) →
+2.33, distribution 2 = 66.7 %; Direction → choix "Reseau Retail" × 3; Q14 → 3 free answers; with Q03 + Q04 =
+Management and Q05 = Reconnaissance: 2.67 and 2.33; eNPS on Q13 (6, 3, 2) = −100.
+
 ### Alerts
 
 `/alertes` (`AlertesController` → `ui/service/AlertesViewService` → `templates/alertes.html`). No alert table: the alerts are recomputed from the engine on each request, for the displayed quarter. `AlertesViewService.alertes(trimestre)` is also the source of the dashboard's alert list.
@@ -309,7 +372,7 @@ Before this change the app stored **only the engagement score** (one number per 
 
 - `service/ImportQuestionnaireService` reads the answers file (first sheet; header row = the first of the first 10 rows with a `Matricule` column; `Horodateur` = answer date; every other non-empty header column is a question, coded `Q01`, `Q02`… in column order, its text kept as written, only leading/trailing spaces removed) and stores each non-empty cell **as is** in `entity/ReponseQuestionnaire` (collaborateur, trimestre, `code_question`, `ordre`, `theme` (empty for now), `question` text, `reponse`, `date_reponse`; unique per collaborateur + trimestre + code). No score is computed, and the workbook import (score) is unchanged.
 - Rows without matricule or with an unknown matricule are rejected (listed in the report); two rows of the same matricule: the latest `Horodateur` wins. Re-importing replaces the answers of the file's employees for that quarter only.
-- **No themes.** The file has no section rows and no theme is guessed: `theme` stays empty. On the fiche the Thème column is hidden while every answer's theme is empty, and comes back on its own as soon as one has a theme (`ReponsesQuestionnaire.avecTheme()`).
+- **Themes.** The file has no section rows and no theme is guessed from it: `theme` is the **dimension** RH sets for that question code on `/parametres` (`configuration_question`), copied at import and updated when the setting is saved; empty otherwise. On the fiche the Thème column is hidden while every answer's theme is empty, and comes back on its own as soon as one has a theme (`ReponsesQuestionnaire.avecTheme()`).
 - **Empty cells.** Only filled cells are stored. In the sample file (and the test file built from it), columns Q–T (Q15–Q18, a form branch) have no cell at all for any respondent, so BP001 has 16 answers, not 20; `QuestionnaireDatasetTest` checks that every filled cell of BP001's row is stored.
 - **Fiche** (`/fiche-collaborateur`): section **Réponses au questionnaire** (`id="questionnaire"`, `ReponsesQuestionnaireViewService` → `ui/model/ReponsesQuestionnaire`), one table in file order (Q01, Q02…; columns Code, Question, Réponse, plus Thème when a theme exists), no grouping, with a quarter selector (`?questionnaire=AAAA-N`, default = the fiche's quarter, 404 if unknown). Without answers: "Aucun questionnaire importé pour ce trimestre."
 - **Manager evaluation:** there is no separate manager evaluation file with this structure. Manager evaluations come from the workbook (`02_PERFORMANCE` / `03_POTENTIEL`, one row per employee and one numeric column per criterion); those raw criterion notes are already stored (`Performance`, `Potentiel`) and shown on the fiche ("évaluation du manager" tables), so nothing was added for them.
@@ -763,7 +826,7 @@ Tests: `VueEntiteViewServiceTest` (H2: agence, région = sum of its agences, sam
 | **Spring Data JPA** + **Hibernate** 6.6.53 | via Boot | Object–relational mapping; repositories generated from interfaces | Engine code works on objects; queries are declared, not hand-written | `entity`, `repository` |
 | **Bean Validation** (Hibernate Validator) | via `spring-boot-starter-validation` | Declarative constraints (`@NotNull`, `@DecimalMax`, `@AssertTrue`) | Settings are validated before saving: sums of 100, decreasing thresholds, ranges | `entity` blocks, `ParametreForm` |
 | **Thymeleaf** | 3.1.x (via Boot) | Server-side HTML templates | Screens rendered on the server with no JavaScript framework; escaped output by default (`th:text`) | `src/main/resources/templates` |
-| **Spring Boot DevTools** | via Boot, `optional` | Automatic restart during development | Faster development loop. Active only with the `dev` profile, and absent from the packaged jar. | `application-dev.properties` |
+| **Spring Boot DevTools** | via Boot, `optional` | Template reload; automatic restart only on request | Faster development loop. Restart is off in every profile unless `-Dspring.devtools.restart.enabled=true` is passed; absent from the packaged jar. | `application-dev.properties` |
 | **MySQL** | server 8.4 (local); driver Connector/J 9.7.0 | Relational database | Durable local storage of the quarter data and results | `application.properties` |
 | **Apache POI** | 5.5.1 | Reads and writes Excel `.xlsx` files | Import the client's workbook; the Excel comparison test | `ImportClasseurService`, test `dataset/LecteurXlsx` |
 | **Chart.js** | 4.4.4, `static/vendor/chartjs/chart.umd.js` (served locally, no CDN) | Charts of the interactive dashboard | Offline app: the library is in the jar; same file as jsDelivr / unpkg (SHA-256 `fed6a739…0d7fea`), MIT licence header kept | `templates/dashboard.html`, `static/js/tableau-de-bord.js` |
@@ -796,6 +859,8 @@ Tests: `VueEntiteViewServiceTest` (H2: agence, région = sum of its agences, sam
 | `Vivier` (`vivier`) | `code` (unique), `nomCategorie`, `description` | — | Only the relief pool (`RELEVE`) is created today |
 | `AppartenanceVivier` (`appartenance_vivier`) | `origine` (MOTEUR, IMPORT, SAISIE_RH…) | → `Collaborateur`, → `Vivier`, → `Trimestre` | Unique on (employee, pool, quarter) |
 | `QuestionnaireEngagement` (`questionnaire_engagement`) | `scoreEngagement` /100, `dateReponse`, `statut` | → `Collaborateur`, → `Trimestre` | No uniqueness constraint yet |
+| `JournalEvenement` (`journal_evenement`) | `dateEvenement`, `type` (`TypeEvenement`: IMPORT, DECISION_TALENT, DECISION_SUCCESSION, PARAMETRES, COLLABORATEUR), `description` (French, ready to show), `lien` (local path), `matricule` (no FK), `reference` (origin row, e.g. `import_excel:12`) | `utilisateur` → `Utilisateur`, → `Trimestre` (both nullable) | History, written by `JournalService`, backfilled by `JournalRattrapage` |
+| `ConfigurationQuestion` (`configuration_question`) | `codeQuestion` (PK, Q01…), `dimension` (nullable), `questionEnps` | — | RH setting of a questionnaire question, for every quarter (`/parametres`) |
 | `ReponseQuestionnaire` (`reponse_questionnaire`) | raw questionnaire answer: `codeQuestion` (Q01…), `ordre`, `theme`, `question`, `reponse`, `dateReponse` | → `Collaborateur`, → `Trimestre` | Unique (collaborateur, trimestre, code_question). Written only by `ImportQuestionnaireService`; no score derived |
 | `Utilisateur` (`utilisateur`) | `login` (unique), `motDePasseHash` (BCrypt), `role` (RH only), `actif`, `dateCreation` | — | Login account. Only HR has one; it is never deleted, only deactivated |
 | `ValidationComite` (`validation_comite`) | `statut` (OUI / NON / EN_ATTENTE), `dateDecision`, `commentaire` (nullable) | → `Collaborateur`, → `Trimestre`, `utilisateur` → `Utilisateur` (nullable) | Committee decision on a proposed talent, unique per (employee, quarter). From `10_TALENTS!G` (no date) or entered on `/comite-talent` (dated): an import never replaces a dated decision |
@@ -1033,7 +1098,7 @@ Screens are Thymeleaf templates rendered on the server. There's no JavaScript fr
 
 **No half page.** By default Thymeleaf writes the page while it renders it: an exception in the middle of a template comes after the 200 status and the first part of the HTML were sent, and the browser gets a truncated page (`net::ERR_INCOMPLETE_CHUNKED_ENCODING`). `config/RenduCompletConfig` turns this off for every Thymeleaf view (`setProducePartialOutputWhileProcessing(false)`, same as `spring.thymeleaf.servlet.produce-partial-output-while-processing=false`, but applied in every profile and test): the whole page is rendered in memory (about 200 KB for the dashboard) and written only once complete; a rendering error happens before anything is written, so the error page is rendered instead. `RenduCompletTest` renders a template that fails halfway: nothing is written with the app's resolver, while Thymeleaf's default has already sent the start of the page.
 
-**Restart after a build.** `mvnw spring-boot:run` serves classes and templates from `target/classes`. A `mvnw clean test` (or any rebuild) while the app runs replaces them under it: the running JVM keeps the classes it already loaded but reads new templates and not-yet-loaded classes, and a page whose template no longer matches its model fails mid-render. Stop the app before building, or restart it afterwards.
+**Restart after a build.** The app run from the IDE (or `mvnw spring-boot:run`) serves classes and templates from `target/classes`. A plain `mvnw clean test` (or any rebuild) while the app runs replaces them under it: the running JVM keeps the classes it already loaded but reads new templates and not-yet-loaded classes, and a page whose template no longer matches its model fails mid-render. **Run the tests with the `tests-isoles` profile** (`.\mvnw -Ptests-isoles clean test`): that build lives in `target-tests/`, its `clean` only empties that folder, and `target/classes` is never touched. DevTools does not restart the app on a recompile either (below), so a test run never restarts the app or drops its sessions.
 
 ### The Excel comparison test
 
@@ -1158,7 +1223,8 @@ The application holds personal data, so it is designed to be reachable **only fr
 | Write header (CSRF) | `ProtectionRequetesFilter.EN_TETE_ECRITURE` = `X-Talent360` | POST / PUT / PATCH / DELETE without the header get 403. A browser cannot add a custom header to a cross-site request without a CORS check, which the app refuses (no CORS config), so a malicious page cannot trigger writes. Screens send it with `fetch` ([`requetes-ecriture.md`](requetes-ecriture.md)). |
 | Login | `SecurityConfig`, `UtilisateurDetailsService`, `Utilisateur` | Only HR logs in. Every page and every `/api/**` endpoint needs an authenticated RH; after login, HR lands on `/`. Form login, BCrypt hashes, 15-minute session, `HttpOnly` + `SameSite=Strict` cookie. A deactivated account is refused. Not logged in: pages redirect to `/login`, the API answers 401 in JSON |
 | First account | `PremierCompteRhInitializer` | Created from environment variables ([section 10](#accounts-and-environment-variables)); there is no default password |
-| CSRF on HTML forms | Spring Security | Login and logout forms carry the CSRF token (`th:action`) |
+| CSRF on HTML forms | Spring Security | Every HTML form carries the CSRF token (`th:action`): login, logout, import, Comité decisions, questionnaire settings |
+| Refused requests | `SecurityConfig.accesRefuse` | Every 403 is logged at WARN with its cause and URL, never the token: `Requete refusee (403, jeton CSRF : aucune session, expiree ou application redemarree) : POST /login, non connecte`, `(403, jeton CSRF absent ou invalide pour cette session)`, `(403, droits insuffisants)`. An expired form (CSRF refused) from someone who is not logged in, or on `/login` itself, redirects to `/login?expiree`: « Votre session a expiré, reconnectez-vous. ». A logged-in RH posting a stale form gets the 403 page « Page expirée — La page a expiré : rechargez-la et recommencez. » (nothing saved). A real lack of rights keeps « Accès refusé ». The API keeps its 403 JSON. Tests: `RefusAccesTest`, `SecurityConfigTest` |
 | No secrets in the code | `spring.datasource.username/password=${SPRING_DATASOURCE_…}` (no default) | The database account and password come from environment variables; the app refuses to start without them |
 | Escaped output | Thymeleaf `th:text` everywhere, no `th:utext` | No XSS from data |
 | Bound parameters | JPQL queries with parameters; the only concatenated SQL uses constants | No SQL injection |
@@ -1281,14 +1347,23 @@ Then open http://localhost:8080/login. After login, HR lands on `/`.
 | Goal | Command |
 |---|---|
 | Run the app | `.\mvnw spring-boot:run` |
-| Run with development settings (SQL log, template reload, auto-restart) | `.\mvnw spring-boot:run "-Dspring-boot.run.profiles=dev"` |
-| Run all tests (H2, no MySQL needed) | `.\mvnw test` |
-| Run one test class | `.\mvnw test -Dtest=VigilanceServiceTest` |
+| Run with development settings (SQL log, template reload) | `.\mvnw spring-boot:run "-Dspring-boot.run.profiles=dev"` |
+| **Run all tests** (H2, no MySQL needed), without touching the running app | **`.\mvnw -Ptests-isoles clean test`** (Git Bash: `./mvnw -Ptests-isoles clean test`) |
+| Run one test class, same isolation | `.\mvnw -Ptests-isoles test -Dtest=VigilanceServiceTest` |
+| Opt in to DevTools automatic restart (off by default, even with `dev`) | `.\mvnw spring-boot:run "-Dspring-boot.run.profiles=dev" "-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=true"` |
+
+The `tests-isoles` Maven profile (`pom.xml`) sets the build directory to `target-tests/` (git-ignored): classes, test
+classes and Surefire reports (`target-tests/surefire-reports`) go there. The IDE keeps building into `target/` (the
+profile is not active by default; do not select it in the IDE's Maven panel). CI and a plain `mvnw test` still use
+`target/`, which is fine when no app is running from it.
 
 ### Profiles
 
 - **default:** safe settings. Local binding, no SQL log, template cache on, DevTools off.
-- **`dev`** (`application-dev.properties`): SQL printed, template reload, automatic restart. Never for a client demo.
+- **`dev`** (`application-dev.properties`): SQL printed, template reload. **No automatic restart**
+  (`spring.devtools.restart.enabled=false`): a restart after a recompile used to drop every session silently, and the
+  next form posted with an old CSRF token was refused. Opt in with the system property (command above). Never for a
+  client demo.
 - **`demo`:** loads the workbook into an empty database, runs the engine, and plugs the workbook in as the four sources. **It exists only on Jas's machine:** the classes (`dev/DemoDataLoader`, `dev/DemoClasseurSources`) are deliberately excluded from git through `.git/info/exclude`. Other developers load the same data with the import ([`import-donnees.md`](import-donnees.md)).
 
 ### URLs
@@ -1302,7 +1377,7 @@ Use `localhost` or `127.0.0.1`: any other host name is rejected by the Host chec
 
 ### Tests
 
-**760 test executions in 75 test classes** (parameterized tests run once per case), all passing (`./mvnw clean test`, 1 Oct 2026).
+**971 test executions** (parameterized tests run once per case), all passing (`./mvnw -Ptests-isoles clean test`, 9 Oct 2026; the dataset tests need `docs/data/TALENT_360_BANK_Dataset_V1.xlsx`, otherwise they are skipped).
 
 | Folder | What it covers |
 |---|---|
@@ -1373,7 +1448,7 @@ git push -u origin feature/my-change
 **Ima — UI**
 
 - Quarter selector on `/9box` and `/viviers`: the `trimestre` and `trimestres` model attributes are already there ([Displayed quarter](#displayed-quarter-all-screens)).
-- Screens still to build: Engagement & Fidélisation (`/engagement`), Historique (`/historique`, could list the dated committee decisions).
+- Screens still to build: none (rounds 1–3 of the audit). Historique: a decision changed several times *before* the history existed only left its last state, so the backfill has one event for it.
 - Import (Dou): lock `POST /api/imports` like the page does (B6); avoid the empty quarter left by a failed import (B5).
 - Fiche page: show `posteCible` and `successions[].gapCompetence` (the model has them).
 - Page tests for `/`, `/9box`, `/viviers`.

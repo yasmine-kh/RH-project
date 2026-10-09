@@ -50,6 +50,8 @@ public class PagesController {
     private final VivierSyntheseService vivierSyntheseService;
     private final ReponsesQuestionnaireViewService reponsesQuestionnaire;
     private final RevuesComiteService revuesComiteService;
+    private final com.talent360bank.talent360bank.ui.service.HistoriqueCollaborateurViewService historiqueCollaborateur;
+    private final com.talent360bank.talent360bank.service.ConfigurationQuestionnaireService configurationQuestionnaire;
 
     public PagesController(NineBoxViewService nineBoxViewService, VivierService vivierService,
                            ComiteTalentViewService comiteTalentViewService,
@@ -58,7 +60,9 @@ public class PagesController {
                            FicheCollaborateurPageViewService ficheCollaborateurPageViewService,
                            VivierSyntheseService vivierSyntheseService,
                            ReponsesQuestionnaireViewService reponsesQuestionnaire,
-                           RevuesComiteService revuesComiteService) {
+                           RevuesComiteService revuesComiteService,
+                           com.talent360bank.talent360bank.ui.service.HistoriqueCollaborateurViewService historiqueCollaborateur,
+                           com.talent360bank.talent360bank.service.ConfigurationQuestionnaireService configurationQuestionnaire) {
         this.nineBoxViewService = nineBoxViewService;
         this.vivierService = vivierService;
         this.comiteTalentViewService = comiteTalentViewService;
@@ -68,6 +72,8 @@ public class PagesController {
         this.vivierSyntheseService = vivierSyntheseService;
         this.reponsesQuestionnaire = reponsesQuestionnaire;
         this.revuesComiteService = revuesComiteService;
+        this.historiqueCollaborateur = historiqueCollaborateur;
+        this.configurationQuestionnaire = configurationQuestionnaire;
     }
 
     /**
@@ -228,6 +234,10 @@ public class PagesController {
             model.addAttribute("questionnaire", reponsesQuestionnaire.construire(fiche.identite().matricule(),
                     choix.trimestre()));
             model.addAttribute("trimestresQuestionnaire", choix.trimestres());
+            // Historique : scores et vigilance de chaque trimestre calcule, evenements du journal.
+            model.addAttribute("historiqueCollaborateur", historiqueCollaborateur.construire(
+                    fiche.identite().matricule(), trimestreCourant.resoudre(
+                            fiche.trimestre().annee() + "-" + fiche.trimestre().numero()).orElse(null)));
         }
         model.addAttribute("activePage", "fiche-collaborateur");
         return "fiche-collaborateur";
@@ -238,12 +248,21 @@ public class PagesController {
      * via l'API GET/PUT /api/trimestres/{annee}/{numero}/parametre (voir
      * docs/requetes-ecriture.md) : rien n'est lu ni calcule ici.
      */
+    /** Plus de page Carriere &amp; Mobilite (aucune donnee de mobilite) : les anciens liens menent au tableau de bord. */
+    @GetMapping("/carriere-mobilite")
+    public String carriereMobilite() {
+        return "redirect:/";
+    }
+
     @GetMapping("/parametres")
     public String parametres(@RequestParam(name = TrimestreCourantService.PARAMETRE, required = false) String trimestre,
                              Model model) {
         TrimestreCourantService.Selection selection = trimestreCourant.selectionner(trimestre);
         selection.exposer(model);
         model.addAttribute("enTeteEcriture", ProtectionRequetesFilter.EN_TETE_ECRITURE);
+        // Questionnaire d'engagement : dimension de chaque question et question eNPS (formulaire a part).
+        model.addAttribute("questionsQuestionnaire", configurationQuestionnaire.questions());
+        model.addAttribute("dimensionsQuestionnaire", configurationQuestionnaire.dimensions());
         model.addAttribute("activePage", "parametres");
         return "parametres";
     }

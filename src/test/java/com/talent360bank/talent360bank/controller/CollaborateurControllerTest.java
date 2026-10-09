@@ -38,6 +38,8 @@ class CollaborateurControllerTest {
     @MockBean
     private CollaborateurRepository collaborateurRepository;
     @MockBean
+    private com.talent360bank.talent360bank.service.JournalService journalService;
+    @MockBean
     private ChargeurRessources chargeur;
 
     private Collaborateur sara;

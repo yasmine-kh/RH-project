@@ -22,6 +22,11 @@ public interface ValidationSuccessionRepository extends JpaRepository<Validation
                                                 @Param("posteId") String posteId,
                                                 @Param("idCollaborateur") String idCollaborateur);
 
+    /** Decisions datees, tous trimestres : rattrapage de l'historique. */
+    @Query("select v from ValidationSuccession v join fetch v.poste join fetch v.successeur join fetch v.trimestre "
+            + "left join fetch v.utilisateur where v.dateDecision is not null")
+    List<ValidationSuccession> findDateesAvecDetails();
+
     /** {posteId, matricule du successeur, date} des decisions datees du trimestre. */
     @Query("select v.poste.posteId, v.successeur.idCollaborateur, v.dateDecision from ValidationSuccession v "
             + "where v.trimestre = :trimestre and v.dateDecision is not null")

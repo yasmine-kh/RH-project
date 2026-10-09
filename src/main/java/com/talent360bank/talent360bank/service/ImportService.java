@@ -61,6 +61,8 @@ public class ImportService {
     private final TrimestreService trimestreService;
     private final ImportClasseurService importClasseurService;
     private final com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant;
+    /** Historique : un evenement par ligne de import_excel. */
+    private final JournalService journalService;
     private final ImportExcelRepository importExcelRepository;
     private final TransactionTemplate transaction;
 
@@ -68,8 +70,10 @@ public class ImportService {
                          ImportClasseurService importClasseurService,
                          ImportExcelRepository importExcelRepository,
                          PlatformTransactionManager transactionManager,
-                         com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant) {
+                         com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant,
+                         JournalService journalService) {
         this.utilisateurCourant = utilisateurCourant;
+        this.journalService = journalService;
         this.trimestreService = trimestreService;
         this.importClasseurService = importClasseurService;
         this.importExcelRepository = importExcelRepository;
@@ -234,7 +238,9 @@ public class ImportService {
         journal.setNbLignes(nbLignes);
         journal.setNbErreurs(nbErreurs);
         journal.setMessage(message);
-        return importExcelRepository.save(journal);
+        ImportExcel enregistre = importExcelRepository.save(journal);
+        journalService.importEnregistre(enregistre);
+        return enregistre;
     }
 
     /** Nom sans chemin : certains navigateurs envoient le chemin complet du poste. */

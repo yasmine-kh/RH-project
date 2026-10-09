@@ -111,4 +111,17 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Tests isoles de l'application lancee depuis l'IDE : tout le build (classes, tests,
+             rapports) va dans target-tests/, et "clean" ne vide que ce dossier. L'application de
+             l'IDE, qui tourne sur target/classes, n'est jamais touchee.
+             Commande : ./mvnw -Ptests-isoles clean test (voir docs/guide-developpeur.md). -->
+        <profile>
+            <id>tests-isoles</id>
+            <build>
+                <directory>${project.basedir}/target-tests</directory>
+            </build>
+        </profile>
+    </profiles>
 </project>

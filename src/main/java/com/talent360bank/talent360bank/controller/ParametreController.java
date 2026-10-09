@@ -53,12 +53,15 @@ public class ParametreController {
     private final Validator validator;
     private final CalculTrimestreService calculTrimestreService;
     private final VerrouCalculTrimestre verrou;
+    private final com.talent360bank.talent360bank.service.JournalService journalService;
 
     public ParametreController(ParametreRepository parametreRepository,
                                ChargeurRessources chargeur,
                                Validator validator,
                                CalculTrimestreService calculTrimestreService,
-                               VerrouCalculTrimestre verrou) {
+                               VerrouCalculTrimestre verrou,
+                               com.talent360bank.talent360bank.service.JournalService journalService) {
+        this.journalService = journalService;
         this.parametreRepository = parametreRepository;
         this.chargeur = chargeur;
         this.validator = validator;
@@ -88,6 +91,8 @@ public class ParametreController {
                     "Des réglages existent déjà pour T" + numero + " " + annee);
         }
         Parametre cree = parametreRepository.save(Parametre.parDefaut(trimestre));
+        journalService.parametres(trimestre, "Réglages par défaut créés pour T" + numero + " " + annee + ".",
+                "/parametres?trimestre=" + annee + "-" + numero);
         return ResponseEntity.status(HttpStatus.CREATED).body(ParametreResponse.de(cree));
     }
 
@@ -138,7 +143,12 @@ public class ParametreController {
             // save fusionne une copie dont le trimestre est un proxy LAZY, illisible
             // hors transaction : la reponse part des reglages valides, au meme etat.
             ParametreResponse enregistre = ParametreResponse.de(parametre);
-            return new ModificationParametreResponse(enregistre, recalculer(trimestre));
+            RecalculReglagesResponse recalcul = recalculer(trimestre);
+            journalService.parametres(trimestre, "Réglages du moteur modifiés pour T" + numero + " " + annee
+                            + (recalcul.recalcule() ? " ; trimestre recalculé (" + recalcul.nbCollaborateursScores()
+                            + " score(s))." : " ; le recalcul a échoué."),
+                    "/parametres?trimestre=" + annee + "-" + numero);
+            return new ModificationParametreResponse(enregistre, recalcul);
         });
     }
 

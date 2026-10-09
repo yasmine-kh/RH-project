@@ -39,6 +39,11 @@ public interface ValidationComiteRepository extends JpaRepository<ValidationComi
     Optional<ValidationComite> findDecision(@Param("idCollaborateur") String idCollaborateur,
                                             @Param("trimestre") Trimestre trimestre);
 
+    /** Decisions saisies dans l'application (datees), tous trimestres : rattrapage de l'historique. */
+    @Query("select v from ValidationComite v join fetch v.collaborateur join fetch v.trimestre "
+            + "left join fetch v.utilisateur where v.dateDecision is not null")
+    List<ValidationComite> findSaisiesAvecDetails();
+
     /** {matricule, date} des decisions saisies dans l'application pour le trimestre. */
     @Query("select v.collaborateur.idCollaborateur, v.dateDecision from ValidationComite v "
             + "where v.trimestre = :trimestre and v.dateDecision is not null")

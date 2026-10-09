@@ -41,7 +41,7 @@ public class ReponseQuestionnaire {
     @Column(nullable = false)
     private int ordre;
 
-    /** Theme de la question : vide pour l'instant (le fichier n'en fournit pas, aucun n'est deduit). */
+    /** Theme de la question : la dimension reglee par le RH pour ce code (configuration_question), vide sinon. */
     @Column(length = 100)
     private String theme;
 

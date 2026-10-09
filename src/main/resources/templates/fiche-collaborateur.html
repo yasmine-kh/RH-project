@@ -130,11 +130,27 @@
                         </div></div>
                     </div>
 
-                    <div class="panel"><div class="panel-head"><h3>Historique</h3></div><div class="panel-body">
-                        <div class="empty-state" th:if="${#lists.isEmpty(fiche.historique)}">Aucun trimestre précédent.</div>
-                        <table th:if="${not #lists.isEmpty(fiche.historique)}"><thead><tr><th>Trimestre</th><th>Performance</th><th>Potentiel</th><th>9-Box</th></tr></thead>
-                            <tbody><tr th:each="h : ${fiche.historique}"><td class="mono" th:text="${h.libelle}">T2 2026</td><td th:text="${h.scorePerformance} ?: '—'">90</td>
-                                <td th:text="${h.scorePotentiel} ?: '—'">90</td><td><th:block th:replace="~{fragments/box9 :: case9(${h.neufBox != null} ? ${h.neufBox.numero} : null, ${h.neufBox != null} ? ${h.neufBox.libelle} : null)}"></th:block></td></tr></tbody></table>
+                    <!--/* Historique (HistoriqueCollaborateurViewService) : chaque trimestre calcule, scores enregistres,
+                         case 9-Box et vigilance du trimestre ; puis les evenements du journal sur ce collaborateur. */-->
+                    <div class="panel" id="historique" th:with="h=${historiqueCollaborateur}"><div class="panel-head"><h3>Historique</h3>
+                        <span class="hint" th:if="${h != null and h.unSeulTrimestre()}">Un seul trimestre importé</span></div><div class="panel-body">
+                        <div class="empty-state" th:if="${h == null or #lists.isEmpty(h.trimestres)}">Aucun score calculé pour ce collaborateur.</div>
+                        <table th:if="${h != null and not #lists.isEmpty(h.trimestres)}" id="historique-scores">
+                            <thead><tr><th>Trimestre</th><th>Performance</th><th>Potentiel</th><th>9-Box</th><th>Vigilance</th></tr></thead>
+                            <tbody><tr th:each="t : ${h.trimestres}" th:attr="data-trimestre=${t.valeur}">
+                                <td class="mono"><a th:href="@{/fiche-collaborateur(matricule=${fiche.identite.matricule}, trimestre=${t.valeur})}" th:text="${t.libelle}">T3 2026</a><span class="hint" th:if="${t.courant}"> · affiché</span></td>
+                                <td th:text="${t.performance != null} ? (${t.categoriePerformance != null} ? |${t.performance} (${t.categoriePerformance})| : ${t.performance}) : '—'">90 (Élevée)</td>
+                                <td th:text="${t.potentiel != null} ? (${t.categoriePotentiel != null} ? |${t.potentiel} (${t.categoriePotentiel})| : ${t.potentiel}) : '—'">90 (Élevé)</td>
+                                <td><th:block th:replace="~{fragments/box9 :: case9(${t.caseNumero}, ${t.caseLibelle})}"></th:block></td>
+                                <td th:text="${t.vigilanceLibelle} ?: '—'">Faible</td>
+                            </tr></tbody></table>
+                        <p class="hint" style="margin-top:8px;" th:if="${h != null and h.unSeulTrimestre()}">Un seul trimestre importé : l'évolution apparaîtra au prochain trimestre calculé.</p>
+                        <th:block th:if="${h != null and not #lists.isEmpty(h.evenements)}">
+                            <h4 style="font-size:13px; margin:14px 0 6px;">Événements</h4>
+                            <div class="plan-action" th:each="e : ${h.evenements}"><span class="mono" th:text="${#temporals.format(e.date, 'dd/MM/yyyy HH:mm')}">08/10/2026</span>
+                                · <span th:text="${e.description}">Comité Talent</span><a th:if="${e.lien != null}" th:href="${e.lien}" class="hint" style="margin-left:6px;">ouvrir</a></div>
+                            <a class="hint" th:href="@{/historique(q=${fiche.identite.matricule})}">tout l'historique de ce collaborateur</a>
+                        </th:block>
                     </div></div>
 
                     <!--/* Reponses importees du fichier de reponses au questionnaire (ReponsesQuestionnaireViewService),

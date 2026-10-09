@@ -16,8 +16,11 @@ public class CollaborateurController {
 
     private final CollaborateurRepository collaborateurRepository;
     private final ChargeurRessources chargeur;
+    private final com.talent360bank.talent360bank.service.JournalService journalService;
 
-    public CollaborateurController(CollaborateurRepository collaborateurRepository, ChargeurRessources chargeur) {
+    public CollaborateurController(CollaborateurRepository collaborateurRepository, ChargeurRessources chargeur,
+                                   com.talent360bank.talent360bank.service.JournalService journalService) {
+        this.journalService = journalService;
         this.collaborateurRepository = collaborateurRepository;
         this.chargeur = chargeur;
     }
@@ -38,7 +41,12 @@ public class CollaborateurController {
 
     @PostMapping
     public Collaborateur creer(@RequestBody Collaborateur collaborateur) {
-        String id = collaborateurRepository.save(collaborateur).getIdCollaborateur();
+        boolean existait = collaborateur.getIdCollaborateur() != null
+                && collaborateurRepository.existsById(collaborateur.getIdCollaborateur());
+        Collaborateur enregistre = collaborateurRepository.save(collaborateur);
+        String id = enregistre.getIdCollaborateur();
+        journalService.collaborateur(id, "Collaborateur " + id + " (" + enregistre.getNomComplet() + ") "
+                + (existait ? "modifié" : "ajouté") + " par l'API.", "/fiche-collaborateur?matricule=" + id);
         return collaborateurRepository.findAllByIdAvecEntite(List.of(id)).get(0);
     }
 
@@ -48,6 +56,9 @@ public class CollaborateurController {
         Collaborateur collab = chargeur.exigerCollaborateur(id);
         collab.setStatut(StatutCollaborateur.INACTIF);
         collaborateurRepository.save(collab);
+        journalService.collaborateur(id, "Collaborateur " + id + " (" + collab.getNomComplet()
+                + ") supprimé par l'API : passé INACTIF, ses données sont conservées.",
+                "/fiche-collaborateur?matricule=" + id);
         return ResponseEntity.noContent().build();
     }
 }

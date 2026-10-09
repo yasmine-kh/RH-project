@@ -60,6 +60,8 @@ class ParametreControllerTest {
     @MockBean
     private ParametreRepository parametreRepository;
     @MockBean
+    private com.talent360bank.talent360bank.service.JournalService journalService;
+    @MockBean
     private ChargeurRessources chargeur;
     @MockBean
     private CalculTrimestreService calculTrimestreService;

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>BP TALENT 360 — Engagement &amp; Fidélisation</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
+</head>
+<body>
+
+<!--/*
+  Engagement & Fidelisation : balisage de renderEngagementRH() du prototype (kpi-row, grid-2 dimensions /
+  signaux, tableau par direction), plus le detail par question. Donnees (EngagementViewService) : reponses
+  importees du questionnaire, score d'engagement importe, reglages RH des questions (Parametres). Rien
+  n'est devine : sans reglage, dimensions et eNPS sont "Non configuré".
+*/-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('engagement')}"></aside>
+
+    <div id="main">
+        <th:block th:with="sous=${vue != null} ? 'Résultats agrégés du questionnaire d\'engagement — ' + ${vue.trimestreLibelle} : 'Résultats agrégés du questionnaire d\'engagement'">
+            <div th:replace="~{fragments/prototype :: topbar('Engagement & Fidélisation', ${sous})}"></div>
+        </th:block>
+
+        <section class="view active" id="view-engagement">
+            <th:block th:if="${trimestre == null}"><div th:replace="~{fragments/prototype :: aucunTrimestre}"></div></th:block>
+
+            <form method="get" action="/engagement" class="filters" th:if="${trimestre != null}">
+                <select th:replace="~{fragments/prototype :: choixTrimestre}"></select>
+                <noscript><button type="submit" class="btn ghost">Afficher</button></noscript>
+            </form>
+
+            <th:block th:if="${vue != null}">
+                <div class="kpi-row" id="engagement-kpis">
+                    <div class="kpi"><div class="val" id="kpi-taux" th:text="${vue.tauxReponse != null} ? |${vue.tauxReponse} %| : '—'">3 %</div>
+                        <div class="lbl" th:text="|Taux de réponse (${vue.nbRepondants}/${vue.population})|">Taux de réponse</div></div>
+                    <div class="kpi" th:classappend="${vue.engagementMoyen == null} ? '' : (${vue.engagementMoyen >= 75} ? 'teal' : (${vue.engagementMoyen >= 60} ? 'gold' : 'rust'))">
+                        <div class="val" id="kpi-engagement" th:text="${vue.engagementMoyen} ?: '—'">68.2</div>
+                        <div class="lbl" th:text="|❤️ Engagement moyen /100 (${vue.nbScores} score${vue.nbScores > 1 ? 's' : ''})|">Engagement moyen</div></div>
+                    <div class="kpi"><div class="val" id="kpi-repondants" th:text="${vue.nbRepondants}">3</div><div class="lbl">Répondants au questionnaire</div></div>
+                    <div class="kpi gold"><div class="val" id="kpi-enps"
+                            th:text="${vue.enps == null} ? 'Non configuré' : (${vue.enps.valeur != null} ? ${vue.enps.valeur} : '—')">Non configuré</div>
+                        <div class="lbl">eNPS (% promoteurs − % détracteurs)</div></div>
+                </div>
+
+                <div class="empty-state panel" style="padding:16px;" th:if="${#lists.isEmpty(vue.questions)}">
+                    Aucune réponse au questionnaire importée pour <span th:text="${vue.trimestreLibelle}">T3 2026</span> :
+                    importez le fichier de réponses depuis la page <a href="/import">Import</a>.</div>
+
+                <div class="grid-2">
+                    <div class="panel" id="dimensions"><div class="panel-head"><h3>Résultat par dimension</h3>
+                        <a class="hint" th:href="@{|/parametres#questionnaire|(trimestre=${trimestre.valeur})}">régler les dimensions</a></div><div class="panel-body">
+                        <div class="empty-state" th:unless="${vue.dimensionsConfigurees()}">Non configuré : rattachez chaque question à une dimension dans
+                            <a th:href="@{|/parametres#questionnaire|(trimestre=${trimestre.valeur})}">Paramètres</a>.</div>
+                        <table th:if="${vue.dimensionsConfigurees()}"><thead><tr><th>Dimension</th><th>Questions</th><th>Réponses</th><th>Moyenne</th></tr></thead>
+                            <tbody><tr th:each="d : ${vue.dimensions}" th:attr="data-dimension=${d.nom}">
+                                <td th:text="${d.nom}">Management</td><td class="mono" th:text="${#strings.listJoin(d.codes, ', ')}">Q03, Q04</td>
+                                <td class="mono" th:text="${d.nbReponses}">6</td><td class="mono" th:text="${d.moyenne} ?: '—'">2.67</td></tr></tbody></table>
+                    </div></div>
+                    <div class="panel" id="enps"><div class="panel-head"><h3>eNPS</h3></div><div class="panel-body">
+                        <div class="empty-state" th:if="${vue.enps == null}">Non configuré : choisissez la question notée de 0 à 10 dans
+                            <a th:href="@{|/parametres#questionnaire|(trimestre=${trimestre.valeur})}">Paramètres</a>.</div>
+                        <th:block th:if="${vue.enps != null}" th:with="e=${vue.enps}">
+                            <p style="font-size:12.8px; margin-bottom:8px;"><span class="mono" th:text="${e.code}">Q13</span> · <span th:text="${e.question}">Recommanderiez-vous…</span></p>
+                            <div class="comp-row"><span>Promoteurs (9–10)</span><span class="mono" th:text="${e.promoteurs}">0</span></div>
+                            <div class="comp-row"><span>Passifs (7–8)</span><span class="mono" th:text="${e.passifs}">0</span></div>
+                            <div class="comp-row"><span>Détracteurs (0–6)</span><span class="mono" th:text="${e.detracteurs}">3</span></div>
+                            <div class="comp-row"><span><b>eNPS</b> sur <th:block th:text="${e.nbReponses}">3</th:block> réponse(s)</span><b class="mono" th:text="${e.valeur} ?: '—'">-100</b></div>
+                            <p class="hint" th:if="${e.horsEchelle > 0}" th:text="|${e.horsEchelle} réponse(s) hors de l'échelle 0–10 ignorée(s).|">1 réponse ignorée</p>
+                        </th:block>
+                    </div></div>
+                </div>
+
+                <div class="panel" id="par-direction"><div class="panel-head"><h3>Résultat par direction</h3></div><div class="panel-body">
+                    <table><thead><tr><th>Direction</th><th>Effectif</th><th>Réponses</th><th>Taux de réponse</th><th>Engagement moyen</th></tr></thead>
+                        <tbody><tr th:each="d : ${vue.entites}">
+                            <td th:text="${d.direction}">Reseau Retail</td><td class="mono" th:text="${d.effectif}">40</td>
+                            <td class="mono" th:text="|${d.repondants}/${d.effectif}|">3/40</td>
+                            <td class="mono" th:text="${d.tauxReponse != null} ? |${d.tauxReponse} %| : '—'">7.5 %</td>
+                            <td class="mono" th:text="${d.engagementMoyen} ?: '—'">68.20</td></tr></tbody></table>
+                </div></div>
+
+                <div class="panel" id="questions" th:unless="${#lists.isEmpty(vue.questions)}"><div class="panel-head"><h3>Résultat par question</h3>
+                    <span class="hint">dans l'ordre du fichier de réponses</span></div><div class="panel-body">
+                    <div class="question-engagement" th:each="q : ${vue.questions}" th:id="|question-${q.code}|">
+                        <div class="question-tete"><span class="mono" th:text="${q.code}">Q03</span> <b th:text="${q.texte}">Question</b></div>
+                        <div class="question-meta">
+                            <span class="statut-tag" th:text="${q.nature.libelle}">Échelle numérique</span>
+                            <span class="statut-tag" th:if="${q.dimension != null}" th:text="${q.dimension}">Management</span>
+                            <span class="statut-tag" th:if="${q.questionEnps}">eNPS</span>
+                            <span class="hint" th:text="|${q.nbReponses} réponse(s)${q.moyenne != null ? ' · moyenne ' + q.moyenne : ''}|">3 réponses · moyenne 2.33</span>
+                        </div>
+                        <div class="comp-row" th:each="v : ${q.distribution}"><span th:text="${v.valeur}">2</span>
+                            <div class="bar-track"><div class="bar-fill" th:style="|width:${v.pourcentage}%|"></div></div>
+                            <span class="gap" th:text="|${v.nombre} (${v.pourcentage} %)|">2 (66.7 %)</span></div>
+                        <ul class="question-textes" th:unless="${#lists.isEmpty(q.textes)}">
+                            <li th:each="t : ${q.textes}"><a th:href="@{/fiche-collaborateur(matricule=${t.matricule}, trimestre=${trimestre.valeur})}"
+                                    th:text="|${t.nomComplet} (${t.matricule})|">Nom (BP001)</a> : <span th:text="${t.texte}">Réponse</span></li>
+                        </ul>
+                    </div>
+                </div></div>
+            </th:block>
+        </section>
+    </div>
+</div>
+
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
+</body>
+</html>

@@ -44,17 +44,20 @@ public class DecisionsComiteService {
     private final ValidationComiteRepository validationComiteRepository;
     private final ValidationSuccessionRepository validationSuccessionRepository;
     private final UtilisateurCourant utilisateurCourant;
+    private final JournalService journalService;
 
     public DecisionsComiteService(ValidationComiteService validationComiteService,
                                   PosteCritiqueService posteCritiqueService,
                                   ValidationComiteRepository validationComiteRepository,
                                   ValidationSuccessionRepository validationSuccessionRepository,
-                                  UtilisateurCourant utilisateurCourant) {
+                                  UtilisateurCourant utilisateurCourant,
+                                  JournalService journalService) {
         this.validationComiteService = validationComiteService;
         this.posteCritiqueService = posteCritiqueService;
         this.validationComiteRepository = validationComiteRepository;
         this.validationSuccessionRepository = validationSuccessionRepository;
         this.utilisateurCourant = utilisateurCourant;
+        this.journalService = journalService;
     }
 
     /** Ce qui a ete enregistre, pour le message de confirmation. */
@@ -78,10 +81,11 @@ public class DecisionsComiteService {
                 .findFirst()
                 .orElseThrow(() -> new DecisionRefuseeException(
                         "Décision refusée : " + matricule + " n'est pas un talent proposé pour ce trimestre."));
-        ValidationComite validation = validationComiteRepository.findDecision(matricule, trimestre)
-                .orElseGet(() -> new ValidationComite(collaborateur, trimestre, statut));
+        java.util.Optional<ValidationComite> existante = validationComiteRepository.findDecision(matricule, trimestre);
+        StatutValidationComite avant = existante.map(ValidationComite::getStatut).orElse(null);
+        ValidationComite validation = existante.orElseGet(() -> new ValidationComite(collaborateur, trimestre, statut));
         validation.decider(statut, maintenant(), auteur(), texte);
-        validationComiteRepository.save(validation);
+        journalService.decisionTalent(validationComiteRepository.save(validation), collaborateur.getNomComplet(), avant);
         log.info("Comite Talent : decision {} pour {} sur T{} {}", statut, matricule, trimestre.getNumero(),
                 trimestre.getAnnee());
         return new DecisionEnregistree(collaborateur.getNomComplet(), statut.getLibelle());
@@ -109,10 +113,12 @@ public class DecisionsComiteService {
                 .orElseThrow(() -> new DecisionRefuseeException("Décision refusée : " + matricule
                         + " n'est pas un successeur évalué du poste " + posteId + "."));
         Poste poste = couverture.poste();
-        ValidationSuccession validation = validationSuccessionRepository.findDecision(trimestre, posteId, matricule)
-                .orElseGet(() -> new ValidationSuccession(trimestre, poste, successeur));
+        java.util.Optional<ValidationSuccession> existante =
+                validationSuccessionRepository.findDecision(trimestre, posteId, matricule);
+        DecisionSuccession avant = existante.map(ValidationSuccession::getDecision).orElse(null);
+        ValidationSuccession validation = existante.orElseGet(() -> new ValidationSuccession(trimestre, poste, successeur));
         validation.decider(decision, maintenant(), auteur(), texte);
-        validationSuccessionRepository.save(validation);
+        journalService.decisionSuccession(validationSuccessionRepository.save(validation), avant);
         log.info("Comite Talent : succession {} / {} : {} sur T{} {}", posteId, matricule, decision,
                 trimestre.getNumero(), trimestre.getAnnee());
         return new DecisionEnregistree(successeur.getNomComplet() + " → " + poste.getNomPoste(),

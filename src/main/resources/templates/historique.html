@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>BP TALENT 360 — Historique</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
+</head>
+<body>
+
+<!--/*
+  Historique : balisage de renderHistorique() du prototype (filtres puis un tableau Date / Matricule /
+  Acteur / Evenement), avec les filtres type, trimestre, periode et recherche (GET, sans JavaScript).
+  Donnees : journal_evenement (HistoriqueViewService), ecrit a chaque import, decision du Comite,
+  changement de reglages ou de collaborateur, et rattrape au demarrage depuis import_excel et les
+  decisions datees.
+*/-->
+<div id="app">
+    <aside th:replace="~{fragments/prototype :: sidebar('historique')}"></aside>
+
+    <div id="main">
+        <div th:replace="~{fragments/prototype :: topbar('Historique', 'Traçabilité des imports, des décisions du Comité et des réglages')}"></div>
+
+        <section class="view active" id="view-historique">
+            <form method="get" action="/historique" class="filters historique-filtres">
+                <select name="type" aria-label="Type d'événement">
+                    <option th:each="o : ${vue.types}" th:value="${o.valeur}" th:text="${o.libelle}" th:selected="${o.selectionnee}">Tous les événements</option>
+                </select>
+                <select name="trimestre" aria-label="Trimestre">
+                    <option th:each="o : ${vue.trimestres}" th:value="${o.valeur}" th:text="${o.libelle}" th:selected="${o.selectionnee}">Tous les trimestres</option>
+                </select>
+                <label>Du <input type="date" name="du" th:value="${vue.filtres.du}"></label>
+                <label>au <input type="date" name="au" th:value="${vue.filtres.au}"></label>
+                <input type="search" name="q" placeholder="Matricule, nom, fichier…" aria-label="Rechercher" th:value="${vue.filtres.q}">
+                <button type="submit" class="btn">Filtrer</button>
+                <a class="btn ghost" href="/historique" th:if="${vue.filtres.actif()}" style="text-decoration:none;">Réinitialiser</a>
+            </form>
+
+            <div class="alert warn" th:if="${vue.erreur != null}"><div class="sev">ATTENTION</div><div class="txt" th:text="${vue.erreur}">Date illisible</div></div>
+
+            <div class="panel"><div class="panel-head"><h3>Événements</h3>
+                <span class="hint" th:text="|${vue.total} événement(s), du plus récent au plus ancien|">12 événements</span></div>
+                <div class="panel-body">
+                <table id="historique-table" th:if="${not #lists.isEmpty(vue.lignes)}">
+                    <thead><tr><th>Date</th><th>Type</th><th>Trimestre</th><th>Matricule</th><th>Acteur</th><th>Événement</th></tr></thead>
+                    <tbody><tr th:each="l : ${vue.lignes}" th:attr="data-type=${l.type}">
+                        <td class="mono" th:text="${#temporals.format(l.date, 'dd/MM/yyyy HH:mm')}">08/10/2026 14:05</td>
+                        <td><span class="statut-tag" th:text="${l.typeLibelle}">Import</span></td>
+                        <td th:text="${l.trimestre} ?: '—'">T3 2026</td>
+                        <td class="mono"><a th:if="${l.matricule != null}" th:href="@{/fiche-collaborateur(matricule=${l.matricule})}" th:text="${l.matricule}">BP001</a><th:block th:if="${l.matricule == null}">—</th:block></td>
+                        <td th:text="${l.auteur} ?: '—'">rh</td>
+                        <td><span th:text="${l.description}">Import du classeur</span>
+                            <a th:if="${l.lien != null}" th:href="${l.lien}" class="hint" style="margin-left:6px;">ouvrir</a></td>
+                    </tr></tbody>
+                </table>
+                <div class="empty-state" th:if="${#lists.isEmpty(vue.lignes) and vue.erreur == null}"
+                     th:text="${vue.filtres.actif()} ? 'Aucun événement pour ces filtres.' : 'Aucun événement enregistré pour le moment : les imports, les décisions du Comité et les changements de réglages apparaîtront ici.'">Aucun événement.</div>
+                <div class="pagination" th:if="${vue.nbPages > 1}" style="display:flex; gap:8px; align-items:center; margin-top:12px;">
+                    <a class="btn ghost" th:if="${vue.page > 1}" style="text-decoration:none;"
+                       th:href="@{/historique(type=${vue.filtres.type}, trimestre=${vue.filtres.trimestre}, du=${vue.filtres.du}, au=${vue.filtres.au}, q=${vue.filtres.q}, page=${vue.page - 1})}">← Précédent</a>
+                    <span class="hint" th:text="|Page ${vue.page} sur ${vue.nbPages}|">Page 1 sur 3</span>
+                    <a class="btn ghost" th:if="${vue.page < vue.nbPages}" style="text-decoration:none;"
+                       th:href="@{/historique(type=${vue.filtres.type}, trimestre=${vue.filtres.trimestre}, du=${vue.filtres.du}, au=${vue.filtres.au}, q=${vue.filtres.q}, page=${vue.page + 1})}">Suivant →</a>
+                </div>
+            </div></div>
+        </section>
+    </div>
+</div>
+
+<div th:replace="~{fragments/prototype :: modal}"></div>
+<script th:src="@{/js/prototype.js}"></script>
+</body>
+</html>

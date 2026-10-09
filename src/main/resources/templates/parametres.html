@@ -134,6 +134,40 @@
                     <button type="submit" id="bouton-enregistrer" class="btn">Enregistrer et recalculer</button>
                 </div>
             </form>
+
+            <!--/* Questionnaire d'engagement (ConfigurationQuestionnaireService) : dimension de chaque question et
+                 question eNPS, par code. Formulaire HTML classique (POST + jeton CSRF), independant des reglages
+                 du moteur ci-dessus ; vaut pour tous les trimestres. */-->
+            <div class="panel" id="questionnaire"><div class="panel-head"><h3>Questionnaire d'engagement : dimensions et eNPS</h3>
+                <a class="hint" href="/engagement">voir l'écran Engagement</a></div><div class="panel-body">
+                <div class="alert info" th:if="${succesQuestionnaire != null}" role="status"><div class="sev">ENREGISTRÉ</div><div class="txt" th:text="${succesQuestionnaire}">Enregistré</div></div>
+                <div class="alert warn" th:if="${erreurQuestionnaire != null}" role="alert"><div class="sev">ATTENTION</div><div class="txt" th:text="${erreurQuestionnaire}">Erreur</div></div>
+                <p style="font-size:12.8px; margin-bottom:10px;">Rattachez chaque question à une dimension (texte libre, par exemple
+                    « Management » ou « Carrière ») et choisissez la question notée de 0 à 10 qui sert au calcul de l'eNPS.
+                    Les codes Q01, Q02… suivent l'ordre des colonnes du fichier de réponses. La dimension devient aussi le
+                    thème affiché dans le Talent Passport.</p>
+                <div class="empty-state" th:if="${#lists.isEmpty(questionsQuestionnaire)}">Aucune réponse au questionnaire importée :
+                    importez d'abord un fichier de réponses (page <a href="/import">Import</a>).</div>
+                <form method="post" th:action="@{/parametres/questionnaire}" th:unless="${#lists.isEmpty(questionsQuestionnaire)}">
+                    <input type="hidden" name="trimestre" th:if="${trimestre != null}" th:value="${trimestre.valeur}">
+                    <datalist id="dimensions-connues"><option th:each="d : ${dimensionsQuestionnaire}" th:value="${d}"></option></datalist>
+                    <table class="questionnaire-reglages">
+                        <thead><tr><th>Code</th><th>Question</th><th>Dimension</th><th>eNPS</th></tr></thead>
+                        <tbody><tr th:each="q : ${questionsQuestionnaire}">
+                            <td class="mono" th:text="${q.code}">Q03</td>
+                            <td th:text="${q.texte}">Mon manager me donne un retour régulier</td>
+                            <td><input type="text" th:name="|dimension[${q.code}]|" th:value="${q.dimension}" maxlength="100"
+                                       list="dimensions-connues" th:attr="aria-label=|Dimension de ${q.code}|"></td>
+                            <td><input type="radio" name="enps" th:value="${q.code}" th:checked="${q.questionEnps}"
+                                       th:attr="aria-label=|${q.code} est la question eNPS|"></td>
+                        </tr>
+                        <tr><td></td><td class="hint">Aucune question eNPS</td><td></td>
+                            <td><input type="radio" name="enps" value="" th:checked="${not #lists.contains(questionsQuestionnaire.![questionEnps], true)}" aria-label="Aucune question eNPS"></td></tr>
+                        </tbody></table>
+                    <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+                        <button type="submit" class="btn" id="bouton-questionnaire">Enregistrer les dimensions</button></div>
+                </form>
+            </div></div>
         </section>
     </div>
 </div>

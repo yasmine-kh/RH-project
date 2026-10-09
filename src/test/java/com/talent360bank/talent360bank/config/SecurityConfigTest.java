@@ -202,8 +202,9 @@ class SecurityConfigTest {
 
     @Test
     void le_formulaire_de_connexion_exige_le_jeton_csrf() throws Exception {
+        // Sans jeton (formulaire perime) : pas de connexion, retour a /login avec "session expiree".
         mockMvc.perform(post("/login").param("username", "rh").param("password", MOT_DE_PASSE))
-                .andExpect(status().isForbidden())
+                .andExpect(redirectedUrl(SecurityConfig.CONNEXION_EXPIREE))
                 .andExpect(unauthenticated());
     }
 

@@ -16,7 +16,9 @@
         </div>
         <div class="boite-corps">
             <div class="alert crit" th:if="${param.error}"><div class="sev">ERREUR</div><div class="txt">Identifiant ou mot de passe incorrect.</div></div>
-            <div class="alert info" th:if="${param.deconnexion}"><div class="sev">INFO</div><div class="txt">Vous etes deconnecte.</div></div>
+            <div class="alert info" th:if="${param.deconnexion}"><div class="sev">INFO</div><div class="txt">Vous êtes déconnecté.</div></div>
+            <!--/* Formulaire perime (session expiree ou application redemarree) : SecurityConfig renvoie ici. */-->
+            <div class="alert warn" th:if="${param.expiree}" id="session-expiree"><div class="sev">SESSION</div><div class="txt">Votre session a expiré, reconnectez-vous.</div></div>
 
             <!--/* th:action ajoute le champ cache du jeton CSRF. */-->
             <form method="post" th:action="@{/login}">
