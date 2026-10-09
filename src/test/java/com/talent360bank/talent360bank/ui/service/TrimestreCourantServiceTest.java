@@ -123,7 +123,7 @@ class TrimestreCourantServiceTest {
         service.selectionner(null).exposer(model);
 
         assertThat(model.getAttribute("trimestre")).isEqualTo(new OptionTrimestre("2026-3", "T3 2026", 2026, 3, true));
-        assertThat(model.getAttribute("trimestres")).asList().hasSize(3);
+        assertThat(model.getAttribute("trimestres")).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST).hasSize(3);
     }
 
     @Test
@@ -136,6 +136,6 @@ class TrimestreCourantServiceTest {
 
         assertThat(model.containsAttribute("trimestre")).isTrue();
         assertThat(model.getAttribute("trimestre")).isNull();
-        assertThat(model.getAttribute("trimestres")).asList().isEmpty();
+        assertThat(model.getAttribute("trimestres")).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST).isEmpty();
     }
 }

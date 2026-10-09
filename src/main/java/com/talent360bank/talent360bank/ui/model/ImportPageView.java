@@ -28,10 +28,17 @@ public record ImportPageView(Formulaire formulaire, Rapport rapport, String erre
      * Champs du formulaire, en texte : une valeur mal saisie est renvoyee telle
      * quelle avec le message d'erreur.
      *
-     * @param dateReference date de reference du trimestre (aaaa-mm-jj), vide = fin du trimestre
+     * @param dateReference   date de reference du trimestre (aaaa-mm-jj) ; vide = la date du classeur
+     *                        (00_DASHBOARD A2), reportee ici apres l'envoi pour que le RH la voie
+     * @param dateDuClasseur  la date affichee a ete lue dans le classeur (et non saisie)
+     * @param dateObligatoire le classeur n'indique pas sa date : le champ devient obligatoire
      */
     public record Formulaire(String annee, String numero, boolean simulation, boolean calcul,
-                             String dateReference) {
+                             String dateReference, boolean dateDuClasseur, boolean dateObligatoire) {
+
+        public Formulaire(String annee, String numero, boolean simulation, boolean calcul, String dateReference) {
+            this(annee, numero, simulation, calcul, dateReference, false, false);
+        }
     }
 
     /**

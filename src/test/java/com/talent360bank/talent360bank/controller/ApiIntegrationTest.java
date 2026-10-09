@@ -242,7 +242,7 @@ class ApiIntegrationTest {
 
         assertThat(corps.read("$.nombreCalcules", Integer.class)).isEqualTo(3);
         assertThat(corps.read("$.nombreIgnores", Integer.class)).isZero();
-        assertThat(corps.read("$.scores[*].idCollaborateur", List.class))
+        assertThat(liste(corps, "$.scores[*].idCollaborateur"))
                 .containsExactlyInAnyOrder("E001", "E002", "E003");
     }
 
@@ -254,9 +254,9 @@ class ApiIntegrationTest {
         DocumentContext corps = json(get("/api/trimestres/2026/1/scores"));
 
         assertThat(corps.read("$.length()", Integer.class)).isEqualTo(3);
-        assertThat(corps.read("$[?(@.idCollaborateur == 'E001')].nomComplet", List.class))
+        assertThat(liste(corps, "$[?(@.idCollaborateur == 'E001')].nomComplet"))
                 .containsExactly("Sara Bennani");
-        assertThat(corps.read("$[?(@.idCollaborateur == 'E001')].scorePerformance", List.class))
+        assertThat(liste(corps, "$[?(@.idCollaborateur == 'E001')].scorePerformance"))
                 .containsExactly(90.00);
     }
 
@@ -270,8 +270,7 @@ class ApiIntegrationTest {
 
         // La categorie vient de la table de reference posee au demarrage par
         // Matrice9BoxInitializer : le test verifie aussi que ce runner tourne.
-        List<String> cases = json(get("/api/trimestres/2026/1/scores"))
-                .read("$[*].positionBox", List.class);
+        List<Object> cases = liste(json(get("/api/trimestres/2026/1/scores")), "$[*].positionBox");
         assertThat(cases).doesNotContainNull().hasSize(3);
     }
 
@@ -282,7 +281,7 @@ class ApiIntegrationTest {
 
         // Seuils par defaut a 85/85 : seul E003 (95/95) passe, E001 est a 90
         // en performance mais 90 en potentiel, donc talent aussi.
-        assertThat(corps.read("$[*].idCollaborateur", List.class))
+        assertThat(liste(corps, "$[*].idCollaborateur"))
                 .containsExactlyInAnyOrder("E001", "E003");
     }
 
@@ -302,11 +301,11 @@ class ApiIntegrationTest {
         assertThat(corps.read("$.length()", Integer.class)).isEqualTo(3);
 
         // E002 : engagement 20 sous le seuil de 60, aucun score precedent.
-        assertThat(corps.read("$[?(@.collaborateur.idCollaborateur == 'E002')].signaux[*].code", List.class))
+        assertThat(liste(corps, "$[?(@.collaborateur.idCollaborateur == 'E002')].signaux[*].code"))
                 .containsExactly("ENGAGEMENT_FAIBLE");
 
         // E001 : 90 au trimestre courant contre 95 au precedent.
-        assertThat(corps.read("$[?(@.collaborateur.idCollaborateur == 'E001')].signaux[*].code", List.class))
+        assertThat(liste(corps, "$[?(@.collaborateur.idCollaborateur == 'E001')].signaux[*].code"))
                 .containsExactly("BAISSE_PERFORMANCE");
     }
 
@@ -326,7 +325,7 @@ class ApiIntegrationTest {
         DocumentContext corps = json(get("/api/postes/P001/candidats?annee=2026&numero=1"));
 
         // E003 est titulaire du poste : exclu du classement.
-        assertThat(corps.read("$[*].candidat.idCollaborateur", List.class))
+        assertThat(liste(corps, "$[*].candidat.idCollaborateur"))
                 .containsExactly("E001", "E002");
         assertThat(corps.read("$[0].detail.competences", Double.class)).isEqualTo(100.00);
         assertThat(corps.read("$[0].readiness", String.class)).isNotBlank();
@@ -461,5 +460,10 @@ class ApiIntegrationTest {
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(JsonPath.parse(reponse.getBody()).read("$.erreur", String.class))
                 .isEqualTo("non_authentifie");
+    }
+
+    /** Liste lue dans la reponse, typee (sans conversion brute). */
+    private static List<Object> liste(DocumentContext corps, String chemin) {
+        return corps.read(chemin);
     }
 }

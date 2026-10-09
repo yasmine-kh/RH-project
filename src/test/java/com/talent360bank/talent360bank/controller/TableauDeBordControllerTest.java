@@ -14,7 +14,7 @@ import com.talent360bank.talent360bank.service.resultat.SyntheseTableauDeBord;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -36,9 +36,9 @@ class TableauDeBordControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private TableauDeBordService tableauDeBordService;
-    @MockBean
+    @MockitoBean
     private ChargeurRessources chargeur;
 
     @Test

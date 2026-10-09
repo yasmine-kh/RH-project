@@ -45,8 +45,14 @@
                                     th:selected="${#strings.toString(n) == vue.formulaire.numero}">T1</option>
                         </select></div>
                     <div class="form-row"><label for="dateReference">Date de référence</label>
-                        <div><input type="date" id="dateReference" name="dateReference" th:value="${vue.formulaire.dateReference}">
-                            <span class="champ-aide">Vide : dernier jour du trimestre.</span></div></div>
+                        <div><input type="date" id="dateReference" name="dateReference" th:value="${vue.formulaire.dateReference}"
+                                    th:required="${vue.formulaire.dateObligatoire}">
+                            <span class="champ-aide" th:if="${vue.formulaire.dateDuClasseur}" id="date-du-classeur">Lue dans le classeur
+                                (00_DASHBOARD, cellule A2) : modifiez-la si besoin avant d'importer.</span>
+                            <span class="champ-aide" th:if="${vue.formulaire.dateObligatoire}" id="date-obligatoire">Obligatoire : ce classeur
+                                n'indique pas sa date.</span>
+                            <span class="champ-aide" th:unless="${vue.formulaire.dateDuClasseur or vue.formulaire.dateObligatoire}">Vide : la date
+                                écrite dans le classeur (00_DASHBOARD, cellule A2, « … au JJ/MM/AAAA »). Une simulation l'affiche ici.</span></div></div>
                     <div class="form-row"><span></span>
                         <div>
                             <label class="case"><input type="checkbox" id="simulation" name="simulation" value="true" th:checked="${vue.formulaire.simulation}">

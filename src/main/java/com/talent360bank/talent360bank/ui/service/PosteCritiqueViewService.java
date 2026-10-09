@@ -61,7 +61,7 @@ public class PosteCritiqueViewService {
                     couverture.nbSuccesseurs(),
                     candidatPotentiel,
                     couverture.meilleurMatching(),
-                    couverture.niveau().getLibelle(),
+                    couverture.libelleCouverture(),
                     couverture.estEnAlerte(),
                     couverture.successeurs().stream().map(PosteCritiqueViewService::successeur).toList(),
                     revues.get(couverture.poste().getPosteId())

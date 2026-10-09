@@ -64,6 +64,16 @@ The file `docs/data/TALENT_360_BANK_Dataset_V1.xlsx` is the specification. It is
 
 The rule is simple: **the engine must produce the same results as the workbook.** The test `DatasetExcelComparaisonTest` replays the workbook through the engine and compares the results column by column (see [section 7](#the-excel-comparison-test)).
 
+**Labels are the workbook's, character for character** (`NiveauReadiness`, `NiveauCouverture`, `CouverturePoste`):
+
+| Value | Label (workbook source) |
+|---|---|
+| Readiness | `Ready Now`, `Ready < 1 an`, `Ready 1-2 ans`, `Ready > 2 ans` (`09_SUCCESSION!L`, `00_PARAMETRES`) |
+| Coverage | `Couverte - Ready Now`, `Couverte - <1 an`, `Partielle - à renforcer`, `Aucun successeur - ALERTE` (formula of `08_POSTES_CRITIQUES!I`) |
+| Best matching with no successor | `0`, not "—" (`08!H` = `IFERROR(MAXIFS(...), 0)`, e.g. PST13) |
+
+One label has no workbook equivalent: `Successeurs insuffisants - ALERTE`, for a position that has successors but fewer than the configured minimum (`seuilsCouverture.nbMinSuccesseurs`); the workbook only alerts at 0 successors. "Partielle - à renforcer" keeps its accent (the workbook writes `a renforcer` because its formulas avoid accents).
+
 ---
 
 ## 2. Functional view
@@ -354,7 +364,7 @@ Tests: `AlertesNotificationsCampagneDatasetTest` (actives and evaluated per dire
 - **Checks before the import** (message on the page, nothing called): no file, not `.xlsx`, file over `spring.servlet.multipart.max-file-size`, invalid quarter or date.
 - **Size limit.** The browser checks the size before sending. If a bigger file still reaches the server, Tomcat refuses it before Spring: the CSRF token in the body cannot be read, Spring Security forwards to `/erreur/403`, and the size error is raised there. `TailleImportAdvice` recognises the original URL and redirects to `/import?erreur=taille` (message). Tested on a real server (`ImportPageHttpTest`). A very large file can still end in a connection reset (Tomcat stops reading the upload).
 - **Lock.** The whole upload (import + calculation) runs under `VerrouCalculTrimestre` for that quarter: a second upload, or a recalculation started elsewhere, gets "Un calcul est déjà en cours" instead of running in parallel. API imports (`POST /api/imports`) do **not** take it (AUDIT B6, for Dou).
-- **Reference date.** Set after a successful import with `TrimestreService.modifierDateReference` (nothing stored depends on it, no recalculation).
+- **Reference date.** Empty field = **the workbook's own date**, read in `00_DASHBOARD` A2 ("… au 15/09/2026", `PeriodeClasseur.date`), not the end of the quarter. After a simulation or an import the field shows that date, with "Lue dans le classeur (00_DASHBOARD, cellule A2)", so RH can see it and change it before importing for real; a date typed in the field always wins. If the workbook is readable but A2 has no date (or an impossible one), the field becomes **required**: message *La date de référence est obligatoire pour ce classeur : il n'indique pas sa date (feuille 00_DASHBOARD, cellule A2, « … au JJ/MM/AAAA »). Saisissez-la puis relancez l'import ; rien n'a été importé.* and nothing is imported. `POST /api/imports` does the same (optional `dateReference=AAAA-MM-JJ`, otherwise A2; if neither, the quarter keeps the last day of the quarter). The date is set after a successful import with `TrimestreService.modifierDateReference` (nothing stored depends on it, no recalculation). It matters: seniority and experience are counted up to it, so 30/09 instead of 15/09 moves 8 successions' matchings (PST16's best matching 80.24 instead of the workbook's 80.12).
 - **Empty quarter (audit B5).** Not prevented by the import: format, period and unreadable-file failures stop before the quarter is created, but an import that fails afterwards (no readable row, unexpected error) leaves the new quarter empty. The screens are not affected (the displayed quarter is the latest one **with scores**), and the page warns when it happens. For Dou.
 - **One workbook, one quarter.** The workbook announces its own period (`PeriodeClasseur`: file name, rows 1–3 of every sheet; `TALENT_360_BANK_Dataset_V1.xlsx` says "au 15/09/2026" in `00_DASHBOARD` A2, i.e. T3 2026). Choosing another quarter (e.g. T4 2026) is refused before anything is written: report status `ECHEC`, message *Le classeur porte une autre periode que T4 2026, rien n'a ete importe : T3 2026 (00_DASHBOARD A2 : "15/09/2026"). Verifier le fichier ou le trimestre choisi.*, no quarter created, one `ECHEC` line in the journal (`ImportAutreTrimestreDatasetTest`). To load T4, use the T4 workbook (its own date); re-importing the T3 data under T4 would give a T4 identical to T3 except where the history changes the result (see the note in [section 12](#12-current-status-and-whats-left)).
 - **Report** (`ImportPageView.Rapport`) does not depend on the form: the coming folder import can render one per file with the same fragment, from a second form and POST in `ImportPageController`.
@@ -542,8 +552,9 @@ Every page and every endpoint needs a logged-in RH ([section 9](#9-security)); w
 | Campaign | `GET /api/trimestres/{annee}/{numero}/campagne[?entite=]` ([below](#campaign-progress)) |
 | Employee list | `GET /api/trimestres/{annee}/{numero}/collaborateurs` with optional `entite`, `case`, `talent`, `vivier`, `readiness`, `vigilance`, `q`, `tri`, `ordre`, `page`, `taille` ([below](#collaborateurs-list)) |
 | Quarters | `GET /api/trimestres`, `POST /api/trimestres` (`annee`, `numero`, optional `dateReference`), `PUT /api/trimestres/{annee}/{numero}` (`dateReference`), `POST .../calcul` |
-| Import | `POST /api/imports` (workbook upload), `GET /api/imports` (journal) |
-| Employees | `GET /api/collaborateurs`, `GET /api/collaborateurs/{id}` (both return `CollaborateurResponse`, never the entity), `POST /api/collaborateurs`, `DELETE /api/collaborateurs/{id}` |
+| Import | `POST /api/imports` (workbook upload; optional `dateReference`, default = the workbook's date), `GET /api/imports` and `GET /api/imports/historique` (journal), `POST /api/imports/dossier?annee=&numero=[&simulation=]` (folder `talent360.import.folder`) |
+| Excel templates | `GET /api/templates/collaborateur/{matricule}`, `GET /api/templates/manager/{matricule}` (`.xlsx` download, `?campagne=`, default `T3_2026`) |
+| Employees | `GET /api/collaborateurs`, `GET /api/collaborateurs/{id}` (both return `CollaborateurResponse`, never the entity), `POST /api/collaborateurs` (validated `CollaborateurRequest`: 400 with one French message per field, e.g. `"nom : Le nom est obligatoire"`; unknown entité or manager → 400), `DELETE /api/collaborateurs/{id}` |
 | Employee record (fiche) | `GET /api/trimestres/{annee}/{numero}/collaborateurs/{matricule}/fiche` ([below](#fiche-collaborateur)) |
 | Manager view | `GET /api/trimestres/{annee}/{numero}/managers` (picker), `GET /api/trimestres/{annee}/{numero}/managers/{matricule}/vue` ([below](#vue-manager)) |
 | Entité view | `GET /api/entites` (tree), `GET /api/trimestres/{annee}/{numero}/entites/vue?code={code}` ([below](#vue-entité)) |
@@ -619,7 +630,7 @@ Shortened example (BP005, dataset T3 2026):
                               { "code": "FORMATION_NON_FAITE", "libelle": "Formation prevue non realisee", "points": 5.00 } ] },
   "successions": [ { "posteId": "PST01", "nomPoste": "Directeur regional", "direction": "Reseau Retail",
                      "criticite": "Tres elevee", "scoreMatching": 84.92, "readiness": "MOINS_1_AN",
-                     "readinessLibelle": "< 1 an", "gapCompetence": null, "gapNiveaux": 0 } ],
+                     "readinessLibelle": "Ready < 1 an", "gapCompetence": null, "gapNiveaux": 0 } ],
   "posteCible": { "posteId": "PST01", "nomPoste": "Directeur regional", "...": "...",
                   "successeurIdentifie": true, "gapCompetence": null, "gapNiveaux": 0 },
   "historique": [],
@@ -1115,6 +1126,18 @@ The dataset quarter (T3 2026) uses the workbook's reference date, 15/09/2026, as
 
 It is the proof that the engine implements the client's rules. The workbook is gitignored, so the test is skipped in CI; run it locally before merging engine changes.
 
+**Workbook missing: a warning, never silence.** The 20 dataset classes are disabled (`@EnabledIf("classeurPresent")`, or `assumeTrue` in `DatasetExcelComparaisonTest`) when `docs/data/TALENT_360_BANK_Dataset_V1.xlsx` is absent. The JUnit listener `dataset/AvertissementClasseurAbsent` (registered in `src/test/resources/META-INF/services/org.junit.platform.launcher.TestExecutionListener`) then prints, at the end of the run, a framed block in the Maven console:
+
+```
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ATTENTION : classeur du client absent (docs/data/TALENT_360_BANK_Dataset_V1.xlsx).
+20 classe(s) de comparaison avec le classeur n'ont PAS ete executees :
+   - ComiteDecisionsDatasetTest
+   - ...
+```
+
+A green build with this block means the engine was **not** compared with the workbook. Put the file in `docs/data/` and run the tests again.
+
 ---
 
 ## 8. Request lifecycle
@@ -1224,6 +1247,7 @@ The application holds personal data, so it is designed to be reachable **only fr
 | Login | `SecurityConfig`, `UtilisateurDetailsService`, `Utilisateur` | Only HR logs in. Every page and every `/api/**` endpoint needs an authenticated RH; after login, HR lands on `/`. Form login, BCrypt hashes, 15-minute session, `HttpOnly` + `SameSite=Strict` cookie. A deactivated account is refused. Not logged in: pages redirect to `/login`, the API answers 401 in JSON |
 | First account | `PremierCompteRhInitializer` | Created from environment variables ([section 10](#accounts-and-environment-variables)); there is no default password |
 | CSRF on HTML forms | Spring Security | Every HTML form carries the CSRF token (`th:action`): login, logout, import, Comité decisions, questionnaire settings |
+| Logout | `fragments/prototype.html` (sidebar footer), `erreur/403.html`, `404.html`, `500.html` | "Se déconnecter" on every page (with "Connecté : login"): `POST /logout` with the CSRF token → `/login?deconnexion`, « Vous êtes déconnecté. », session closed (`DeconnexionTest`) |
 | Refused requests | `SecurityConfig.accesRefuse` | Every 403 is logged at WARN with its cause and URL, never the token: `Requete refusee (403, jeton CSRF : aucune session, expiree ou application redemarree) : POST /login, non connecte`, `(403, jeton CSRF absent ou invalide pour cette session)`, `(403, droits insuffisants)`. An expired form (CSRF refused) from someone who is not logged in, or on `/login` itself, redirects to `/login?expiree`: « Votre session a expiré, reconnectez-vous. ». A logged-in RH posting a stale form gets the 403 page « Page expirée — La page a expiré : rechargez-la et recommencez. » (nothing saved). A real lack of rights keeps « Accès refusé ». The API keeps its 403 JSON. Tests: `RefusAccesTest`, `SecurityConfigTest` |
 | No secrets in the code | `spring.datasource.username/password=${SPRING_DATASOURCE_…}` (no default) | The database account and password come from environment variables; the app refuses to start without them |
 | Escaped output | Thymeleaf `th:text` everywhere, no `th:utext` | No XSS from data |
@@ -1235,7 +1259,7 @@ The application holds personal data, so it is designed to be reachable **only fr
 **What's still missing**
 
 - **An old MySQL password is in the public git history** (commits `17a709c`, `414361d`; the repository is public). It must be changed wherever it was used; it's no longer in the code.
-- **Write endpoints bind entities** in `CollaborateurController` and `CompetenceController` (`POST` with an entity as `@RequestBody`, no validation) and allow deletions. They are RH only, but should take a validated form.
+- **`CompetenceController` still binds entities** (`POST` with an entity as `@RequestBody`, no validation). `POST /api/collaborateurs` now takes a validated DTO (`CollaborateurRequest`).
 
 ### Entités manquantes
 
@@ -1328,6 +1352,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES
 ```
 
 `CREATE`, `ALTER`, `INDEX` and `REFERENCES` are needed because Hibernate creates and updates the tables (`ddl-auto=update`).
+
+**Folder import (optional).** `POST /api/imports/dossier` imports every `.xlsx` of one server folder (max 50 files, 10 MB each; sub-folders, `~$` temporary files and links leaving the folder are ignored). The folder is the property `talent360.import.folder`, read from the environment variable `TALENT360_IMPORT_FOLDER` (`application.properties`); there is **no default path**. Unset, the route answers `succes: false` with *Import par dossier non configuré : renseignez la propriété talent360.import.folder (variable d'environnement TALENT360_IMPORT_FOLDER) avec le dossier à lire.* Example: `setx TALENT360_IMPORT_FOLDER "D:\talent360\imports"`.
 
 **2. Environment variables.** The app has no default values: it refuses to start without the MySQL ones, and nobody can log in without an RH account. Set them as **user** variables, then open a new terminal or restart the IDE:
 
@@ -1497,7 +1523,7 @@ git push -u origin feature/my-change
 | **Titulaire** | Current holder of a position |
 | **Successeur identifié** | Successor chosen by HR for a position (an HR input, not a calculation) |
 | **Matching** | Fit score (/100) between a candidate and a target position |
-| **Readiness** | How soon a candidate is ready: Ready Now, < 1 an, 1–2 ans, > 2 ans |
+| **Readiness** | How soon a candidate is ready: Ready Now, Ready < 1 an, Ready 1-2 ans, Ready > 2 ans |
 | **Couverture** | Coverage of a critical position by its successors; "ALERTE" when too few |
 | **Taux de couverture** | Share of critical positions not in alert |
 | **Vigilance / indice de vigilance** | Risk-of-departure index (/100) built from transparent signals, used to prioritise HR follow-up; not a prediction |

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -40,9 +40,9 @@ class PosteCritiqueControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private PosteCritiqueService posteCritiqueService;
-    @MockBean
+    @MockitoBean
     private ChargeurRessources chargeur;
 
     private Trimestre trimestre;
@@ -103,7 +103,7 @@ class PosteCritiqueControllerTest {
                 .andExpect(jsonPath("$[0].successeurs[0].plusGrandGap.competence").value("Leadership"))
                 .andExpect(jsonPath("$[0].successeurs[0].plusGrandGap.ecart").value(1))
                 .andExpect(jsonPath("$[1].alerte").value(true))
-                .andExpect(jsonPath("$[1].meilleurMatching").doesNotExist())
+                .andExpect(jsonPath("$[1].meilleurMatching").value(0))
                 .andExpect(jsonPath("$[1].ignores[0].motif").value("Titulaire du poste"));
     }
 
@@ -115,7 +115,7 @@ class PosteCritiqueControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].posteId").value("PST13"))
-                .andExpect(jsonPath("$[0].couvertureLibelle").value("Successeurs insuffisants - ALERTE"));
+                .andExpect(jsonPath("$[0].couvertureLibelle").value("Aucun successeur - ALERTE"));
     }
 
     @Test

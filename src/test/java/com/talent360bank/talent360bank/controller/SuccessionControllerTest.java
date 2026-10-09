@@ -16,7 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -35,9 +35,9 @@ class SuccessionControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private SuccessionService successionService;
-    @MockBean
+    @MockitoBean
     private ChargeurRessources chargeur;
 
     private Trimestre trimestre;
@@ -78,7 +78,7 @@ class SuccessionControllerTest {
                 .andExpect(jsonPath("$[0].candidat.anciennete").value(10))
                 .andExpect(jsonPath("$[0].scoreMatching").value(87.00))
                 .andExpect(jsonPath("$[0].readiness").value("MOINS_1_AN"))
-                .andExpect(jsonPath("$[0].readinessLibelle").value("< 1 an"))
+                .andExpect(jsonPath("$[0].readinessLibelle").value("Ready < 1 an"))
                 .andExpect(jsonPath("$[0].detail.competences").value(100.00))
                 .andExpect(jsonPath("$[0].detail.mobilite").value(60.00));
     }

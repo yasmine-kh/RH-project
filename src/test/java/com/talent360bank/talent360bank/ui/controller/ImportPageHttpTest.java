@@ -120,6 +120,8 @@ class ImportPageHttpTest {
         formulaire.add("annee", "2026");
         formulaire.add("numero", "3");
         formulaire.add("calcul", "true");
+        // Le classeur de test n'indique pas sa date (00_DASHBOARD A2) : elle est saisie.
+        formulaire.add("dateReference", "2026-09-30");
         formulaire.add("fichier", new ByteArrayResource(classeur) {
             @Override
             public String getFilename() {

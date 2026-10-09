@@ -17,7 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -41,11 +41,11 @@ class ScoreControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private ScoreService scoreService;
-    @MockBean
+    @MockitoBean
     private ScoreRepository scoreRepository;
-    @MockBean
+    @MockitoBean
     private ChargeurRessources chargeur;
     @Autowired
     private VerrouCalculTrimestre verrou;
@@ -140,6 +140,7 @@ class ScoreControllerTest {
     }
 
     @Test
+    @SuppressWarnings("try") // le bloc tient le verrou du calcul, la variable n'est pas utilisee
     void le_recalcul_des_scores_rend_409_pendant_un_calcul_du_trimestre() throws Exception {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
 

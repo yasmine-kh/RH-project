@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -21,7 +21,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.hamcrest.Matchers.hasItems;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,11 +40,15 @@ class CollaborateurControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private CollaborateurRepository collaborateurRepository;
-    @MockBean
+    @MockitoBean
+    private com.talent360bank.talent360bank.repository.EntiteRepository entiteRepository;
+    @MockitoBean
+    private com.talent360bank.talent360bank.repository.ManagerRepository managerRepository;
+    @MockitoBean
     private com.talent360bank.talent360bank.service.JournalService journalService;
-    @MockBean
+    @MockitoBean
     private ChargeurRessources chargeur;
 
     private Collaborateur sara;
@@ -105,5 +114,52 @@ class CollaborateurControllerTest {
         mockMvc.perform(get("/api/collaborateurs/E999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.erreur").value("ressource_introuvable"));
+    }
+
+    // ------------------------------------------------------------ POST valide
+
+    private org.springframework.test.web.servlet.ResultActions creer(String json) throws Exception {
+        return mockMvc.perform(post("/api/collaborateurs")
+                .header(com.talent360bank.talent360bank.config.ProtectionRequetesFilter.EN_TETE_ECRITURE, "1")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(json));
+    }
+
+    @Test
+    void un_collaborateur_invalide_rend_400_avec_un_message_francais_par_champ() throws Exception {
+        creer("""
+                {"idCollaborateur": " ", "nom": "", "dateEntree": "2999-01-01", "dateNaissance": "2999-01-01",
+                 "email": "pas-un-mail", "grade": "%s", "entite": {}}
+                """.formatted("G".repeat(51)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erreur").value("corps_invalide"))
+                .andExpect(jsonPath("$.message").value("Le corps de la requête est invalide"))
+                .andExpect(jsonPath("$.details", hasItems(
+                        "idCollaborateur : Le matricule est obligatoire",
+                        "nom : Le nom est obligatoire",
+                        "prenom : Le prénom est obligatoire",
+                        "dateEntree : La date d'entrée ne peut pas être dans le futur",
+                        "dateNaissance : La date de naissance doit être dans le passé",
+                        "email : L'adresse e-mail n'est pas valide",
+                        "grade : Le grade fait au plus 50 caractères",
+                        "entite.idEntite : L'identifiant de l'entité est obligatoire")));
+        verify(collaborateurRepository, never()).save(any());
+    }
+
+    @Test
+    void une_date_d_entree_absente_et_une_entite_inconnue_rendent_400() throws Exception {
+        creer("""
+                {"idCollaborateur": "E009", "nom": "Nouveau", "prenom": "Arrivant"}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details", hasItems("dateEntree : La date d'entrée est obligatoire")));
+
+        when(entiteRepository.findById(999)).thenReturn(java.util.Optional.empty());
+        creer("""
+                {"idCollaborateur": "E009", "nom": "Nouveau", "prenom": "Arrivant", "dateEntree": "2025-09-01",
+                 "entite": {"idEntite": 999}}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Entité inconnue : 999"));
+        verify(collaborateurRepository, never()).save(any());
     }
 }

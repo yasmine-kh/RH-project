@@ -5,9 +5,11 @@ package com.talent360bank.talent360bank.service.enums;
  * colonne Couverture de 08_POSTES_CRITIQUES.
  */
 public enum NiveauCouverture {
-    ALERTE("Successeurs insuffisants - ALERTE"),
+    // Libelles du classeur (08_POSTES_CRITIQUES!I), a l'identique ; "a renforcer" garde son accent.
+    // ALERTE avec au moins un successeur (sous le minimum regle) : voir CouverturePoste.libelleCouverture.
+    ALERTE("Aucun successeur - ALERTE"),
     READY_NOW("Couverte - Ready Now"),
-    MOINS_1_AN("Couverte - < 1 an"),
+    MOINS_1_AN("Couverte - <1 an"),
     PARTIELLE("Partielle - à renforcer");
 
     private final String libelle;

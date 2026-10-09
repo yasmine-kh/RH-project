@@ -112,6 +112,8 @@ public class ImportQuestionnaireService {
 
     /** Fichier sans en-tete reconnaissable. */
     static class FormatInvalideException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         FormatInvalideException(String message) {
             super(message);
         }

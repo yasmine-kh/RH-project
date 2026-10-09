@@ -88,6 +88,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- API du lanceur JUnit : AvertissementClasseurAbsent liste les tests ignores sans le classeur.
+             Version geree par Spring Boot. -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- @WithMockUser, csrf(), formLogin() dans les tests MockMvc -->
         <dependency>

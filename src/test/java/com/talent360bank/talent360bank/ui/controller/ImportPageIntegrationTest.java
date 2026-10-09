@@ -134,7 +134,7 @@ class ImportPageIntegrationTest {
     @Order(4)
     void sans_calcul_coche_l_import_n_est_pas_calcule() throws Exception {
         Rapport rapport = vue(mockMvc.perform(envoi(ClasseurDeTest.complet().fichier("classeur-test.xlsx"),
-                "2026", "3").with(csrf())).andExpect(status().isOk())).rapport();
+                "2026", "3").param("dateReference", "2026-09-30").with(csrf())).andExpect(status().isOk())).rapport();
 
         assertThat(rapport.statut()).isEqualTo("SUCCES");
         assertThat(rapport.calcul()).isNull();
@@ -149,7 +149,8 @@ class ImportPageIntegrationTest {
         long imports = importExcelRepository.count();
 
         Rapport rapport = vue(mockMvc.perform(envoi(ClasseurDeTest.complet().fichier("classeur-test.xlsx"),
-                        "2027", "1").param("simulation", "true").param("calcul", "true").with(csrf()))
+                        "2027", "1").param("simulation", "true").param("calcul", "true")
+                        .param("dateReference", "2027-03-31").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Simulation : rien n'a été enregistré")))).rapport();
 
@@ -172,7 +173,8 @@ class ImportPageIntegrationTest {
                 .cellule(FEUILLE_PERFORMANCE, 1, 4, "<b>abc</b>")
                 .fichier("classeur-test.xlsx");
 
-        Rapport rapport = vue(mockMvc.perform(envoi(fichier, "2026", "3").param("calcul", "true").with(csrf()))
+        Rapport rapport = vue(mockMvc.perform(envoi(fichier, "2026", "3").param("calcul", "true")
+                .param("dateReference", "2026-09-30").with(csrf()))
                 .andExpect(status().isOk())
                 // Texte de cellule echappe (th:text), jamais interprete.
                 .andExpect(content().string(not(containsString("<b>abc</b>"))))
@@ -208,7 +210,7 @@ class ImportPageIntegrationTest {
     @Order(8)
     void un_import_sans_aucune_ligne_signale_le_trimestre_ouvert_mais_vide() throws Exception {
         Rapport rapport = vue(mockMvc.perform(envoi(ClasseurDeTest.vide().fichier("classeur-test.xlsx"),
-                        "2027", "2").param("calcul", "true").with(csrf()))
+                        "2027", "2").param("calcul", "true").param("dateReference", "2027-06-30").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("ne contient aucune donnée")))).rapport();
 
@@ -304,7 +306,8 @@ class ImportPageIntegrationTest {
             assertThat(verrouPris.await(10, TimeUnit.SECONDS)).isTrue();
 
             ImportPageView vue = vue(mockMvc.perform(envoi(ClasseurDeTest.complet().fichier("classeur-test.xlsx"),
-                    "2026", "3").param("calcul", "true").with(csrf())).andExpect(status().isOk())
+                    "2026", "3").param("calcul", "true")
+                    .param("dateReference", "2026-09-30").with(csrf())).andExpect(status().isOk())
                     .andExpect(content().string(containsString("Un calcul est déjà en cours pour T3 2026"))));
 
             assertThat(vue.rapport()).isNull();
@@ -312,6 +315,90 @@ class ImportPageIntegrationTest {
         } finally {
             liberer.countDown();
             calcul.join(10_000);
+        }
+    }
+
+    // ------------------------------------------------------------ date de reference du classeur (00_DASHBOARD A2)
+
+    private static ClasseurDeTest dateDansLeClasseur(String texteA2) {
+        return ClasseurDeTest.complet().autreFeuille("00_DASHBOARD").commentaire("00_DASHBOARD", texteA2);
+    }
+
+    @Test
+    @Order(20)
+    void sans_date_saisie_l_import_prend_la_date_du_classeur_et_l_affiche() throws Exception {
+        ImportPageView vue = vue(mockMvc.perform(envoi(
+                        dateDansLeClasseur("Tableau de bord de synthese - Prototype - au 15/09/2091")
+                                .fichier("classeur-date.xlsx"), "2091", "3").param("calcul", "false").with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("value=\"2091-09-15\"")))
+                .andExpect(content().string(containsString("id=\"date-du-classeur\""))));
+
+        assertThat(vue.erreur()).isNull();
+        assertThat(vue.rapport().statut()).isEqualTo("SUCCES");
+        assertThat(vue.rapport().dateReference()).isEqualTo(LocalDate.of(2091, 9, 15));
+        assertThat(vue.formulaire().dateReference()).isEqualTo("2091-09-15");
+        assertThat(vue.formulaire().dateDuClasseur()).isTrue();
+        assertThat(trimestreRepository.findByNumeroAndAnnee(3, 2091).orElseThrow().getDateReference())
+                .isEqualTo(LocalDate.of(2091, 9, 15));
+    }
+
+    @Test
+    @Order(21)
+    void une_simulation_montre_la_date_du_classeur_sans_rien_enregistrer() throws Exception {
+        ImportPageView vue = vue(mockMvc.perform(envoi(dateDansLeClasseur("Tableau de bord - au 12/03/2092")
+                        .fichier("classeur-date.xlsx"), "2092", "1").param("simulation", "true").with(csrf()))
+                .andExpect(status().isOk()));
+
+        assertThat(vue.formulaire().dateReference()).isEqualTo("2092-03-12");
+        assertThat(vue.formulaire().dateDuClasseur()).isTrue();
+        assertThat(trimestreRepository.findByNumeroAndAnnee(1, 2092)).isEmpty();
+    }
+
+    @Test
+    @Order(22)
+    void une_date_saisie_l_emporte_sur_celle_du_classeur() throws Exception {
+        ImportPageView vue = vue(mockMvc.perform(envoi(dateDansLeClasseur("Tableau de bord - au 15/12/2092")
+                        .fichier("classeur-date.xlsx"), "2092", "4").param("calcul", "false")
+                        .param("dateReference", "2092-12-31").with(csrf()))
+                .andExpect(status().isOk()));
+
+        assertThat(vue.formulaire().dateDuClasseur()).isFalse();
+        assertThat(trimestreRepository.findByNumeroAndAnnee(4, 2092).orElseThrow().getDateReference())
+                .isEqualTo(LocalDate.of(2092, 12, 31));
+    }
+
+    @Test
+    @Order(23)
+    void sans_date_dans_le_classeur_le_champ_devient_obligatoire_et_rien_n_est_importe() throws Exception {
+        long imports = importExcelRepository.count();
+
+        ImportPageView vue = vue(mockMvc.perform(envoi(ClasseurDeTest.complet().fichier("classeur-sans-date.xlsx"),
+                        "2093", "1").with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("La date de référence est obligatoire pour ce classeur")))
+                .andExpect(content().string(containsString("id=\"date-obligatoire\"")))
+                .andExpect(content().string(containsString("required"))));
+
+        assertThat(vue.erreur()).isEqualTo(com.talent360bank.talent360bank.ui.service.ImportPageService
+                .MESSAGE_DATE_OBLIGATOIRE);
+        assertThat(vue.formulaire().dateObligatoire()).isTrue();
+        assertThat(vue.rapport()).isNull();
+        assertThat(importExcelRepository.count()).isEqualTo(imports);
+        assertThat(trimestreRepository.findByNumeroAndAnnee(1, 2093)).isEmpty();
+    }
+
+    @Test
+    void la_date_est_lue_en_00_dashboard_a2_et_une_date_impossible_est_ignoree() throws Exception {
+        try (var classeur = org.apache.poi.ss.usermodel.WorkbookFactory.create(new java.io.ByteArrayInputStream(
+                dateDansLeClasseur("Tableau de bord de synthese - Prototype (100 collaborateurs fictifs) - au 15/09/2026")
+                        .octets()))) {
+            assertThat(com.talent360bank.talent360bank.service.PeriodeClasseur.date(classeur))
+                    .isEqualTo(LocalDate.of(2026, 9, 15));
+        }
+        try (var classeur = org.apache.poi.ss.usermodel.WorkbookFactory.create(new java.io.ByteArrayInputStream(
+                dateDansLeClasseur("Tableau de bord - au 31/02/2026").octets()))) {
+            assertThat(com.talent360bank.talent360bank.service.PeriodeClasseur.date(classeur)).isNull();
         }
     }
 

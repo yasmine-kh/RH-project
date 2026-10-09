@@ -6,6 +6,7 @@ import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.exception.RecalculEnCoursException;
 import com.talent360bank.talent360bank.repository.TrimestreRepository;
 import com.talent360bank.talent360bank.service.CampagneService;
+import com.talent360bank.talent360bank.service.PeriodeClasseur;
 import com.talent360bank.talent360bank.service.ImportQuestionnaireService;
 import com.talent360bank.talent360bank.service.ImportService;
 import com.talent360bank.talent360bank.service.TrimestreService;
@@ -148,8 +149,25 @@ public class ImportPageService {
                     ? null : LocalDate.parse(formulaire.dateReference().trim());
         } catch (DateTimeParseException e) {
             return vue(formulaire, null, "Date de référence invalide : choisir une date dans le calendrier, "
-                    + "ou laisser vide pour la fin du trimestre.");
+                    + "ou laisser vide pour prendre la date du classeur.");
         }
+        // Champ vide : la date que le classeur ecrit lui-meme (00_DASHBOARD A2, "... au 15/09/2026").
+        if (dateReference == null) {
+            PeriodeClasseur.DateClasseur lue = PeriodeClasseur.dateDuFichier(fichier);
+            if (lue.lisible() && lue.date() == null) {
+                return vue(new Formulaire(formulaire.annee(), formulaire.numero(), formulaire.simulation(),
+                        formulaire.calcul(), "", false, true), null, MESSAGE_DATE_OBLIGATOIRE);
+            }
+            // Fichier illisible : l'import le refusera avec son propre message.
+            dateReference = lue.date();
+            if (dateReference != null) {
+                formulaire = new Formulaire(formulaire.annee(), formulaire.numero(), formulaire.simulation(),
+                        formulaire.calcul(), dateReference.toString(), true, false);
+            }
+        }
+        final LocalDate dateRetenue = dateReference;
+        final boolean simulation = formulaire.simulation();
+        final boolean calcul = formulaire.calcul();
 
         boolean existait = trimestreRepository.findByNumeroAndAnnee(numero, annee).isPresent();
         Trimestre cle = new Trimestre();
@@ -158,12 +176,11 @@ public class ImportPageService {
         ResultatCampagne campagne;
         try {
             campagne = verrou.executer(cle, () -> {
-                ResultatCampagne resultat = campagneService.importer(fichier, annee, numero,
-                        formulaire.simulation(), formulaire.calcul());
-                if (dateReference != null && !formulaire.simulation()
+                ResultatCampagne resultat = campagneService.importer(fichier, annee, numero, simulation, calcul);
+                if (dateRetenue != null && !simulation
                         && resultat.importation().statut() != StatutImport.ECHEC) {
                     trimestreService.modifierDateReference(
-                            trimestreRepository.findByNumeroAndAnnee(numero, annee).orElseThrow(), dateReference);
+                            trimestreRepository.findByNumeroAndAnnee(numero, annee).orElseThrow(), dateRetenue);
                 }
                 return resultat;
             });
@@ -225,6 +242,11 @@ public class ImportPageService {
     }
 
     // --------------------------------------------------------------------------------
+
+    /** Classeur lisible qui n'ecrit pas sa date en 00_DASHBOARD A2, et champ laisse vide. */
+    public static final String MESSAGE_DATE_OBLIGATOIRE = "La date de référence est obligatoire pour ce classeur : "
+            + "il n'indique pas sa date (feuille 00_DASHBOARD, cellule A2, « … au JJ/MM/AAAA »). "
+            + "Saisissez-la puis relancez l'import ; rien n'a été importé.";
 
     private ImportPageView vue(Formulaire formulaire, Rapport rapport, String erreur) {
         return new ImportPageView(formulaire, rapport, erreur, journal(), tailleMax.toBytes(), libelle(tailleMax));

@@ -210,3 +210,11 @@ a.dbtn { text-decoration: none; display: inline-block; }
 .historique-filtres label { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
 .questionnaire-reglages td { vertical-align: middle; }
 .questionnaire-reglages input[type=text] { font: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid var(--line); width: 100%; min-width: 140px; }
+
+/* Deconnexion en pied de barre laterale (fragments/prototype.html :: sidebar). */
+.sidebar-deconnexion { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.sidebar-compte { color: #9AA1B5; }
+.sidebar-compte b { color: #EDEFF4; font-weight: 500; }
+.btn-deconnexion { align-self: flex-start; font: inherit; font-size: 11px; color: #EDEFF4; background: transparent;
+    border: 1px solid rgba(255,255,255,.25); padding: 5px 10px; cursor: pointer; }
+.btn-deconnexion:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.45); }

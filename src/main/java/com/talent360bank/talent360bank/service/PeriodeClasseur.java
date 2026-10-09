@@ -4,7 +4,12 @@ import com.talent360bank.talent360bank.excel.Cellules;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
+import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -72,6 +77,44 @@ public final class PeriodeClasseur {
             }
         }
         return periodes;
+    }
+
+    /** Feuille et cellule ou le classeur ecrit sa date ("... au 15/09/2026"). */
+    public static final String FEUILLE_DATE = "00_DASHBOARD";
+    public static final String CELLULE_DATE = "A2";
+
+    /**
+     * Date du classeur lu dans un fichier envoye.
+     *
+     * @param lisible faux si le fichier n'est pas un classeur lisible (l'import le refusera de lui-meme)
+     * @param date    date de 00_DASHBOARD A2, null si le classeur n'en ecrit pas (ou une date impossible)
+     */
+    public record DateClasseur(boolean lisible, LocalDate date) {
+    }
+
+    /** Lit la date de 00_DASHBOARD A2 dans le fichier envoye, sans rien importer. */
+    public static DateClasseur dateDuFichier(MultipartFile fichier) {
+        try (InputStream flux = fichier.getInputStream(); Workbook classeur = WorkbookFactory.create(flux)) {
+            return new DateClasseur(true, date(classeur));
+        } catch (Exception e) {
+            return new DateClasseur(false, null);
+        }
+    }
+
+    /** La date ecrite en 00_DASHBOARD A2 ("au 15/09/2026"), null si absente ou impossible. */
+    public static LocalDate date(Workbook classeur) {
+        Sheet feuille = classeur.getSheet(FEUILLE_DATE);
+        Row ligne = feuille == null ? null : feuille.getRow(1);
+        String texte = ligne == null ? null : texteOuNul(ligne, 0);
+        Matcher m = texte == null ? null : DATE.matcher(texte);
+        if (m == null || !m.find()) {
+            return null;
+        }
+        try {
+            return LocalDate.of(Integer.parseInt(m.group(3)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(1)));
+        } catch (DateTimeException e) {
+            return null;
+        }
     }
 
     /** Periodes qui ne sont pas le trimestre demande. */

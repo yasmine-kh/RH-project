@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <title>BP TALENT 360 — Erreur</title>
     <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
@@ -26,6 +26,10 @@
                 <a href="/collaborateurs" class="btn ghost" style="text-decoration:none;">Collaborateurs</a>
                 <a href="/import" class="btn ghost" style="text-decoration:none;">Import</a>
             </div>
+            <!--/* Deconnexion, comme sur la page 403 et dans la barre laterale. */-->
+            <form method="post" th:action="@{/logout}" sec:authorize="isAuthenticated()" style="margin-top:12px;" id="form-deconnexion">
+                <button type="submit" class="btn ghost">Se déconnecter</button>
+            </form>
         </div>
     </div>
 </main>

@@ -32,8 +32,14 @@ public class DossierImportService {
     // Verrou contre le double import simultané (B6)
     private final AtomicBoolean enCoursDImportation = new AtomicBoolean(false);
 
+    /** Propriete du dossier lu par l'import de dossier (application.properties, variable TALENT360_IMPORT_FOLDER). */
+    public static final String PROPRIETE_DOSSIER = "talent360.import.folder";
+    public static final String MESSAGE_NON_CONFIGURE = "Import par dossier non configuré : renseignez la propriété "
+            + PROPRIETE_DOSSIER + " (variable d'environnement TALENT360_IMPORT_FOLDER) avec le dossier à lire.";
+
+    /** @param cheminDossierImport dossier lu ; vide = import par dossier non configure (aucun chemin par defaut) */
     public DossierImportService(ImportService importService,
-                                @Value("${talent360.import.folder:C:/talent360/imports}") String cheminDossierImport) {
+                                @Value("${" + PROPRIETE_DOSSIER + ":}") String cheminDossierImport) {
         this.importService = importService;
         this.cheminDossierImport = cheminDossierImport;
     }
@@ -49,6 +55,10 @@ public class DossierImportService {
         List<String> erreursGlobales = new ArrayList<>();
 
         try {
+            if (cheminDossierImport == null || cheminDossierImport.isBlank()) {
+                erreursGlobales.add(MESSAGE_NON_CONFIGURE);
+                return new RapportDossierImport(false, bilansFichiers, erreursGlobales);
+            }
             Path dossierPath = Paths.get(cheminDossierImport).toAbsolutePath().normalize();
 
             if (!Files.exists(dossierPath) || !Files.isDirectory(dossierPath)) {

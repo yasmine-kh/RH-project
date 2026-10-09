@@ -162,7 +162,8 @@ class PosteCritiqueServiceTest {
         assertThat(couverture.nbSuccesseurs()).isZero();
         assertThat(couverture.estEnAlerte()).isTrue();
         assertThat(couverture.meilleurSuccesseur()).isNull();
-        assertThat(couverture.meilleurMatching()).isNull();
+        // 0 comme 08_POSTES_CRITIQUES!H (IFERROR(MAXIFS(...), 0)).
+        assertThat(couverture.meilleurMatching()).isEqualByComparingTo("0");
     }
 
     @Test

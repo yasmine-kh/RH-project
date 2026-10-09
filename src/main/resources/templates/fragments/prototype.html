@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
 <!--/*
   En-tete commun des pages refaites a partir du prototype (docs/prototype/index.html) :
@@ -77,7 +77,12 @@
                     class="nav-item-indication" th:text="${element.indication}">choisir un manager</small></div>
         </th:block>
     </nav>
-    <div class="sidebar-foot">Module SIRH Talents &amp; Succession<th:block th:if="${trimestre != null}"><br>Trimestre affiché : <span th:text="${trimestre.libelle}">T3 2026</span></th:block></div>
+    <div class="sidebar-foot">Module SIRH Talents &amp; Succession<th:block th:if="${trimestre != null}"><br>Trimestre affiché : <span th:text="${trimestre.libelle}">T3 2026</span></th:block>
+        <!--/* Deconnexion sur chaque page : POST avec le jeton CSRF (th:action), retour a /login?deconnexion. */-->
+        <form method="post" th:action="@{/logout}" class="sidebar-deconnexion" id="form-deconnexion" sec:authorize="isAuthenticated()">
+            <span class="sidebar-compte">Connecté : <b sec:authentication="name">rh</b></span>
+            <button type="submit" class="btn-deconnexion">Se déconnecter</button>
+        </form></div>
 </aside>
 
 <!--/* .topbar du prototype. La cloche mene aux notifications ; prototype.js y met le nombre d'alertes. */-->
@@ -105,7 +110,7 @@
             th:selected="${trimestre != null and option.valeur == trimestre.valeur}">T3 2026</option>
 </select>
 
-<!--/* readinessBadge() du prototype : pastille + libelle du moteur. Ready Now -> g, < 1 an / 1-2 ans -> o, > 2 ans -> b. */-->
+<!--/* readinessBadge() du prototype : pastille + libelle du moteur. Ready Now -> g, Ready < 1 an / Ready 1-2 ans -> o, Ready > 2 ans -> b. */-->
 <th:block th:fragment="readiness(code, libelle)"><th:block th:if="${libelle == null}">—</th:block><th:block th:if="${libelle != null}"><span class="dot"
         th:classappend="${code == 'READY_NOW'} ? 'g' : (${code == 'PLUS_2_ANS'} ? 'b' : 'o')"></span>[[${libelle}]]</th:block></th:block>
 

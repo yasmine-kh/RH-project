@@ -9,6 +9,8 @@ import java.util.List;
  * qu'une fois les blocs reunis.
  */
 public class ParametreInvalideException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
 
     private final transient List<String> violations;
 

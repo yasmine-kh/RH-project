@@ -260,7 +260,7 @@ public class VueEntiteViewService {
                     poste.getCriticite(), poste.getTitulaireId(), poste.getTitulaireNom(),
                     rattachements.get(poste.getPosteId()),
                     couverture == null ? null : couverture.niveau().name(),
-                    couverture == null ? null : couverture.niveau().getLibelle(),
+                    couverture == null ? null : couverture.libelleCouverture(),
                     couverture == null ? null : couverture.estEnAlerte(),
                     couverture == null ? null : couverture.nbSuccesseurs(),
                     couverture == null ? null : couverture.meilleurMatching()));

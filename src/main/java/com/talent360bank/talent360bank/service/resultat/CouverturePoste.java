@@ -27,10 +27,22 @@ public record CouverturePoste(Poste poste, int nbSuccesseurs, List<ResultatMatch
         return successeurs.isEmpty() ? null : successeurs.get(0);
     }
 
-    /** Meilleur score de matching, null si aucun successeur n'a ete evalue. */
+    /**
+     * Libelle de couverture du classeur (08_POSTES_CRITIQUES!I). Le classeur n'a qu'un cas d'alerte (aucun
+     * successeur) ; l'application en a un second, des successeurs mais moins que le minimum regle.
+     */
+    public String libelleCouverture() {
+        return niveau == NiveauCouverture.ALERTE && nbSuccesseurs > 0
+                ? LIBELLE_SUCCESSEURS_INSUFFISANTS : niveau.getLibelle();
+    }
+
+    /** Alerte avec des successeurs, mais moins que le minimum regle (cas absent du classeur). */
+    public static final String LIBELLE_SUCCESSEURS_INSUFFISANTS = "Successeurs insuffisants - ALERTE";
+
+    /** Meilleur matching comme 08_POSTES_CRITIQUES!H : 0 sans successeur evalue (IFERROR(MAXIFS(...), 0)). */
     public BigDecimal meilleurMatching() {
         ResultatMatching meilleur = meilleurSuccesseur();
-        return meilleur == null ? null : meilleur.scoreMatching();
+        return meilleur == null ? BigDecimal.ZERO : meilleur.scoreMatching();
     }
 
     public boolean estEnAlerte() {

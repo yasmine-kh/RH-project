@@ -143,6 +143,8 @@ public class ImportClasseurService {
 
     /** Ligne ecartee, avec le motif rendu au RH. */
     static class LigneRejeteeException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         LigneRejeteeException(String message) {
             super(message);
         }

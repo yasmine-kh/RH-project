@@ -23,7 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -47,13 +47,13 @@ class TalentEtNeufBoxControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private TalentService talentService;
-    @MockBean
+    @MockitoBean
     private NeufBoxService neufBoxService;
-    @MockBean
+    @MockitoBean
     private VivierReleveService vivierReleveService;
-    @MockBean
+    @MockitoBean
     private ChargeurRessources chargeur;
     @Autowired
     private VerrouCalculTrimestre verrou;
@@ -213,6 +213,7 @@ class TalentEtNeufBoxControllerTest {
     }
 
     @Test
+    @SuppressWarnings("try") // le bloc tient le verrou du calcul, la variable n'est pas utilisee
     void le_placement_9_box_rend_409_pendant_un_calcul_du_trimestre() throws Exception {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
 
@@ -227,6 +228,7 @@ class TalentEtNeufBoxControllerTest {
     }
 
     @Test
+    @SuppressWarnings("try") // le bloc tient le verrou du calcul, la variable n'est pas utilisee
     void l_enregistrement_du_vivier_de_releve_rend_409_pendant_un_calcul_du_trimestre() throws Exception {
         when(chargeur.exigerTrimestre(2026, 1)).thenReturn(trimestre);
 

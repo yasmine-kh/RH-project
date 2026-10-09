@@ -166,7 +166,7 @@ public final class ClasseurDeTest {
     }
 
     /** Feuille sans rapport avec le jeu de donnees, sans en-tete. */
-    ClasseurDeTest autreFeuille(String nom) {
+    public ClasseurDeTest autreFeuille(String nom) {
         feuilles.put(nom, new ArrayList<>());
         return this;
     }
@@ -189,7 +189,7 @@ public final class ClasseurDeTest {
     }
 
     /** Texte de la ligne de commentaire (ligne 2) de la feuille. */
-    ClasseurDeTest commentaire(String feuille, String texte) {
+    public ClasseurDeTest commentaire(String feuille, String texte) {
         commentaires.put(feuille, texte);
         return this;
     }

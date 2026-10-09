@@ -148,6 +148,8 @@ public class DecisionsComiteService {
 
     /** Decision impossible : message pret a afficher, rien n'est enregistre. */
     public static class DecisionRefuseeException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public DecisionRefuseeException(String message) {
             super(message);
         }

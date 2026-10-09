@@ -27,7 +27,7 @@
             <p style="font-size:12.8px; color:var(--muted);" sec:authorize="isAuthenticated()">
                 Connecté en tant que <b sec:authentication="name">login</b>.</p>
             <!--/* Deconnexion en POST, avec le jeton CSRF ajoute par th:action. */-->
-            <form method="post" th:action="@{/logout}" sec:authorize="isAuthenticated()">
+            <form method="post" th:action="@{/logout}" sec:authorize="isAuthenticated()" id="form-deconnexion">
                 <button type="submit" class="btn ghost">Se déconnecter</button>
             </form>
         </div>

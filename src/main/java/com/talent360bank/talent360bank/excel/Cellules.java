@@ -34,6 +34,8 @@ public final class Cellules {
 
     /** Valeur d'une cellule que l'import ne sait pas interpreter. */
     public static class ValeurIllisibleException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public ValeurIllisibleException(String message) {
             super(message);
         }

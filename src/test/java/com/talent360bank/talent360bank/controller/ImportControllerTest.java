@@ -52,6 +52,10 @@ class ImportControllerTest {
 
     @MockitoBean
     private DossierImportService dossierImportService;
+    @MockitoBean
+    private com.talent360bank.talent360bank.service.TrimestreService trimestreService;
+    @MockitoBean
+    private com.talent360bank.talent360bank.repository.TrimestreRepository trimestreRepository;
 
     @MockitoBean
     private ImportService importService;

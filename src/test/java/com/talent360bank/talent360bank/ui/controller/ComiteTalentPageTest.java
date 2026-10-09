@@ -26,7 +26,7 @@ import com.talent360bank.talent360bank.ui.service.ProfilsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -54,37 +54,37 @@ class ComiteTalentPageTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private ValidationComiteService validationComiteService;
-    @MockBean
+    @MockitoBean
     private TrimestreRepository trimestreRepository;
-    @MockBean
+    @MockitoBean
     private ScoreRepository scoreRepository;
-    @MockBean
+    @MockitoBean
     private NineBoxViewService nineBoxViewService;
-    @MockBean
+    @MockitoBean
     private VivierService vivierService;
-    @MockBean
+    @MockitoBean
     private PosteCritiqueViewService posteCritiqueViewService;
-    @MockBean
+    @MockitoBean
     private FicheCollaborateurPageViewService ficheCollaborateurPageViewService;
-    @MockBean
+    @MockitoBean
     private VivierSyntheseService vivierSyntheseService;
-    @MockBean
+    @MockitoBean
     private com.talent360bank.talent360bank.ui.service.ReponsesQuestionnaireViewService reponsesQuestionnaireViewService;
-    @MockBean
+    @MockitoBean
     private ProfilsService profilsService;
-    @MockBean
+    @MockitoBean
     private com.talent360bank.talent360bank.service.PosteCritiqueService posteCritiqueService;
-    @MockBean
+    @MockitoBean
     private com.talent360bank.talent360bank.repository.ValidationComiteRepository validationComiteRepository;
-    @MockBean
+    @MockitoBean
     private com.talent360bank.talent360bank.repository.ValidationSuccessionRepository validationSuccessionRepository;
-    @MockBean
+    @MockitoBean
     private com.talent360bank.talent360bank.service.RevuesComiteService revuesComiteService;
-    @MockBean
+    @MockitoBean
     private com.talent360bank.talent360bank.ui.service.HistoriqueCollaborateurViewService historiqueCollaborateurViewService;
-    @MockBean
+    @MockitoBean
     private com.talent360bank.talent360bank.service.ConfigurationQuestionnaireService configurationQuestionnaireService;
 
     private Trimestre t3;

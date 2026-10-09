@@ -25,7 +25,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -57,13 +57,13 @@ class ParametreControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private ParametreRepository parametreRepository;
-    @MockBean
+    @MockitoBean
     private com.talent360bank.talent360bank.service.JournalService journalService;
-    @MockBean
+    @MockitoBean
     private ChargeurRessources chargeur;
-    @MockBean
+    @MockitoBean
     private CalculTrimestreService calculTrimestreService;
     @Autowired
     private VerrouCalculTrimestre verrou;

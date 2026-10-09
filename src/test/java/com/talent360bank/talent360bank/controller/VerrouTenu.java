@@ -38,8 +38,12 @@ final class VerrouTenu implements AutoCloseable {
     }
 
     @Override
-    public void close() throws InterruptedException {
+    public void close() {
         liberer.countDown();
-        fil.join(10_000);
+        try {
+            fil.join(10_000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

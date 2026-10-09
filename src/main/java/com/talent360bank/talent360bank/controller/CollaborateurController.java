@@ -18,9 +18,16 @@ public class CollaborateurController {
     private final ChargeurRessources chargeur;
     private final com.talent360bank.talent360bank.service.JournalService journalService;
 
+    private final com.talent360bank.talent360bank.repository.EntiteRepository entiteRepository;
+    private final com.talent360bank.talent360bank.repository.ManagerRepository managerRepository;
+
     public CollaborateurController(CollaborateurRepository collaborateurRepository, ChargeurRessources chargeur,
+                                   com.talent360bank.talent360bank.repository.EntiteRepository entiteRepository,
+                                   com.talent360bank.talent360bank.repository.ManagerRepository managerRepository,
                                    com.talent360bank.talent360bank.service.JournalService journalService) {
         this.journalService = journalService;
+        this.entiteRepository = entiteRepository;
+        this.managerRepository = managerRepository;
         this.collaborateurRepository = collaborateurRepository;
         this.chargeur = chargeur;
     }
@@ -39,10 +46,40 @@ public class CollaborateurController {
         return CollaborateurResponse.de(chargeur.exigerCollaborateur(id));
     }
 
+    /**
+     * Cree le collaborateur, ou met a jour celui qui a ce matricule. Corps valide (CollaborateurRequest) : une
+     * valeur refusee rend 400 avec un message par champ ; une entite ou un manager inconnu, 400. A la mise a
+     * jour, une entite ou un manager absent du corps garde sa valeur.
+     */
     @PostMapping
-    public Collaborateur creer(@RequestBody Collaborateur collaborateur) {
-        boolean existait = collaborateur.getIdCollaborateur() != null
-                && collaborateurRepository.existsById(collaborateur.getIdCollaborateur());
+    public Collaborateur creer(@jakarta.validation.Valid @RequestBody
+                               com.talent360bank.talent360bank.controller.dto.CollaborateurRequest demande) {
+        Collaborateur collaborateur = collaborateurRepository.findById(demande.idCollaborateur().trim())
+                .orElse(null);
+        boolean existait = collaborateur != null;
+        if (collaborateur == null) {
+            collaborateur = new Collaborateur();
+            collaborateur.setIdCollaborateur(demande.idCollaborateur().trim());
+        }
+        collaborateur.setNom(demande.nom().trim());
+        collaborateur.setPrenom(demande.prenom().trim());
+        collaborateur.setSexe(demande.sexe());
+        collaborateur.setDateNaissance(demande.dateNaissance());
+        collaborateur.setDateEntree(demande.dateEntree());
+        collaborateur.setFonction(demande.fonction());
+        collaborateur.setGrade(demande.grade());
+        collaborateur.setEmail(demande.email());
+        collaborateur.setStatut(demande.statut() == null ? StatutCollaborateur.ACTIF : demande.statut());
+        if (demande.entite() != null) {
+            Integer idEntite = demande.entite().idEntite();
+            collaborateur.setEntite(entiteRepository.findById(idEntite).orElseThrow(() ->
+                    new IllegalArgumentException("Entité inconnue : " + idEntite)));
+        }
+        if (demande.manager() != null) {
+            Integer idManager = demande.manager().idManager();
+            collaborateur.setManager(managerRepository.findById(idManager).orElseThrow(() ->
+                    new IllegalArgumentException("Manager inconnu : " + idManager)));
+        }
         Collaborateur enregistre = collaborateurRepository.save(collaborateur);
         String id = enregistre.getIdCollaborateur();
         journalService.collaborateur(id, "Collaborateur " + id + " (" + enregistre.getNomComplet() + ") "

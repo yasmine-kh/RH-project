@@ -26,7 +26,7 @@ public record CouverturePosteResponse(String posteId, String nomPoste, String di
         return new CouverturePosteResponse(poste.getPosteId(), poste.getNomPoste(), poste.getDirection(),
                 poste.getCriticite(), poste.getTitulaireId(), poste.getTitulaireNom(),
                 couverture.nbSuccesseurs(), couverture.meilleurMatching(),
-                couverture.niveau().name(), couverture.niveau().getLibelle(), couverture.estEnAlerte(),
+                couverture.niveau().name(), couverture.libelleCouverture(), couverture.estEnAlerte(),
                 couverture.successeurs().stream()
                         .map(successeur -> MatchingResponse.de(successeur, dateReference)).toList(),
                 couverture.ignores().stream()
