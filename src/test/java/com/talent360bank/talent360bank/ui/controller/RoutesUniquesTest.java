@@ -69,9 +69,9 @@ class RoutesUniquesTest {
                 .containsEntry("/competences", "ModulesPagesController")
                 .containsEntry("/notifications", "ModulesPagesController")
                 .containsEntry("/campagne", "ModulesPagesController")
-                .containsEntry("/carriere-mobilite", "PagesEnDeveloppementController")
-                .containsEntry("/engagement", "PagesEnDeveloppementController")
-                .containsEntry("/historique", "PagesEnDeveloppementController")
+                .containsEntry("/carriere-mobilite", "PagesController")
+                .containsEntry("/engagement", "EngagementController")
+                .containsEntry("/historique", "HistoriqueController")
                 .doesNotContainKeys("/mon-engagement", "/auto-evaluation", "/evaluation-manager", "/api/dashboard/dg");
     }
 }

@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestPropertySource(properties = "spring.datasource.url=jdbc:h2:mem:dataset-reel;DB_CLOSE_DELAY=-1;MODE=MySQL")
 @ImportAutoConfiguration(ValidationAutoConfiguration.class)
-@Import({ImportService.class, com.talent360bank.talent360bank.securite.UtilisateurCourant.class, ImportClasseurService.class, TrimestreService.class,
+@Import({ImportService.class, com.talent360bank.talent360bank.securite.UtilisateurCourant.class, com.talent360bank.talent360bank.service.JournalService.class, ImportClasseurService.class, TrimestreService.class,
         SuccesseursIdentifiesEnBase.class, FaitsVigilanceEnBase.class})
 @EnabledIf("classeurPresent")
 class ImportDatasetReelJpaTest {

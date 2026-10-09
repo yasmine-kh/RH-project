@@ -413,4 +413,49 @@ class ComiteDecisionsDatasetTest {
                         .redirectedUrlPattern("**/login"));
         assertThat(decisionTalent(enAttente).getStatut()).isEqualTo(StatutValidationComite.OUI);
     }
+
+    // ------------------------------------------------------------ historique
+
+    @Autowired
+    private com.talent360bank.talent360bank.repository.JournalEvenementRepository journalRepository;
+
+    private List<com.talent360bank.talent360bank.entity.JournalEvenement> evenements(
+            com.talent360bank.talent360bank.entity.TypeEvenement type) {
+        return journalRepository.rechercher(type, null, null, null, null,
+                org.springframework.data.domain.Pageable.unpaged()).getContent();
+    }
+
+    @Test
+    @Order(9)
+    void chaque_decision_et_chaque_changement_est_dans_l_historique() throws Exception {
+        var talents = evenements(com.talent360bank.talent360bank.entity.TypeEvenement.DECISION_TALENT);
+        // enAttente : OUI, NON, OUI ; valideParLeClasseur : NON. Les refus (Order 7) n'ecrivent rien.
+        assertThat(talents).filteredOn(e -> enAttente.equals(e.getMatricule())).hasSize(3);
+        assertThat(talents).filteredOn(e -> valideParLeClasseur.equals(e.getMatricule())).singleElement()
+                .satisfies(e -> {
+                    assertThat(e.getDescription()).contains("— talent non retenu (Non) (avant : validé (Oui))");
+                    assertThat(e.getUtilisateur().getLogin()).isEqualTo(LOGIN);
+                    assertThat(e.getTrimestre().getIdTrimestre()).isEqualTo(t3.getIdTrimestre());
+                    assertThat(e.getLien()).isEqualTo("/fiche-collaborateur?matricule=" + valideParLeClasseur
+                            + "&trimestre=2026-3");
+                });
+        assertThat(talents).filteredOn(e -> enAttente.equals(e.getMatricule()))
+                .extracting(com.talent360bank.talent360bank.entity.JournalEvenement::getDescription)
+                .anySatisfy(d -> assertThat(d).contains("talent validé (Oui) (avant : à réévaluer (En attente))",
+                        "« Revue du comité T3 »"));
+        // Successions : VALIDER_AVEC_PLAN, REEVALUER, MAINTENIR_EN_VIVIER, NE_PAS_RETENIR, VALIDER.
+        var successions = evenements(com.talent360bank.talent360bank.entity.TypeEvenement.DECISION_SUCCESSION);
+        assertThat(successions).hasSize(5).allSatisfy(e -> {
+            assertThat(e.getMatricule()).isEqualTo(succession.matricule());
+            assertThat(e.getLien()).isEqualTo("/postes-critiques?trimestre=2026-3#poste-" + succession.posteId());
+        });
+        assertThat(successions.get(0).getDescription()).endsWith("— Validé (avant : Non retenu)");
+        // Le reimport (Order 6) aussi.
+        assertThat(evenements(com.talent360bank.talent360bank.entity.TypeEvenement.IMPORT)).isNotEmpty();
+        // Sur l'ecran Historique et la fiche du collaborateur.
+        String page = html(page("/historique?type=DECISION_SUCCESSION"));
+        assertThat(page).contains("Comité Talent : succession", succession.posteId());
+        String fiche = html(page("/fiche-collaborateur?matricule=" + valideParLeClasseur + "&trimestre=" + T3));
+        assertThat(fiche).contains("talent non retenu (Non)", "Un seul trimestre importé");
+    }
 }

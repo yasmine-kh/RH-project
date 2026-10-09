@@ -49,6 +49,8 @@ class TrimestreControllerTest {
     @MockBean
     private TrimestreService trimestreService;
     @MockBean
+    private com.talent360bank.talent360bank.service.JournalService journalService;
+    @MockBean
     private CalculTrimestreService calculTrimestreService;
     @MockBean
     private TrimestreRepository trimestreRepository;

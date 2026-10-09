@@ -22,7 +22,10 @@ public class ConnexionController {
      * refusee : toutes les methodes, car la requete refusee peut etre un POST.
      */
     @RequestMapping("/erreur/403")
-    public String accesRefuse() {
+    public String accesRefuse(jakarta.servlet.http.HttpServletRequest requete, org.springframework.ui.Model model) {
+        // Cause posee par SecurityConfig : page perimee (jeton CSRF) ou droits insuffisants.
+        model.addAttribute("pageExpiree", com.talent360bank.talent360bank.config.SecurityConfig.MOTIF_PAGE_EXPIREE
+                .equals(requete.getAttribute(com.talent360bank.talent360bank.config.SecurityConfig.ATTRIBUT_MOTIF)));
         return "erreur/403";
     }
 }

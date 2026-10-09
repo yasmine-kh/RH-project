@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
-    <title>BP TALENT 360 — Accès refusé</title>
+    <title th:text="${pageExpiree} ? 'BP TALENT 360 — Page expirée' : 'BP TALENT 360 — Accès refusé'">BP TALENT 360 — Accès refusé</title>
     <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
 </head>
 <body>
@@ -12,8 +12,18 @@
         <div class="boite-tete marque"><span class="mark mark-logo"><img th:src="@{/images/BP-Logo-Complet.png}" alt="Banque Populaire" width="170" height="52"></span>
             <div><h3>BP TALENT 360</h3><p>Vivier &amp; Succession — SIRH</p></div></div>
         <div class="boite-corps">
-            <h3 style="font-size:16px; margin-bottom:10px;">Accès refusé</h3>
-            <p style="font-size:12.8px;">Votre profil ne permet pas d'ouvrir cette page.</p>
+            <!--/* Cause posee par SecurityConfig (ConnexionController) : page perimee (jeton CSRF) ou droits. */-->
+            <th:block th:if="${pageExpiree}">
+                <h3 style="font-size:16px; margin-bottom:10px;">Page expirée</h3>
+                <p style="font-size:12.8px;">La page a expiré : rechargez-la et recommencez.</p>
+                <p style="font-size:12.8px; color:var(--muted);">Le formulaire a été ouvert avant la fin de votre session
+                    précédente ; rien n'a été enregistré.</p>
+                <a href="/" class="btn" style="text-decoration:none; display:inline-block; margin:6px 0 10px;">Revenir au tableau de bord</a>
+            </th:block>
+            <th:block th:unless="${pageExpiree}">
+                <h3 style="font-size:16px; margin-bottom:10px;">Accès refusé</h3>
+                <p style="font-size:12.8px;">Votre compte n'a pas accès à cette page.</p>
+            </th:block>
             <p style="font-size:12.8px; color:var(--muted);" sec:authorize="isAuthenticated()">
                 Connecté en tant que <b sec:authentication="name">login</b>.</p>
             <!--/* Deconnexion en POST, avec le jeton CSRF ajoute par th:action. */-->

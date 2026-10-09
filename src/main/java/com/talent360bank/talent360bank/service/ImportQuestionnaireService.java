@@ -50,8 +50,8 @@ import java.util.stream.Collectors;
  *   <li>"Horodateur" (facultatif) : date de la reponse ;</li>
  *   <li>toute autre colonne d'en-tete non vide est une question, codee Q01, Q02...
  *   dans l'ordre des colonnes, son texte garde tel qu'ecrit (espaces de debut et de
- *   fin retires). Aucun theme n'est deduit : la colonne theme reste vide tant que le
- *   fichier ne la fournit pas ;</li>
+ *   fin retires). Aucun theme n'est deduit du fichier : le theme est la dimension que le
+ *   RH a reglee pour ce code (page Parametres, configuration_question), vide sinon ;</li>
  *   <li>seules les cellules remplies sont enregistrees (les branches du formulaire
  *   laissent des colonnes vides).</li>
  * </ul>
@@ -79,12 +79,20 @@ public class ImportQuestionnaireService {
     private final ImportExcelRepository importExcelRepository;
 
     private final com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant;
+    /** Historique : un evenement par ligne de import_excel. */
+    private final JournalService journalService;
+    /** Dimension reglee par le RH pour chaque code de question : devient le theme de la reponse. */
+    private final com.talent360bank.talent360bank.repository.ConfigurationQuestionRepository configurationRepository;
 
     public ImportQuestionnaireService(CollaborateurRepository collaborateurRepository,
                                       ReponseQuestionnaireRepository reponseRepository,
                                       ImportExcelRepository importExcelRepository,
-                                      com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant) {
+                                      com.talent360bank.talent360bank.securite.UtilisateurCourant utilisateurCourant,
+                         JournalService journalService,
+                         com.talent360bank.talent360bank.repository.ConfigurationQuestionRepository configurationRepository) {
         this.utilisateurCourant = utilisateurCourant;
+        this.journalService = journalService;
+        this.configurationRepository = configurationRepository;
         this.collaborateurRepository = collaborateurRepository;
         this.reponseRepository = reponseRepository;
         this.importExcelRepository = importExcelRepository;
@@ -147,6 +155,12 @@ public class ImportQuestionnaireService {
         Map<String, Collaborateur> collaborateurs = collaborateurRepository.findAllById(parMatricule.keySet())
                 .stream().collect(Collectors.toMap(Collaborateur::getIdCollaborateur, Function.identity()));
         List<ReponseQuestionnaire> reponses = new ArrayList<>();
+        Map<String, String> themes = new java.util.HashMap<>();
+        configurationRepository.findAll().forEach(c -> {
+            if (c.getDimension() != null) {
+                themes.put(c.getCodeQuestion(), c.getDimension());
+            }
+        });
         List<String> importes = new ArrayList<>();
         for (Ligne ligne : parMatricule.values()) {
             Collaborateur collaborateur = collaborateurs.get(ligne.matricule());
@@ -157,7 +171,7 @@ public class ImportQuestionnaireService {
             }
             importes.add(collaborateur.getIdCollaborateur());
             ligne.reponses().forEach((question, reponse) -> reponses.add(new ReponseQuestionnaire(collaborateur,
-                    trimestre, question.code(), question.ordre(), null, question.texte(), reponse,
+                    trimestre, question.code(), question.ordre(), themes.get(question.code()), question.texte(), reponse,
                     ligne.dateReponse())));
         }
 
@@ -322,7 +336,7 @@ public class ImportQuestionnaireService {
         journal.setNbLignes(nbLignes);
         journal.setNbErreurs(nbErreurs);
         journal.setMessage(message);
-        importExcelRepository.save(journal);
+        journalService.importEnregistre(importExcelRepository.save(journal));
     }
 
     /** Nom sans chemin : certains navigateurs envoient le chemin complet du poste. */
