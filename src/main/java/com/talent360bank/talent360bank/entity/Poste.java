@@ -91,12 +91,15 @@ public class Poste {
     public void setPosteId(String posteId) { this.posteId = posteId; }
     public String getNomPoste() { return nomPoste; }
     public void setNomPoste(String nomPoste) { this.nomPoste = nomPoste; }
-    public Entite getEntite() { return entite; }
+    public Entite getEntite() { return EntiteExistante.ou(entite, "poste " + posteId); }
     public void setEntite(Entite entite) { this.entite = entite; }
 
     /** Libelle de la direction du poste, null si inconnue. */
     @Transient
-    public String getDirection() { return entite == null ? null : entite.libelleDe(TypeEntite.DIRECTION); }
+    public String getDirection() {
+        Entite connue = getEntite();
+        return connue == null ? null : connue.libelleDe(TypeEntite.DIRECTION);
+    }
     public String getGradeCible() { return gradeCible; }
     public void setGradeCible(String gradeCible) { this.gradeCible = gradeCible; }
     public String getCriticite() { return criticite; }

@@ -181,32 +181,6 @@ document.querySelectorAll('[data-vivier][data-trimestre]').forEach(el=> el.addEv
   });
 })();
 
-/* ---------- Comite Talent : "Successions a valider" (prototype : renderComite) ----------
-   Les successeurs identifies de chaque poste critique, lus sur l'API existante /api/postes-critiques
-   (lecture seule). La validation des successions n'existe pas encore : boutons du prototype grises. */
-(function(){
-  const bloc = document.querySelector('[data-successions-trimestre]');
-  if(!bloc || !window.fetch) return;
-  const [annee, numero] = bloc.dataset.successionsTrimestre.split('-');
-  const boutons = '<div class="decision-btns indispo" title="En cours de développement">'
-    + '<button class="dbtn green" type="button" disabled>🟢 Valider</button>'
-    + '<button class="dbtn amber" type="button" disabled>🟠 Valider avec plan</button>'
-    + '<button class="dbtn blue" type="button" disabled>🔵 Maintenir en vivier</button>'
-    + '<button class="dbtn grey" type="button" disabled>⚪ Réévaluer</button>'
-    + '<button class="dbtn red" type="button" disabled>🔴 Ne pas retenir</button></div>';
-  fetch(`/api/postes-critiques?annee=${encodeURIComponent(annee)}&numero=${encodeURIComponent(numero)}`,
-        {credentials:'same-origin', headers:{'Accept':'application/json'}})
-    .then(r=> r.ok ? r.json() : Promise.reject(r.status))
-    .then(postes=>{
-      const lignes = [];
-      postes.forEach(pc=> (pc.successeurs||[]).forEach(s=>{
-        lignes.push(`<div class="succ-row"><span class="m">${esc(s.candidat.idCollaborateur)}</span><span class="nm">${esc(s.candidat.nomComplet)} → ${esc(pc.nomPoste)} (${esc(score(s.scoreMatching))}%)</span>${boutons}</div>`);
-      }));
-      bloc.innerHTML = lignes.join('') || '<div class="empty-state">Aucun successeur identifié.</div>';
-    })
-    .catch(()=>{ bloc.innerHTML = '<div class="empty-state">Successeurs indisponibles.</div>'; });
-})();
-
 /* ---------- Talent Passport : detail du matching (prototype : .match-bd) ----------
    Sous-scores sur 100 du moteur pour le poste cible, lus sur l'API existante
    /api/postes/{poste}/candidats/{matricule} (lecture seule). Un critere non applicable n'est pas affiche. */

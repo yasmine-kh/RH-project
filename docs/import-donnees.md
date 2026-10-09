@@ -246,6 +246,7 @@ Ce que fait l'import d'une campagne :
 1. **Simuler** avec le même trimestre : contrôler `erreurs`, `desactives` et `nbRetirees` par feuille.
 2. **Importer** : tout est mis à jour **sans doublon** et recalculé. Les scores, cases 9-Box et membres du vivier de relève du trimestre sont remplacés : un collaborateur qui ne remplit plus les conditions (inactif, notes retirées) perd son score et sa place.
 3. Dans `02_PERFORMANCE`, `03_POTENTIEL`, `10_TALENTS`, `12_VIGILANCE` et `09_SUCCESSION`, une ligne du trimestre dont le collaborateur **a disparu de la feuille est supprimée** (`nbRetirees`), pour que le trimestre reflète le dernier fichier et non l'union des envois. Par prudence, rien n'est retiré d'une feuille qui a une ligne en erreur : corriger puis réimporter.
+4. **Décisions du Comité saisies dans l'application** (écran Comité Talent) : un import ne les remplace ni ne les supprime. Si `10_TALENTS` (colonne G) dit autre chose, ou ne liste plus le collaborateur, la décision de l'application est gardée et le bilan la signale dans « Décisions du Comité conservées » (sans compter comme erreur). Pour reprendre la valeur du classeur, modifier la décision sur l'écran Comité Talent. Les décisions sur les successions ne viennent jamais du classeur.
 
 ### Ce qui est global et ce qui est propre au trimestre
 

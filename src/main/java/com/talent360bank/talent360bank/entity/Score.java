@@ -62,26 +62,43 @@ public class Score {
     public Score() {
     }
 
-    /** Fige l'entite et le manager actuels du collaborateur sur ce score. */
+    /** Fige l'entite et le manager actuels du collaborateur, sans verifier l'entite (scores construits en test). */
     public void figerOrganisation() {
-        this.entite = collaborateur == null ? null : collaborateur.getEntite();
+        figerOrganisation(null);
+    }
+
+    /**
+     * Fige l'entite et le manager actuels du collaborateur sur ce score, sans lire l'entite.
+     *
+     * @param idsEntites identifiants des entites qui existent (EntiteRepository.findAllIds) : une
+     *                   reference vers une entite absente n'est pas recopiee, le score est "Sans
+     *                   direction" ; null pour ne pas verifier
+     */
+    public void figerOrganisation(java.util.Set<Integer> idsEntites) {
+        Entite reference = collaborateur == null ? null : collaborateur.referenceEntite();
+        // getIdEntite d'un proxy rend la cle sans charger l'entite.
+        this.entite = reference == null || (idsEntites != null && !idsEntites.contains(reference.getIdEntite()))
+                ? null : reference;
         this.manager = collaborateur == null ? null : collaborateur.getManager();
     }
 
     /** Direction du collaborateur au moment du calcul, null si inconnue. */
     @Transient
     public String getDirection() {
-        return entite == null ? null : entite.libelleDe(TypeEntite.DIRECTION);
+        Entite connue = getEntite();
+        return connue == null ? null : connue.libelleDe(TypeEntite.DIRECTION);
     }
 
     /** Departement du collaborateur au moment du calcul, null si inconnu. */
     @Transient
     public String getDepartement() {
-        return entite == null ? null : entite.libelleDe(TypeEntite.DEPARTEMENT);
+        Entite connue = getEntite();
+        return connue == null ? null : connue.libelleDe(TypeEntite.DEPARTEMENT);
     }
 
+    /** Entite figee au calcul ; null si inconnue ou si elle n'existe pas en base (EntiteExistante). */
     public Entite getEntite() {
-        return entite;
+        return EntiteExistante.ou(entite, "score " + idScore);
     }
 
     public void setEntite(Entite entite) {

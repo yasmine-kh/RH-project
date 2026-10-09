@@ -444,12 +444,12 @@ class ModulesPagesDatasetTest {
                 .contains("&lt;script&gt;alert(1)&lt;/script&gt;");
     }
 
-    /** Ecrans pas encore construits : seuls a le dire (audit, round 1). */
-    private static final Set<String> A_CONSTRUIRE = Set.of("/engagement", "/historique", "/comite-talent");
+    /** Ecrans pas encore construits : seuls a le dire (audit, rounds 1 et 2 : le Comite Talent est fait). */
+    private static final Set<String> A_CONSTRUIRE = Set.of("/engagement", "/historique");
 
     @Test
     @Order(4)
-    void seuls_engagement_historique_et_decisions_du_comite_sont_en_cours_de_developpement() throws Exception {
+    void seuls_engagement_et_historique_sont_en_cours_de_developpement() throws Exception {
         String accueil = html(page("/"));
         String nav = accueil.substring(accueil.indexOf("<nav id=\"nav\">"), accueil.indexOf("</nav>"));
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("href=\"(/[^\"#?]*)").matcher(nav);
@@ -457,7 +457,7 @@ class ModulesPagesDatasetTest {
         while (m.find()) {
             ecrans.add(m.group(1));
         }
-        assertThat(ecrans).hasSize(17).containsAll(A_CONSTRUIRE).doesNotContain("/carriere-mobilite");
+        assertThat(ecrans).hasSize(17).containsAll(A_CONSTRUIRE).contains("/comite-talent").doesNotContain("/carriere-mobilite");
         for (String ecran : ecrans) {
             String texte = html(page(ecran)).toLowerCase(Locale.ROOT);
             if (A_CONSTRUIRE.contains(ecran)) {

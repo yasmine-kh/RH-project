@@ -77,14 +77,14 @@ Sidebar order (RH): Tableau de bord RH, Campagne d'évaluation, Collaborateurs, 
 | `/` | Working | **Interactive** home dashboard ([below](#home-dashboard)): the prototype's 10 cards, charts (9-Box, entité, vigilance, performance, potential, viviers, alert types) and lists (collaborateurs, alertes, viviers), cross-filtered by clicking, filters kept in the URL (`?case=9&entite=…`). Quarter selector |
 | `/dashboard-dg` | Redirect | **Removed**: merged into `/`. `DashboardController` redirects to `/` (keeping `?trimestre=`) so old links don't 404. The JSON API `GET /api/dashboard/dg`, `TableauDeBordDg` and `TableauDeBordDgViewService` are removed too (audit round 1, #24). |
 | `/carriere-mobilite` | Redirect | **Removed** from every menu (no data source); the route redirects to `/` for now (`PagesEnDeveloppementController`). |
-| `/engagement`, `/historique` | In development | Placeholder pages (`templates/placeholder.html`), the only pages with "En cours de développement" together with the Comité decisions on `/comite-talent` (checked by `ModulesPagesDatasetTest` and `FinitionsAuditTest`). |
+| `/engagement`, `/historique` | In development | Placeholder pages (`templates/placeholder.html`), the only pages with "En cours de développement" (checked by `ModulesPagesDatasetTest` and `FinitionsAuditTest`). |
 | `/mon-engagement`, `/auto-evaluation`, `/evaluation-manager` | Removed (404) | Only HR logs in, so no form for employees or managers: "Mon engagement" opens the fiche's imported questionnaire answers, the Vue manager shows the imported manager evaluations. |
 | `/collaborateurs` | Working | Employee list: filters (entité with subtree, 9-Box case, talent, pool, readiness, vigilance, name/matricule), sort by clicking the column headers (name, performance, potential, matching, vigilance), 20 rows per page; each name links to the fiche. `ListeCollaborateursViewService` → `templates/collaborateurs.html` |
 | `/9box` | Working | The matrix on the left (about 60 %), a **detail panel** on the right (below it on a phone). Cells show only case number + label, the count and the % (no names), all the same height; the whole cell is a link to `/9box?trimestre=…&case=N#detail` (works without JavaScript). The panel shows the case's label, a one-line meaning from the placement rule (`04_9BOX` has no description column), the count and its people (name → fiche, matricule, entité, performance, potential) with a search field (`q`) and a sort (`tri` = NOM / PERFORMANCE / POTENTIEL), and a **🖨 Imprimer** button next to the search field: it prints only the open case's list (label, count, table) with the current search and sort, under a print-only header with the quarter, the print date and the search / sort used (`.impression-entete`). `neufbox.js` applies the search/sort then calls `window.print()`; `@media print` in `app.css` (scoped by `body.impression-9box`) hides the sidebar, the top bar, the matrix, the thresholds panel, the forms and the buttons. No library. Talent clé (case 9) is open by default. `static/js/neufbox.js` (vanilla) switches the panel, filters and sorts in place with the 9 panels already in the page. Shared matrix fragment: calm cells, only Talent clé tinted, selected cell outlined. On `/`, the Vue manager and the Vue entité the same compact matrix links each cell to `/collaborateurs?case=N` with the page's filters (the Vue manager filters its own team table, `?case=N#equipe`). |
-| `/viviers` | Working | One card per thematic pool then the relief pool (`VivierSyntheseService`: members, talents, high potentials, Ready Now, averages, positions covered, gaps identified), then the saved pool members. Quarter selector |
-| `/postes-critiques` | Working | Every critical position of the displayed quarter: direction, criticality, holder, number of successors, best candidate and matching, coverage status, and under each position **all** its successors (matching, readiness, largest gap). Quarter selector. `PosteCritiqueViewService` → `templates/postes-critiques.html` |
+| `/viviers` | Working | One card per thematic pool then the relief pool (`VivierSyntheseService`: members, talents, high potentials, Ready Now, averages, positions covered, gaps identified), then the saved pool members. Each card shows its **Dernière revue** ([below](#comité-talent-decisions)). Quarter selector |
+| `/postes-critiques` | Working | Every critical position of the displayed quarter: direction, criticality, holder, number of successors, best candidate and matching, coverage status, **Dernière revue** ([below](#comité-talent-decisions)), and under each position **all** its successors (matching, readiness, largest gap). Quarter selector. `PosteCritiqueViewService` → `templates/postes-critiques.html` |
 | `/competences` | Working | Per-skill table sorted by average gap (current / target / gap averages, with a gap, Prioritaire, level distribution as small bars), the top gaps, and each critical position's requirements against its successors; filters entité, pool, critical position. `CompetenceSyntheseService` → `templates/competences.html` |
-| `/comite-talent` | Working | Chooses a quarter and a committee status; sees the "Talents validés (Comité)" indicator and the table of proposed talents with scores, categories, 9-Box box and a coloured status badge. |
+| `/comite-talent` | Working | Chooses a quarter and a committee status; **records the committee's decisions** ([below](#comité-talent-decisions)): Valider / Réévaluer / Ne pas retenir on each proposed talent, the five decisions on each successor of a critical position, an optional comment, "Modifier" on any decision. Cards: talents en attente, Talents validés (Comité), Successions à valider. |
 | `/alertes` | Working | Alerts of the displayed quarter ([below](#alerts)), computed on the fly by the engine: counters per type and severity, table sorted by severity, filters by type, severity, direction and name. Quarter selector |
 | `/notifications` | Working | Counters per severity and type and the 10 most severe alerts with their links (`NotificationsViewService`, same figures as `/alertes`). No preference switches (nothing would store them). `templates/notifications.html` |
 | `/campagne` | Working | Evaluation progress per direction (progress bars), click a direction to see its child entités, managers with missing evaluations, and what the data cannot show (`remarques`). Self-evaluations show "Non importé" while none is imported, like the dashboard. `SuiviCampagneViewService` → `templates/campagne.html` |
@@ -107,7 +107,7 @@ The sidebar then shows, under the selector, a banner "Vue : Manager — Nom Pré
 | RH (DRH / Talent Manager) | the full menu (no "02 Tableau de bord DG": merged into the RH dashboard): Accueil, Collaborateurs, Managers (`/managers`), Organigramme (`/entites`), 9-Box … Paramètres |
 | Collaborateur | Mon profil → his fiche · Mon engagement → the fiche's imported questionnaire answers (`/fiche-collaborateur?matricule=…#questionnaire`) · Notifications → `/alertes?q=<matricule>` (his alerts). No form and no self-evaluation page: only HR logs in. |
 | Manager | Campagne d'évaluation → Vue manager `#evaluations` (missing evaluations) · Collaborateurs → Vue manager `#equipe` · Matrice 9-Box → Vue manager `#neufbox` · Talent Passport → `/fiche-collaborateur` · Alertes → Vue manager `#alertes` · Notifications → `/notifications` |
-| Comité Talent / Direction | Comité Talent · Postes critiques & Succession · Historique → `/import` (journal of imports: there is no trail of decisions yet) |
+| Comité Talent / Direction | Comité Talent · Postes critiques & Succession · Historique (`/historique`, in development) |
 
 `static/js/profil.js` (vanilla) submits as soon as a profile or a listed person is picked; without JavaScript the **Appliquer** button does the same (when the profile changes, the previous person sent along by the field is ignored). Options: `ProfilsService`, two queries per page (people, managers); the profile and its menu add none (`ProfilsMenuDatasetTest` compares the query counts of the same page under each profile).
 
@@ -185,6 +185,56 @@ The people cards (Population, Talents validés, Hauts potentiels, Viviers actifs
 
 `TableauDeBordDatasetTest` checks the cards, the engine figures that are not cards (à risque, gaps prioritaires, vigilance) and the 9-Box counts against the workbook; `TableauDeBordPageIntegrationTest` checks the engine cards and the hand-computed figures on H2, the page layout, and the 10 cards (order, labels, colours, which ones follow the filters, equal to the engine without filter); `ModulesPagesDatasetTest` checks the 10 cards against the workbook (100, 8, 21, 5 viviers, 15, 93.33 %, 16, engagement, 1, 1), the figures of the removed cards on the pages that still show them (10 talents proposés, 21 relève and 10 Talent clé on `/collaborateurs`, 45 at risk by vigilance filter, 23 alerts on `/notifications`, 100 / 100 evaluations and no auto-evaluation on `/campagne`, 14 covered positions on `/postes-critiques`), `?case=9` (exactly the 10 Talent clé people of `04_9BOX`), stacked filters, chip removal links, ignored values, and that the embedded data is escaped; `LiensEtMatriceDatasetTest` checks the 9-Box cell links (`/?trimestre=2026-3&case=9`). The script itself is not run by the Java tests (MockMvc has no JavaScript).
 
+### Comité Talent decisions
+
+`/comite-talent` (`PagesController` → `ui/service/ComiteTalentViewService` → `templates/comite-talent.html`, forms in
+`templates/fragments/comite.html`). The forms post to `ui/controller/ComiteDecisionsController`, which calls
+`service/DecisionsComiteService`. Plain HTML forms (`th:action` adds the CSRF token), no JavaScript; after saving,
+the browser is sent back to the same section (`#talents`, `#successions`) with a French message
+("Décision enregistrée : … — Oui.") or the reason for a refusal.
+
+| What | Endpoint | Values written | Table |
+|---|---|---|---|
+| Proposed talent | `POST /comite-talent/talents` (`trimestre`, `matricule`, `decision`, `commentaire`, `confirme`) | Valider → `OUI`, Réévaluer → `EN_ATTENTE`, Ne pas retenir → `NON` | `validation_comite` |
+| Successor of a critical position | `POST /comite-talent/successions` (`trimestre`, `poste`, `matricule`, `decision`, `commentaire`, `confirme`) | `VALIDER`, `VALIDER_AVEC_PLAN`, `MAINTENIR_EN_VIVIER`, `REEVALUER`, `NE_PAS_RETENIR` | `validation_succession` |
+
+- Each decision stores `date_decision` (now), `id_utilisateur` (the logged-in RH account, `securite/UtilisateurCourant`)
+  and `commentaire` (optional, 500 characters at most, trimmed). Changing a decision replaces the row (one per talent
+  and quarter, one per position, successor and quarter).
+- Only a talent proposed by the engine for that quarter, or a successor evaluated on that critical position, can
+  receive a decision (`DecisionRefuseeException` otherwise: message, nothing written). Unknown quarter → 404.
+- **"Ne pas retenir" asks for confirmation**: without `confirme=oui` nothing is saved and the page comes back with a
+  confirmation box on that row (`?confirmer=<matricule>` or `?confirmerSuccession=<poste>:<matricule>`), the comment
+  kept. Enforced on the server, so it holds without JavaScript.
+- **Modifier**: decided talents (panel "Décisions du comité") and decided successions show the current decision, who
+  decided and when ("décidé le 08/10/2026 à 14:05 par rh"), the comment, and a "Modifier" link
+  (`?modifier=<matricule>`, `?modifierSuccession=<poste>:<matricule>`) that reopens the buttons. Decisions read from
+  the workbook show "issu de l'import (10_TALENTS)".
+- **Pending** ("Talents proposés en attente", "Successions à valider"): no decision, or Réévaluer.
+- **Effects.** Every "Talents validés" figure is computed when read (`ValidationComiteService`: proposed talent and
+  decision OUI): the dashboard card, the Comité card, the Collaborateurs badge and filters change as soon as a decision
+  is saved. No cache.
+- **Dernière revue** (`service/RevuesComiteService`, two queries): on `/postes-critiques`, the date of the latest
+  decision on one of the position's successors; on `/viviers`, the latest decision on one of the pool's members, as a
+  talent or as a successor (`VivierSyntheseService.syntheseEtMembres` gives the members). "—" when there is none.
+  Decisions imported from the workbook have no date and do not count.
+
+**Import and app decisions.** `10_TALENTS` column G (Oui / Non / En attente) creates or updates
+`validation_comite` for the quarter; an empty cell changes nothing; a row whose employee is no longer in the sheet is
+removed. A decision entered in the app (`date_decision` set, `ValidationComite.estSaisieApplication`) is an
+exception: the import never overwrites it and never removes it. If the workbook says something else, or no longer
+lists the employee, the app decision stays and the import result lists it (`decisionsConservees`: sheet, Excel row,
+"BP019 : le classeur indique « Oui », la décision saisie dans l'application est conservée (« Non », le 08/10/2026).").
+To take the workbook's value, change the decision on `/comite-talent`. `validation_succession` is never touched by
+the import (the workbook has no succession decisions).
+
+Tests: `ComiteDecisionsDatasetTest` (real workbook: each decision saved with date, user and comment; confirmation;
+changes; Talents validés on the Comité, the dashboard and the list; Successions à valider; Dernière revue on both
+pages; re-import through `/import` keeps app decisions and reports the disagreement; refusals, CSRF, 404, anonymous),
+`ImportServiceJpaTest` (re-import keeps a conflicting, a matching and a removed app decision; without app decisions the
+workbook still decides), `ModulesPagesDatasetTest` and `FinitionsAuditTest` (no "en cours de développement" on
+`/comite-talent`).
+
 ### Alerts
 
 `/alertes` (`AlertesController` → `ui/service/AlertesViewService` → `templates/alertes.html`). No alert table: the alerts are recomputed from the engine on each request, for the displayed quarter. `AlertesViewService.alertes(trimestre)` is also the source of the dashboard's alert list.
@@ -245,6 +295,7 @@ Tests: `AlertesNotificationsCampagneDatasetTest` (actives and evaluated per dire
 - **Empty quarter (audit B5).** Not prevented by the import: format, period and unreadable-file failures stop before the quarter is created, but an import that fails afterwards (no readable row, unexpected error) leaves the new quarter empty. The screens are not affected (the displayed quarter is the latest one **with scores**), and the page warns when it happens. For Dou.
 - **One workbook, one quarter.** The workbook announces its own period (`PeriodeClasseur`: file name, rows 1–3 of every sheet; `TALENT_360_BANK_Dataset_V1.xlsx` says "au 15/09/2026" in `00_DASHBOARD` A2, i.e. T3 2026). Choosing another quarter (e.g. T4 2026) is refused before anything is written: report status `ECHEC`, message *Le classeur porte une autre periode que T4 2026, rien n'a ete importe : T3 2026 (00_DASHBOARD A2 : "15/09/2026"). Verifier le fichier ou le trimestre choisi.*, no quarter created, one `ECHEC` line in the journal (`ImportAutreTrimestreDatasetTest`). To load T4, use the T4 workbook (its own date); re-importing the T3 data under T4 would give a T4 identical to T3 except where the history changes the result (see the note in [section 12](#12-current-status-and-whats-left)).
 - **Report** (`ImportPageView.Rapport`) does not depend on the form: the coming folder import can render one per file with the same fragment, from a second form and POST in `ImportPageController`.
+- **Committee decisions kept.** A decision entered on `/comite-talent` is never replaced or removed by an import; when `10_TALENTS` says otherwise (or no longer lists the employee), the report lists it under "Décisions du Comité conservées" (`ResultatImport.decisionsConservees`, also in the API response). Not an error: the status is unchanged ([details](#comité-talent-decisions)).
 - **Statuses** are shown in plain French: Réussi / Partiel / Échec (`StatutImport.libelle`; the stored codes stay `SUCCES` / `PARTIEL` / `ECHEC`).
 - **Unexpected errors** show "L'import a échoué. Vérifiez le fichier et réessayez." (`ImportService.MESSAGE_ECHEC`); the technical detail goes only to the log.
 - **User.** Each journal row records the logged-in RH account (`ImportExcel.utilisateur`, column `import_excel.id_utilisateur`, via `securite/UtilisateurCourant`), shown in the history's "Utilisateur" column; older rows show "—".
@@ -747,6 +798,8 @@ Tests: `VueEntiteViewServiceTest` (H2: agence, région = sum of its agences, sam
 | `QuestionnaireEngagement` (`questionnaire_engagement`) | `scoreEngagement` /100, `dateReponse`, `statut` | → `Collaborateur`, → `Trimestre` | No uniqueness constraint yet |
 | `ReponseQuestionnaire` (`reponse_questionnaire`) | raw questionnaire answer: `codeQuestion` (Q01…), `ordre`, `theme`, `question`, `reponse`, `dateReponse` | → `Collaborateur`, → `Trimestre` | Unique (collaborateur, trimestre, code_question). Written only by `ImportQuestionnaireService`; no score derived |
 | `Utilisateur` (`utilisateur`) | `login` (unique), `motDePasseHash` (BCrypt), `role` (RH only), `actif`, `dateCreation` | — | Login account. Only HR has one; it is never deleted, only deactivated |
+| `ValidationComite` (`validation_comite`) | `statut` (OUI / NON / EN_ATTENTE), `dateDecision`, `commentaire` (nullable) | → `Collaborateur`, → `Trimestre`, `utilisateur` → `Utilisateur` (nullable) | Committee decision on a proposed talent, unique per (employee, quarter). From `10_TALENTS!G` (no date) or entered on `/comite-talent` (dated): an import never replaces a dated decision |
+| `ValidationSuccession` (`validation_succession`) | `decision` (`DecisionSuccession`: VALIDER, VALIDER_AVEC_PLAN, MAINTENIR_EN_VIVIER, REEVALUER, NE_PAS_RETENIR), `dateDecision`, `commentaire` | → `Trimestre`, → `Poste`, `successeur` → `Collaborateur`, `utilisateur` → `Utilisateur` (nullable) | Committee decision on a successor of a critical position, unique per (quarter, position, successor). Entered on `/comite-talent` only; the import never writes it |
 | `ImportExcel` (`import_excel`) | `source`, `nomFichier`, `dateImport`, `statut`, `nbLignes`, `nbErreurs`, `message` | → `Trimestre`, `utilisateur` → `Utilisateur` (optional) | Import journal, written by `ImportService` and read by `GET /api/imports` |
 
 The full MCD, with every entity, key and cardinality, is in [`mcd.puml`](mcd.puml) (PlantUML).
@@ -848,7 +901,7 @@ erDiagram
     }
 ```
 
-Three pieces of engine input are **not tables yet**. The engine reads them through interfaces ([section 7](#the-source-interfaces)): identified successors, committee decisions, and the direction → thematic pool mapping, plus the vigilance flags.
+Four engine inputs are read through interfaces ([section 7](#the-source-interfaces)): identified successors, committee decisions, the direction → thematic pool mapping and the vigilance flags. Each is implemented by a table read (`SuccesseursIdentifiesEnBase`, `ValidationsComiteEnBase`, `ViviersThematiquesEnBase`, `FaitsVigilanceEnBase`).
 
 ---
 
@@ -1047,7 +1100,7 @@ Class by class:
    - keeps active employees with complete scores that pass both thresholds, sorted by performance.
 5. **`ValidationComiteSource.statuts`** gives the committee decision of every talent in one query. Without an implementation, everything is "En attente".
 6. The view service counts decisions per status, builds the KPI card (count of "Oui", on the whole quarter), keeps only the rows matching the filter, and maps each `Score` to a `ComiteTalentRow` (badge class `bg-success`, `bg-warning text-dark` or `bg-danger`).
-7. **`comite-talent.html`** renders the sidebar fragment, the filter form (a GET form), the KPI card and the table.
+7. **`comite-talent.html`** renders the sidebar fragment, the filter form (a GET form), the cards, the talents and successions with their decision forms ([Comité Talent decisions](#comité-talent-decisions)).
 
 If the settings are missing, the engine's exception is caught by the view service and shown as a yellow warning instead of an error page.
 
@@ -1117,6 +1170,58 @@ The application holds personal data, so it is designed to be reachable **only fr
 
 - **An old MySQL password is in the public git history** (commits `17a709c`, `414361d`; the repository is public). It must be changed wherever it was used; it's no longer in the code.
 - **Write endpoints bind entities** in `CollaborateurController` and `CompetenceController` (`POST` with an entity as `@RequestBody`, no validation) and allow deletions. They are RH only, but should take a validated form.
+
+### Entités manquantes
+
+A column that points to an `entite` row that does not exist (`0`, or a deleted row) must never crash a page.
+It happened on the team's MySQL in October 2026: commit `1996c31` (merged with PR #49) changed
+`rattachement_vivier.direction` (text) into `entite_id` (`@ManyToOne`, NOT NULL). `ddl-auto=update` added the
+column to the existing table and MySQL filled the 10 existing rows with `0`; the foreign key could not be created,
+and the old text column stayed (NOT NULL, unique), so the app could no longer insert rows either. `/` then failed
+with `EntityNotFoundException: Unable to find Entite with id 0`. **Rule: a new NOT NULL foreign key on an existing
+table needs a migration (or a nullable column), never ddl-auto alone.**
+
+What the code does now:
+
+- **Reads.** The getters of every `Entite` association (`Collaborateur.getEntite`, `Score.getEntite`,
+  `Poste.getEntite`, `Manager.getEntiteGeree`, `Entite.getParent`, `RattachementVivier.getDirection`) go through
+  `entity/EntiteExistante`: a reference to a missing row returns `null` (logged as a warning),
+  never an exception. The screens show **"Sans direction"** (dashboard, Collaborateurs, Talent Passport, Viviers,
+  Organigramme: a "Sans direction" card counts them, `CollaborateurRepository.compterSansEntite`). No extra query
+  when the entity was already loaded by the page's `left join fetch` (`@NotFound` was tried and rejected: it forces
+  EAGER loading, `/` went from 115 to 157 queries). Note: `Hibernate.isInitialized` is not a valid check, Hibernate
+  can mark the proxy of a missing row "initialized" after a join; the target is checked instead.
+- **Writes.** The import reads `rattachement_vivier` through an inner join (`findAllAvecDirection`): a broken row
+  is ignored, never dereferenced, and a new rattachement always points to a saved direction (`@PrePersist` check).
+  The recalculation copies a collaborator's entity onto the score only if its id exists (`EntiteRepository.findAllIds`,
+  one query per recalculation: 6 fixed queries instead of 5, `RequetesMoteurDatasetTest`).
+- **Errors.** An unexpected error on a screen shows `erreur/500` ("Une erreur est survenue", a short reference), the
+  full exception goes to the log with the same reference (`ProfilsAdvice.erreurInattendue`); errors that already
+  carry a status (400, 404, 405) keep it. Other errors reaching Spring's `/error` render `error/5xx.html`, the same
+  page. `server.error.include-*` are set to never/false explicitly: DevTools (on the classpath when the app runs from
+  the IDE) turns stack traces on otherwise.
+
+Control query (read-only), one line per table:
+
+```sql
+SELECT 'collaborateur', COUNT(*) FROM collaborateur c LEFT JOIN entite e ON e.id_entite = c.id_entite
+ WHERE c.id_entite IS NOT NULL AND e.id_entite IS NULL
+UNION ALL SELECT 'score', COUNT(*) FROM score s LEFT JOIN entite e ON e.id_entite = s.id_entite
+ WHERE s.id_entite IS NOT NULL AND e.id_entite IS NULL
+UNION ALL SELECT 'manager', COUNT(*) FROM manager m LEFT JOIN entite e ON e.id_entite = m.id_entite
+ WHERE m.id_entite IS NOT NULL AND e.id_entite IS NULL
+UNION ALL SELECT 'poste', COUNT(*) FROM poste p LEFT JOIN entite e ON e.id_entite = p.id_entite
+ WHERE p.id_entite IS NOT NULL AND e.id_entite IS NULL
+UNION ALL SELECT 'entite.parent', COUNT(*) FROM entite x LEFT JOIN entite p ON p.id_entite = x.id_entite_parent
+ WHERE x.id_entite_parent IS NOT NULL AND p.id_entite IS NULL
+UNION ALL SELECT 'rattachement_vivier', COUNT(*) FROM rattachement_vivier rv LEFT JOIN entite e
+ ON e.id_entite = rv.entite_id WHERE e.id_entite IS NULL;
+```
+
+Tests: `EntitesManquantesIntegrationTest` (keys to missing rows in six tables: every page and the main API reads
+answer 200, "Sans direction" shown, the recalculation and a new import write no `0` and no missing key),
+`ErreurInattendueTest` (French 500 page with a reference, no message or stack trace, detail in the log; Spring's
+`/error` page; 400 and 404 unchanged).
 
 **Conventions (audit round 1)**
 
@@ -1268,7 +1373,7 @@ git push -u origin feature/my-change
 **Ima — UI**
 
 - Quarter selector on `/9box` and `/viviers`: the `trimestre` and `trimestres` model attributes are already there ([Displayed quarter](#displayed-quarter-all-screens)).
-- Screens still to build: Engagement & Fidélisation (`/engagement`), Historique (`/historique`), the Comité decisions on `/comite-talent`.
+- Screens still to build: Engagement & Fidélisation (`/engagement`), Historique (`/historique`, could list the dated committee decisions).
 - Import (Dou): lock `POST /api/imports` like the page does (B6); avoid the empty quarter left by a failed import (B5).
 - Fiche page: show `posteCible` and `successions[].gapCompetence` (the model has them).
 - Page tests for `/`, `/9box`, `/viviers`.

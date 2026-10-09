@@ -48,6 +48,20 @@
                 </tr></tbody></table>
         </div>
 
+        <!--/* Decisions du Comite saisies dans l'application : un import ne les remplace jamais. */-->
+        <div th:if="${not #lists.isEmpty(r.decisionsConservees)}" style="margin-top:16px;" id="decisions-conservees">
+            <h4 style="font-size:14px; margin-bottom:8px;">Décisions du Comité conservées</h4>
+            <p style="font-size:12.8px; margin-bottom:8px;">Ces décisions ont été saisies dans l'application : le classeur ne les
+                remplace pas. Pour appliquer la valeur du classeur, modifiez la décision sur l'écran Comité Talent.</p>
+            <table>
+                <thead><tr><th>Feuille</th><th>Ligne Excel</th><th>Détail</th></tr></thead>
+                <tbody><tr th:each="d : ${r.decisionsConservees}">
+                    <td class="mono" th:text="${d.feuille}">10_TALENTS</td>
+                    <td class="mono" th:text="${d.ligne} ?: '—'">12</td>
+                    <td th:text="${d.message}">BP019 : le classeur indique « Non »</td>
+                </tr></tbody></table>
+        </div>
+
         <details style="margin-top:14px; font-size:12.8px;" th:if="${not #lists.isEmpty(r.desactives)}">
             <summary th:text="|${#lists.size(r.desactives)} collaborateur(s) ${r.simulation ? 'seraient passés' : 'passé(s)'} INACTIF (absents de 01_COLLABORATEURS)|">
                 Désactivations</summary>

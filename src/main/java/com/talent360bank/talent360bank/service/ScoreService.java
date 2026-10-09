@@ -54,15 +54,32 @@ public class ScoreService {
     private final CalculService calculService;
     private final PerformanceRepository performanceRepository;
     private final PotentielRepository potentielRepository;
+    /** Null : pas de verification des entites figees (tests unitaires). */
+    private final com.talent360bank.talent360bank.repository.EntiteRepository entiteRepository;
 
     public ScoreService(ScoreRepository scoreRepository,
                         CalculService calculService,
                         PerformanceRepository performanceRepository,
                         PotentielRepository potentielRepository) {
+        this(scoreRepository, calculService, performanceRepository, potentielRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ScoreService(ScoreRepository scoreRepository,
+                        CalculService calculService,
+                        PerformanceRepository performanceRepository,
+                        PotentielRepository potentielRepository,
+                        com.talent360bank.talent360bank.repository.EntiteRepository entiteRepository) {
         this.scoreRepository = scoreRepository;
         this.calculService = calculService;
         this.performanceRepository = performanceRepository;
         this.potentielRepository = potentielRepository;
+        this.entiteRepository = entiteRepository;
+    }
+
+    /** Entites existantes, lues une fois par calcul : un score ne recoit jamais une cle d'entite inexistante. */
+    private java.util.Set<Integer> idsEntites() {
+        return entiteRepository == null ? null : entiteRepository.findAllIds();
     }
 
     /**
@@ -100,7 +117,7 @@ public class ScoreService {
         }
 
         return enregistrer(collaborateur, trimestre, scores, parametre,
-                scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null));
+                scoreRepository.findByCollaborateurAndTrimestre(collaborateur, trimestre).orElse(null), idsEntites());
     }
 
     /**
@@ -145,6 +162,7 @@ public class ScoreService {
 
         List<Score> enregistres = new ArrayList<>();
         List<ResultatRecalcul.CollaborateurIgnore> ignores = new ArrayList<>();
+        java.util.Set<Integer> idsEntites = idsEntites();
 
         for (Map.Entry<String, Evaluations> entree : parMatricule.entrySet()) {
             String matricule = entree.getKey();
@@ -172,7 +190,8 @@ public class ScoreService {
                 continue;
             }
 
-            enregistres.add(enregistrer(collaborateur, trimestre, scores, parametre, existants.get(matricule)));
+            enregistres.add(enregistrer(collaborateur, trimestre, scores, parametre, existants.get(matricule),
+                    idsEntites));
         }
 
         List<Integer> conserves = enregistres.stream().map(Score::getIdScore).filter(Objects::nonNull).toList();
@@ -267,7 +286,7 @@ public class ScoreService {
      * @param existant score deja enregistre du collaborateur sur le trimestre, null s'il n'en a pas
      */
     private Score enregistrer(Collaborateur collaborateur, Trimestre trimestre, ScoresOfficiels scores,
-                              Parametre parametre, Score existant) {
+                              Parametre parametre, Score existant, java.util.Set<Integer> idsEntites) {
         Score score = existant;
         if (score == null) {
             score = new Score();
@@ -281,8 +300,9 @@ public class ScoreService {
         score.setScorePotentiel(scores.potentiel());
         score.setDateCalcul(LocalDate.now());
         // Direction et manager du moment : l'import suivant ecrasera ceux du collaborateur.
-        // Entite et manager sont LAZY : seules leurs references sont recopiees, sans lecture.
-        score.figerOrganisation();
+        // Entite et manager sont LAZY : seules leurs references sont recopiees, sans lecture ; une
+        // reference vers une entite absente n'est pas recopiee (idsEntites).
+        score.figerOrganisation(idsEntites);
 
         return scoreRepository.save(score);
     }

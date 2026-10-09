@@ -38,7 +38,8 @@
 
             <div class="succ-card" th:each="p : ${rows}" th:id="|poste-${p.posteId}|"><div class="sh">
                 <div><div class="t" th:text="${p.nomPoste}">Directeur regional</div>
-                    <div class="d" th:text="|${p.posteId} · ${p.direction} · criticité : ${p.criticite ?: '—'} · titulaire : ${p.titulaire ?: '—'}|">PST01 · Reseau Retail</div></div>
+                    <div class="d" th:text="|${p.posteId} · ${p.direction} · criticité : ${p.criticite ?: '—'} · titulaire : ${p.titulaire ?: '—'}|">PST01 · Reseau Retail</div>
+                <div class="d derniere-revue" th:text="|Dernière revue : ${p.derniereRevue != null ? #temporals.format(p.derniereRevue, 'dd/MM/yyyy') : '—'}|">Dernière revue : —</div></div>
                 <span class="statut-tag" th:text="${p.statut}" th:style="${p.enAlerte} ? 'color:var(--rust); border-color:var(--rust); background:var(--rust-light)' : ''">Couverte - Ready Now</span></div>
                 <div class="sb">
                     <div class="succ-row" th:each="s : ${p.successeurs}" th:attr="data-href=@{/fiche-collaborateur(matricule=${s.matricule}, trimestre=${trimestre.valeur})}"

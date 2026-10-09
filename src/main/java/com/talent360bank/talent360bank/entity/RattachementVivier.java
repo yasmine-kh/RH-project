@@ -30,6 +30,15 @@ public class RattachementVivier {
     public RattachementVivier() {
     }
 
+    /** Jamais de direction absente ou non enregistree : la colonne recevrait 0 ou une cle inexistante. */
+    @PrePersist
+    @PreUpdate
+    void verifierDirection() {
+        if (direction == null || direction.getIdEntite() == null || direction.getIdEntite() <= 0) {
+            throw new IllegalStateException("Rattachement de vivier sans direction enregistree : " + vivier);
+        }
+    }
+
     public RattachementVivier(Entite direction, VivierThematique vivier) {
         this.direction = direction;
         this.vivier = vivier;
@@ -39,8 +48,9 @@ public class RattachementVivier {
         return idRattachement;
     }
 
+    /** Direction rattachee ; null si elle n'existe pas en base (ligne a reparer, EntiteExistante). */
     public Entite getDirection() {
-        return direction;
+        return EntiteExistante.ou(direction, "rattachement_vivier " + idRattachement);
     }
 
     public void setDirection(Entite direction) {

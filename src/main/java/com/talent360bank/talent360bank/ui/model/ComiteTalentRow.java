@@ -9,6 +9,7 @@ import java.math.BigDecimal;
  */
 public class ComiteTalentRow {
 
+    private final String matricule;
     private final String nomComplet;
     private final String direction;
     private final BigDecimal performance;
@@ -18,11 +19,13 @@ public class ComiteTalentRow {
     private final String positionBox;
     private final String statut;      // code : OUI, EN_ATTENTE, NON
     private final String statutLibelle;
+    private final DecisionSaisie saisie;  // decision saisie dans l'application, null si importee ou absente
 
-    public ComiteTalentRow(String nomComplet, String direction,
+    public ComiteTalentRow(String matricule, String nomComplet, String direction,
                            BigDecimal performance, String categoriePerformance,
                            BigDecimal potentiel, String categoriePotentiel,
-                           String positionBox, String statut, String statutLibelle) {
+                           String positionBox, String statut, String statutLibelle, DecisionSaisie saisie) {
+        this.matricule = matricule;
         this.nomComplet = nomComplet;
         this.direction = direction;
         this.performance = performance;
@@ -32,6 +35,20 @@ public class ComiteTalentRow {
         this.positionBox = positionBox;
         this.statut = statut;
         this.statutLibelle = statutLibelle;
+        this.saisie = saisie;
+    }
+
+    public String getMatricule() {
+        return matricule;
+    }
+
+    public DecisionSaisie getSaisie() {
+        return saisie;
+    }
+
+    /** Talent encore a valider : decision En attente (aucune, importee, ou "Reevaluer"). */
+    public boolean isEnAttente() {
+        return "EN_ATTENTE".equals(statut);
     }
 
     public String getNomComplet() {

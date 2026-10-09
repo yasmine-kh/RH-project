@@ -17,4 +17,8 @@ public interface EntiteRepository extends JpaRepository<Entite, Integer> {
     /** Tout l'organigramme en une requete, parent charge : arbre de la vue entite. */
     @Query("select e from Entite e left join fetch e.parent")
     List<Entite> findAllAvecParent();
+
+    /** Identifiants de toutes les entites (table de quelques centaines de lignes), en une requete. */
+    @Query("select e.idEntite from Entite e")
+    java.util.Set<Integer> findAllIds();
 }

@@ -139,8 +139,9 @@ public class Entite {
         this.type = type;
     }
 
+    /** Entite parente ; null pour une racine ou si le parent n'existe pas en base (EntiteExistante). */
     public Entite getParent() {
-        return parent;
+        return EntiteExistante.ou(parent, "parent de l'entite " + idEntite);
     }
 
     public void setParent(Entite parent) {

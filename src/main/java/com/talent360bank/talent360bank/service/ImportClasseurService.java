@@ -102,6 +102,9 @@ public class ImportClasseurService {
     public static final String FEUILLE_SUCCESSION = "09_SUCCESSION";
     public static final String FEUILLE_TALENTS = "10_TALENTS";
     public static final String FEUILLE_VIGILANCE = "12_VIGILANCE";
+    /** Date d'une decision du Comite saisie dans l'application, dans le bilan de l'import. */
+    private static final java.time.format.DateTimeFormatter DATE_DECISION =
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
     /** Libelle de la colonne A de la ligne d'en-tete, qui la situe dans la feuille. */
     private static final String ENTETE_COLLABORATEUR = "Employee_ID";
     private static final String ENTETE_COMPETENCE = "Competence_ID";
@@ -568,7 +571,8 @@ public class ImportClasseurService {
         Map<String, ValidationComite> validations = indexer(
                 validationComiteRepository.findByTrimestreAvecCollaborateur(trimestre),
                 validation -> validation.getCollaborateur().getIdCollaborateur());
-        Map<String, RattachementVivier> rattachements = indexer(rattachementRepository.findAll(),
+        // Seuls les rattachements dont la direction existe : une ligne cassee (entite_id 0) est ignoree.
+        Map<String, RattachementVivier> rattachements = indexer(rattachementRepository.findAllAvecDirection(),
                 rattachement -> rattachement.getDirection().getLibelle());
         Map<String, VivierThematique> vusDansLaFeuille = new HashMap<>();
         Set<String> presents = new HashSet<>();
@@ -591,6 +595,14 @@ public class ImportClasseurService {
                 if (validation == null) {
                     validations.put(collaborateur.getIdCollaborateur(),
                             validationComiteRepository.save(new ValidationComite(collaborateur, trimestre, statut)));
+                } else if (validation.estSaisieApplication()) {
+                    // Decision prise dans l'application : le classeur ne la remplace jamais.
+                    if (validation.getStatut() != statut) {
+                        rapport.decisionConservee(feuille, ligne, collaborateur.getIdCollaborateur()
+                                + " : le classeur indique « " + statut.getLibelle() + " », la décision saisie dans "
+                                + "l'application est conservée (« " + validation.getStatut().getLibelle() + " », le "
+                                + DATE_DECISION.format(validation.getDateDecision()) + ").");
+                    }
                 } else {
                     validation.setStatut(statut);}}
             if (vivier != null) {
@@ -609,7 +621,18 @@ public class ImportClasseurService {
                     rattachement.setVivier(vivier);
                 }}
         });
-        retirerAbsents(feuille, rapport, rejetees, validations, presents, validationComiteRepository);}
+        // Une decision saisie dans l'application n'est jamais retiree, meme si la feuille ne la porte plus.
+        Map<String, ValidationComite> importees = new HashMap<>();
+        validations.forEach((matricule, validation) -> {
+            if (!validation.estSaisieApplication()) {
+                importees.put(matricule, validation);
+            } else if (!presents.contains(matricule)) {
+                rapport.decisionConservee(feuille, null, matricule + " : absent de la feuille, la décision saisie "
+                        + "dans l'application est conservée (« " + validation.getStatut().getLibelle() + " », le "
+                        + DATE_DECISION.format(validation.getDateDecision()) + ").");
+            }
+        });
+        retirerAbsents(feuille, rapport, rejetees, importees, presents, validationComiteRepository);}
     private static StatutValidationComite statutComite(Row ligne) {
         String libelle = Cellules.matricule(ligne, 6);
         if (libelle == null) {

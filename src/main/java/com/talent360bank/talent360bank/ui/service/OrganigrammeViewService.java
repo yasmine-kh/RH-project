@@ -58,7 +58,8 @@ public class OrganigrammeViewService {
                         t == null ? null : t.getOrDefault(racine.libelle(), 0L).intValue(),
                         a == null ? null : a.getOrDefault(racine.libelle(), 0L).intValue()))
                 .toList();
-        return new Organigramme(directions, t != null);
+        // Collaborateurs sans entite connue : une ligne "Sans direction" plutot que de les perdre.
+        return new Organigramme(directions, t != null, vueEntiteViewService.effectifSansEntite());
     }
 
     /**

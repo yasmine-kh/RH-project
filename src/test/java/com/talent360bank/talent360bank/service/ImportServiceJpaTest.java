@@ -13,6 +13,7 @@ import com.talent360bank.talent360bank.entity.QuestionnaireEngagement;
 import com.talent360bank.talent360bank.entity.Sexe;
 import com.talent360bank.talent360bank.entity.StatutCollaborateur;
 import com.talent360bank.talent360bank.entity.StatutImport;
+import com.talent360bank.talent360bank.entity.ValidationComite;
 import com.talent360bank.talent360bank.entity.Trimestre;
 import com.talent360bank.talent360bank.entity.TypeEntite;
 import com.talent360bank.talent360bank.repository.DeclarationVigilanceRepository;
@@ -305,6 +306,77 @@ class ImportServiceJpaTest {
         ImportExcel journal = importExcelRepository.findAllRecentsDabord().get(0);
         assertThat(journal.getUtilisateur()).isNotNull();
         assertThat(journal.getUtilisateur().getLogin()).isEqualTo("rh.import");
+    }
+
+    // ------------------------------------------------------------------ decisions du Comite saisies dans l'application
+
+    /**
+     * Reimporter le meme trimestre ne remplace ni ne supprime une decision du Comite saisie dans
+     * l'application ; le desaccord est signale dans le bilan, sans compter comme une erreur.
+     */
+    @Test
+    void reimporter_garde_les_decisions_du_comite_saisies_dans_l_application() {
+        importer(ClasseurDeTest.complet());
+        java.time.LocalDateTime date = java.time.LocalDateTime.of(2026, 10, 2, 9, 30);
+        enTransaction(() -> {
+            Trimestre trimestre = trimestre();
+            // E1 : "Oui" dans le classeur, confirme dans l'application ; sa ligne va disparaitre de la feuille.
+            decider(E1, trimestre, StatutValidationComite.OUI, date, "confirmé en comité");
+            // E2 : "Non" dans le classeur et dans l'application : aucun desaccord.
+            decider(E2, trimestre, StatutValidationComite.NON, date, null);
+            // E3 : "En attente" dans le classeur, "Oui" dans l'application.
+            decider(E3, trimestre, StatutValidationComite.OUI, date, null);
+            return null;
+        });
+
+        ResultatImport second = importer(ClasseurDeTest.complet().retirerLigne(FEUILLE_TALENTS, 0));
+
+        assertThat(second.statut()).isEqualTo(StatutImport.SUCCES);
+        assertThat(second.nbErreurs()).isZero();
+        Map<String, ValidationComite> apres = enTransaction(() -> validationRepository
+                .findByTrimestreAvecCollaborateur(trimestre()).stream()
+                .collect(java.util.stream.Collectors.toMap(v -> v.getCollaborateur().getIdCollaborateur(), v -> v)));
+        assertThat(apres).containsOnlyKeys(E1, E2, E3);
+        assertThat(apres.get(E1).getStatut()).isEqualTo(StatutValidationComite.OUI);
+        assertThat(apres.get(E1).getDateDecision()).isEqualTo(date);
+        assertThat(apres.get(E1).getCommentaire()).isEqualTo("confirmé en comité");
+        assertThat(apres.get(E2).getStatut()).isEqualTo(StatutValidationComite.NON);
+        assertThat(apres.get(E3).getStatut()).isEqualTo(StatutValidationComite.OUI);
+        assertThat(apres.get(E3).getDateDecision()).isEqualTo(date);
+        // Bilan : E3 (desaccord, avec sa ligne Excel) et E1 (absent de la feuille) ; rien pour E2.
+        assertThat(second.decisionsConservees()).extracting(ErreurImport::feuille, ErreurImport::message)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(FEUILLE_TALENTS, E3 + " : le classeur indique « En attente »,"
+                                + " la décision saisie dans l'application est conservée (« Oui », le 02/10/2026)."),
+                        org.assertj.core.groups.Tuple.tuple(FEUILLE_TALENTS, E1 + " : absent de la feuille, la décision"
+                                + " saisie dans l'application est conservée (« Oui », le 02/10/2026)."));
+        // Le desaccord porte sa ligne Excel ; l'absence, aucune.
+        assertThat(second.decisionsConservees()).filteredOn(d -> d.message().startsWith(E3))
+                .singleElement().satisfies(d -> assertThat(d.ligne()).isNotNull());
+        assertThat(second.decisionsConservees()).filteredOn(d -> d.message().startsWith(E1))
+                .singleElement().satisfies(d -> assertThat(d.ligne()).isNull());
+    }
+
+    @Test
+    void sans_decision_de_l_application_le_classeur_fait_foi() {
+        importer(ClasseurDeTest.complet());
+        ResultatImport second = importer(ClasseurDeTest.complet()
+                .cellule(FEUILLE_TALENTS, 2, 6, "Oui").retirerLigne(FEUILLE_TALENTS, 0));
+
+        assertThat(second.decisionsConservees()).isEmpty();
+        Map<String, StatutValidationComite> apres = enTransaction(() -> validationRepository
+                .findByTrimestreAvecCollaborateur(trimestre()).stream()
+                .collect(java.util.stream.Collectors.toMap(v -> v.getCollaborateur().getIdCollaborateur(),
+                        ValidationComite::getStatut)));
+        // E1 (importe) retire avec sa ligne ; E3 suit le classeur.
+        assertThat(apres).containsOnlyKeys(E2, E3).containsEntry(E3, StatutValidationComite.OUI);
+    }
+
+    private void decider(String matricule, Trimestre trimestre, StatutValidationComite statut,
+                         java.time.LocalDateTime date, String commentaire) {
+        ValidationComite validation = validationRepository.findDecision(matricule, trimestre).orElseThrow();
+        validation.decider(statut, date, null, commentaire);
+        validationRepository.save(validation);
     }
 
     // ------------------------------------------------------------------ sources des saisies RH

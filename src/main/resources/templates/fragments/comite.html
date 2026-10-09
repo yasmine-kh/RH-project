@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--/*
+  Formulaires de decision du Comite Talent (ComiteDecisionsController). POST classiques : th:action
+  ajoute le jeton CSRF ; aucun JavaScript necessaire. Le commentaire est facultatif.
+*/-->
+
+<!--/* Talent propose : Valider (OUI), Reevaluer (EN_ATTENTE), Ne pas retenir (NON, confirme ensuite). */-->
+<form th:fragment="formTalent(row)" method="post" th:action="@{/comite-talent/talents}" class="decision-form">
+    <input type="hidden" name="trimestre" th:value="${trimestre.valeur}">
+    <input type="hidden" name="matricule" th:value="${row.matricule}">
+    <input type="hidden" name="statut" th:if="${statutFiltre != null}" th:value="${statutFiltre}">
+    <input type="text" name="commentaire" class="decision-commentaire" maxlength="500"
+           placeholder="Commentaire (facultatif)" aria-label="Commentaire"
+           th:value="${row.saisie != null} ? ${row.saisie.commentaire} : ''">
+    <div class="decision-btns">
+        <button class="dbtn green" type="submit" name="decision" value="OUI">🟢 Valider</button>
+        <button class="dbtn grey" type="submit" name="decision" value="EN_ATTENTE">⚪ Réévaluer</button>
+        <button class="dbtn red" type="submit" name="decision" value="NON">🔴 Ne pas retenir</button>
+    </div>
+</form>
+
+<!--/* Confirmation de "Ne pas retenir" pour un talent. */-->
+<div th:fragment="confirmerTalent(row)" class="alert crit confirmation">
+    <div class="sev">CONFIRMER</div>
+    <div class="txt">Ne pas retenir <strong th:text="${row.nomComplet}">Nom</strong> comme talent pour
+        <span th:text="${trimestre.libelle}">T3 2026</span> ?
+        <form method="post" th:action="@{/comite-talent/talents}" class="decision-form">
+            <input type="hidden" name="trimestre" th:value="${trimestre.valeur}">
+            <input type="hidden" name="matricule" th:value="${row.matricule}">
+            <input type="hidden" name="statut" th:if="${statutFiltre != null}" th:value="${statutFiltre}">
+            <input type="hidden" name="decision" value="NON">
+            <input type="hidden" name="confirme" value="oui">
+            <input type="text" name="commentaire" class="decision-commentaire" maxlength="500"
+                   placeholder="Commentaire (facultatif)" aria-label="Commentaire" th:value="${commentaireDecision}">
+            <div class="decision-btns">
+                <button class="dbtn red" type="submit">🔴 Confirmer : ne pas retenir</button>
+                <a class="dbtn" th:href="@{|/comite-talent#talent-${row.matricule}|(trimestre=${trimestre.valeur}, statut=${statutFiltre})}">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!--/* Successeur d'un poste critique : les cinq decisions du prototype. */-->
+<form th:fragment="formSuccession(s)" method="post" th:action="@{/comite-talent/successions}" class="decision-form">
+    <input type="hidden" name="trimestre" th:value="${trimestre.valeur}">
+    <input type="hidden" name="poste" th:value="${s.posteId}">
+    <input type="hidden" name="matricule" th:value="${s.matricule}">
+    <input type="text" name="commentaire" class="decision-commentaire" maxlength="500"
+           placeholder="Commentaire (facultatif)" aria-label="Commentaire"
+           th:value="${s.saisie != null} ? ${s.saisie.commentaire} : ''">
+    <div class="decision-btns">
+        <button class="dbtn green" type="submit" name="decision" value="VALIDER">🟢 Valider</button>
+        <button class="dbtn amber" type="submit" name="decision" value="VALIDER_AVEC_PLAN">🟠 Valider avec plan</button>
+        <button class="dbtn blue" type="submit" name="decision" value="MAINTENIR_EN_VIVIER">🔵 Maintenir en vivier</button>
+        <button class="dbtn grey" type="submit" name="decision" value="REEVALUER">⚪ Réévaluer</button>
+        <button class="dbtn red" type="submit" name="decision" value="NE_PAS_RETENIR">🔴 Ne pas retenir</button>
+    </div>
+</form>
+
+<!--/* Confirmation de "Ne pas retenir" pour une succession. */-->
+<div th:fragment="confirmerSuccession(s)" class="alert crit confirmation">
+    <div class="sev">CONFIRMER</div>
+    <div class="txt">Ne pas retenir <strong th:text="${s.nomComplet}">Nom</strong> comme successeur pour
+        <span th:text="${s.nomPoste}">Poste</span> ?
+        <form method="post" th:action="@{/comite-talent/successions}" class="decision-form">
+            <input type="hidden" name="trimestre" th:value="${trimestre.valeur}">
+            <input type="hidden" name="poste" th:value="${s.posteId}">
+            <input type="hidden" name="matricule" th:value="${s.matricule}">
+            <input type="hidden" name="decision" value="NE_PAS_RETENIR">
+            <input type="hidden" name="confirme" value="oui">
+            <input type="text" name="commentaire" class="decision-commentaire" maxlength="500"
+                   placeholder="Commentaire (facultatif)" aria-label="Commentaire" th:value="${commentaireDecision}">
+            <div class="decision-btns">
+                <button class="dbtn red" type="submit">🔴 Confirmer : ne pas retenir</button>
+                <a class="dbtn" th:href="@{|/comite-talent#${s.ancre()}|(trimestre=${trimestre.valeur})}">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!--/* Qui a decide et quand ; une decision sans date vient de l'import du classeur. */-->
+<span th:fragment="saisie(saisie)" class="decision-saisie"><th:block th:if="${saisie != null}"
+        th:text="|décidé le ${#temporals.format(saisie.date, 'dd/MM/yyyy à HH:mm')}${saisie.auteur != null ? ' par ' + saisie.auteur : ''}|">décidé le 08/10/2026</th:block><th:block
+        th:if="${saisie == null}">issu de l'import (10_TALENTS)</th:block><th:block
+        th:if="${saisie != null and saisie.commentaire != null}"> · « <span th:text="${saisie.commentaire}">Commentaire</span> »</th:block></span>
+
+</body>
+</html>
