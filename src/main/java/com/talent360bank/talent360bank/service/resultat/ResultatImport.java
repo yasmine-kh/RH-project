@@ -16,11 +16,22 @@ import java.util.List;
  * @param desactives collaborateurs absents de 01_COLLABORATEURS, passes INACTIF
  * @param reactives  collaborateurs qui n'etaient pas actifs et que le fichier remet ACTIF
  * @param message    cause d'un echec complet, nul sinon
+ * @param decisionsConservees decisions du Comite saisies dans l'application que le classeur contredit
+ *                   ou ne porte plus : gardees, signalees ici (sans compter comme erreurs)
  */
 public record ResultatImport(Integer idImport, String nomFichier, int annee, int numero, boolean simulation,
                              StatutImport statut, int nbLignes, List<BilanFeuille> feuilles,
                              List<ErreurImport> erreurs, List<String> desactives, List<String> reactives,
-                             String message) {
+                             String message, List<ErreurImport> decisionsConservees) {
+
+    /** Sans decision de l'application a signaler. */
+    public ResultatImport(Integer idImport, String nomFichier, int annee, int numero, boolean simulation,
+                          StatutImport statut, int nbLignes, List<BilanFeuille> feuilles,
+                          List<ErreurImport> erreurs, List<String> desactives, List<String> reactives,
+                          String message) {
+        this(idImport, nomFichier, annee, numero, simulation, statut, nbLignes, feuilles, erreurs, desactives,
+                reactives, message, List.of());
+    }
 
     /**
      * @param presente   la feuille et son en-tete ont ete trouves

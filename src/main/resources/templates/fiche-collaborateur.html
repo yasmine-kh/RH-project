@@ -45,10 +45,10 @@
                     <div class="tp-header"><div class="tp-avatar"
                             th:text="${#strings.toUpperCase((#strings.isEmpty(id.prenom) ? '' : #strings.substring(id.prenom, 0, 1)) + (#strings.isEmpty(id.nom) ? '' : #strings.substring(id.nom, 0, 1)))}">AB</div>
                         <div><h3><th:block th:text="|${id.prenom} ${id.nom} |">Prenom Nom</th:block><span class="mono" style="font-size:12px; color:var(--muted);" th:text="${id.matricule}">BP001</span></h3>
-                        <div class="role" th:text="${id.entite != null} ? |${id.fonction ?: '—'} — ${id.entite.libelle}| : ${id.fonction ?: '—'}">Directeur regional — Agence</div>
+                        <div class="role" th:text="${id.entite != null} ? |${id.fonction ?: '—'} — ${id.entite.libelle}| : |${id.fonction ?: '—'} — Sans direction|">Directeur regional — Agence</div>
                         <div class="tp-meta"><div>Grade <b th:text="${id.grade ?: '—'}">G9</b></div>
                             <div>Ancienneté <b th:text="${id.anciennete != null} ? |${id.anciennete} ans| : '—'">8.1 ans</b></div>
-                            <div>Entité <b th:if="${#lists.isEmpty(cheminEntite)}">—</b><th:block th:each="niveau, etat : ${cheminEntite}"><a
+                            <div>Entité <b th:if="${#lists.isEmpty(cheminEntite)}">Sans direction</b><th:block th:each="niveau, etat : ${cheminEntite}"><a
                                     th:href="@{/entites(code=${niveau.valeur}, trimestre=${trimestreFiche})}" th:text="${niveau.libelle}">Direction</a><span
                                     th:if="${!etat.last}"> &gt; </span></th:block></div>
                             <div>Manager <b th:if="${id.manager == null}">Direction Générale</b><a th:if="${id.manager != null}" class="mono"

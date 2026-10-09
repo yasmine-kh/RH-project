@@ -37,6 +37,12 @@ class ComiteTalentViewServiceTest {
 
     @Mock
     private ValidationComiteService validationComiteService;
+    @Mock
+    private com.talent360bank.talent360bank.service.PosteCritiqueService posteCritiqueService;
+    @Mock
+    private com.talent360bank.talent360bank.repository.ValidationComiteRepository validationComiteRepository;
+    @Mock
+    private com.talent360bank.talent360bank.repository.ValidationSuccessionRepository validationSuccessionRepository;
 
     private ComiteTalentViewService service;
     private Trimestre t3;
@@ -46,7 +52,8 @@ class ComiteTalentViewServiceTest {
 
     @BeforeEach
     void init() {
-        service = new ComiteTalentViewService(validationComiteService);
+        service = new ComiteTalentViewService(validationComiteService, posteCritiqueService,
+                validationComiteRepository, validationSuccessionRepository);
         t3 = trimestre(3);
         t2 = trimestre(2);
     }

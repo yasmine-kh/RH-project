@@ -110,6 +110,12 @@ public class VueEntiteViewService {
      * avec ses descendants, et l'effectif de chaque sous-arbre (hors archives).
      * Deux requetes.
      */
+    /** Collaborateurs hors archives sans entite connue (aucune, ou une cle vers une entite absente). */
+    @Transactional(readOnly = true)
+    public int effectifSansEntite() {
+        return (int) collaborateurRepository.compterSansEntite(StatutCollaborateur.ARCHIVE);
+    }
+
     @Transactional(readOnly = true)
     public List<NoeudEntite> listerEntites() {
         Organigramme organigramme = new Organigramme(entiteRepository.findAllAvecParent());

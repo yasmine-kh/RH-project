@@ -28,8 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Nombre de requetes du recalcul des scores sur le vrai classeur (100
  * collaborateurs), audit initial 3.4 : avant, une recherche du score existant
  * et le chargement EAGER des entites par collaborateur (285 requetes au premier
- * passage, 185 au second). Maintenant cinq lectures fixes (reglages, notes de
- * performance, de potentiel, scores existants, suppression groupee), plus une
+ * passage, 185 au second). Maintenant six lectures fixes (reglages, notes de
+ * performance, de potentiel, scores existants, identifiants des entites existantes
+ * pour ne jamais figer une cle d'entite inexistante, suppression groupee), plus une
  * insertion par nouveau score ; un second passage sans changement n'ecrit rien.
  *
  * <p>Ignore sans le classeur, qui n'est pas versionne. Base en memoire a part.
@@ -71,17 +72,17 @@ class RequetesMoteurDatasetTest {
     }
 
     @Test
-    void le_recalcul_du_classeur_lit_la_base_en_cinq_requetes() {
+    void le_recalcul_du_classeur_lit_la_base_en_six_requetes() {
         Statistics statistiques = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
 
         statistiques.clear();
         ResultatRecalcul premier = scoreService.recalculerTrimestre(t3);
         assertThat(premier.scoresEnregistres()).hasSize(100);
         assertThat(statistiques.getEntityInsertCount()).isEqualTo(100);
-        assertThat(statistiques.getPrepareStatementCount()).isEqualTo(5 + 100);
+        assertThat(statistiques.getPrepareStatementCount()).isEqualTo(6 + 100);
 
         statistiques.clear();
         assertThat(scoreService.recalculerTrimestre(t3).scoresEnregistres()).hasSize(100);
-        assertThat(statistiques.getPrepareStatementCount()).isEqualTo(5);
+        assertThat(statistiques.getPrepareStatementCount()).isEqualTo(6);
     }
 }

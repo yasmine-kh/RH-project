@@ -16,10 +16,23 @@ public class ComiteTalentView {
     private final int nbProposes;
     private final List<ComiteTalentRow> rows;
     private final String erreur;             // reglages absents ou incomplets, sinon null
+    private final List<SuccessionComiteRow> successions;
+    private final int nbSuccessionsEnAttente;
 
     public ComiteTalentView(List<OptionFiltre> trimestres, String trimestreLibelle,
                             List<OptionFiltre> statuts, List<KpiCard> kpis, int nbProposes,
                             List<ComiteTalentRow> rows, String erreur) {
+        this(trimestres, trimestreLibelle, statuts, kpis, nbProposes, rows, erreur, List.of());
+    }
+
+    /**
+     * @param successions successeurs evalues de chaque poste critique, avec la decision du comite
+     */
+    public ComiteTalentView(List<OptionFiltre> trimestres, String trimestreLibelle,
+                            List<OptionFiltre> statuts, List<KpiCard> kpis, int nbProposes,
+                            List<ComiteTalentRow> rows, String erreur, List<SuccessionComiteRow> successions) {
+        this.successions = successions;
+        this.nbSuccessionsEnAttente = (int) successions.stream().filter(SuccessionComiteRow::enAttente).count();
         this.trimestres = trimestres;
         this.trimestreLibelle = trimestreLibelle;
         this.statuts = statuts;
@@ -55,5 +68,14 @@ public class ComiteTalentView {
 
     public String getErreur() {
         return erreur;
+    }
+
+    public List<SuccessionComiteRow> getSuccessions() {
+        return successions;
+    }
+
+    /** Successions sans decision ou a reevaluer (carte "Successions a valider"). */
+    public int getNbSuccessionsEnAttente() {
+        return nbSuccessionsEnAttente;
     }
 }

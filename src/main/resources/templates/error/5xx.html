@@ -1,0 +1,7 @@
+<!--/*
+  Vue que Spring Boot (BasicErrorController, /error) rend pour toute erreur 5xx qui n'a pas ete traitee
+  par un ecran : erreur pendant le rendu d'une page, dans un filtre... La meme page que erreur/500,
+  sans reference (l'erreur est journalisee par le serveur). Aucun attribut technique n'est affiche ;
+  server.error.include-* les desactive de toute facon (application.properties).
+*/-->
+<html th:replace="~{erreur/500}"></html>

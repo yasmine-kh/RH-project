@@ -42,6 +42,7 @@
                     <div class="row"><span>Hauts potentiels</span><b th:text="${v.nbHautsPotentiels}">8</b></div>
                     <div class="row"><span>Ready Now</span><b th:text="${v.nbReadyNow}">3</b></div>
                     <div class="row"><span>Postes couverts</span><b th:text="${v.nbPostesCouverts}">3</b></div>
+                    <div class="row derniere-revue"><span>Dernière revue</span><b th:text="${revues[v.code] != null} ? ${#temporals.format(revues[v.code], 'dd/MM/yyyy')} : '—'">—</b></div>
                     <div class="row"><span>Gaps identifiés</span><b th:text="${#lists.isEmpty(v.gapsIdentifies)} ? 'aucun' : ''">aucun</b></div>
                     <div class="pill-row" style="margin-top:6px;" th:if="${not #lists.isEmpty(v.gapsIdentifies)}">
                         <span class="pill" th:each="gap : ${v.gapsIdentifies}" th:text="|${gap.competence} (${gap.nombre})|">Audit (2)</span></div>
@@ -57,7 +58,7 @@
                 <tbody><tr th:each="row : ${rows}" th:attr="data-href=@{/fiche-collaborateur(matricule=${row.matricule}, trimestre=${trimestre.valeur})}">
                     <td class="mono" th:text="${row.matricule}">BP001</td>
                     <td><a th:href="@{/fiche-collaborateur(matricule=${row.matricule}, trimestre=${trimestre.valeur})}" th:text="|${row.prenom} ${row.nom}|">Nom</a></td>
-                    <td th:text="${row.poste}">Poste</td><td th:text="${row.departement}">Departement</td>
+                    <td th:text="${row.poste}">Poste</td><td th:text="${row.departement} ?: 'Sans direction'">Departement</td>
                     <td th:text="${row.performance} ?: '—'">90</td><td th:text="${row.potentiel} ?: '—'">90</td>
                     <td><span class="badge talent" th:text="${row.categorieVivier}">Vivier</span></td>
                 </tr></tbody></table>

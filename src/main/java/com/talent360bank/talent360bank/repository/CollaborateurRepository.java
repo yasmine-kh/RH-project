@@ -69,6 +69,15 @@ public interface CollaborateurRepository extends JpaRepository<Collaborateur, St
     List<Object[]> compterParEntite(@Param("exclu") StatutCollaborateur exclu);
 
     /**
+     * Collaborateurs (hors statut exclu) sans entite, ou dont l'entite n'existe pas en base (cle 0 ou
+     * ligne supprimee) : la ligne "Sans direction" de l'organigramme. Une requete, sans jointure qui
+     * dereference l'entite.
+     */
+    @Query("select count(c) from Collaborateur c where c.statut <> :exclu and (c.entite is null "
+            + "or not exists (select e.idEntite from Entite e where e.idEntite = c.entite.idEntite))")
+    long compterSansEntite(@Param("exclu") StatutCollaborateur exclu);
+
+    /**
      * Collaborateurs d'un statut, avec entite et parents, par matricule :
      * liste de vigilance du trimestre (tous les actifs).
      */

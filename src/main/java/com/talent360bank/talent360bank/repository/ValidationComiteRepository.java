@@ -28,4 +28,19 @@ public interface ValidationComiteRepository extends JpaRepository<ValidationComi
 
     @Query("select v from ValidationComite v join fetch v.collaborateur where v.trimestre = :trimestre")
     List<ValidationComite> findByTrimestreAvecCollaborateur(@Param("trimestre") Trimestre trimestre);
+
+    /** Decisions du trimestre avec leur auteur (ecran Comite Talent), en une requete. */
+    @Query("select v from ValidationComite v join fetch v.collaborateur left join fetch v.utilisateur "
+            + "where v.trimestre = :trimestre")
+    List<ValidationComite> findByTrimestreAvecAuteur(@Param("trimestre") Trimestre trimestre);
+
+    @Query("select v from ValidationComite v "
+            + "where v.collaborateur.idCollaborateur = :idCollaborateur and v.trimestre = :trimestre")
+    Optional<ValidationComite> findDecision(@Param("idCollaborateur") String idCollaborateur,
+                                            @Param("trimestre") Trimestre trimestre);
+
+    /** {matricule, date} des decisions saisies dans l'application pour le trimestre. */
+    @Query("select v.collaborateur.idCollaborateur, v.dateDecision from ValidationComite v "
+            + "where v.trimestre = :trimestre and v.dateDecision is not null")
+    List<Object[]> findDates(@Param("trimestre") Trimestre trimestre);
 }

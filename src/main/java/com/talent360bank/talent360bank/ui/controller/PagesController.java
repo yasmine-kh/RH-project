@@ -3,6 +3,7 @@ package com.talent360bank.talent360bank.ui.controller;
 import com.talent360bank.talent360bank.config.ProtectionRequetesFilter;
 import com.talent360bank.talent360bank.exception.DonneesIncompletesException;
 import com.talent360bank.talent360bank.exception.RessourceIntrouvableException;
+import com.talent360bank.talent360bank.service.RevuesComiteService;
 import com.talent360bank.talent360bank.service.VivierSyntheseService;
 import com.talent360bank.talent360bank.service.resultat.SyntheseVivier;
 import com.talent360bank.talent360bank.ui.model.FicheCollaborateur;
@@ -48,6 +49,7 @@ public class PagesController {
     private final FicheCollaborateurPageViewService ficheCollaborateurPageViewService;
     private final VivierSyntheseService vivierSyntheseService;
     private final ReponsesQuestionnaireViewService reponsesQuestionnaire;
+    private final RevuesComiteService revuesComiteService;
 
     public PagesController(NineBoxViewService nineBoxViewService, VivierService vivierService,
                            ComiteTalentViewService comiteTalentViewService,
@@ -55,7 +57,8 @@ public class PagesController {
                            TrimestreCourantService trimestreCourant,
                            FicheCollaborateurPageViewService ficheCollaborateurPageViewService,
                            VivierSyntheseService vivierSyntheseService,
-                           ReponsesQuestionnaireViewService reponsesQuestionnaire) {
+                           ReponsesQuestionnaireViewService reponsesQuestionnaire,
+                           RevuesComiteService revuesComiteService) {
         this.nineBoxViewService = nineBoxViewService;
         this.vivierService = vivierService;
         this.comiteTalentViewService = comiteTalentViewService;
@@ -64,6 +67,7 @@ public class PagesController {
         this.ficheCollaborateurPageViewService = ficheCollaborateurPageViewService;
         this.vivierSyntheseService = vivierSyntheseService;
         this.reponsesQuestionnaire = reponsesQuestionnaire;
+        this.revuesComiteService = revuesComiteService;
     }
 
     /**
@@ -132,14 +136,20 @@ public class PagesController {
         model.addAttribute("rows", vivierService.buildRows(selection.trimestre()));
         // Une carte par vivier thematique puis le vivier de releve (VivierSyntheseService, Jas).
         List<SyntheseVivier> syntheses = List.of();
+        Map<String, java.time.LocalDate> revues = Map.of();
         if (selection.trimestre() != null) {
             try {
-                syntheses = vivierSyntheseService.synthese(selection.trimestre());
+                VivierSyntheseService.ViviersDuTrimestre viviers =
+                        vivierSyntheseService.syntheseEtMembres(selection.trimestre());
+                syntheses = viviers.syntheses();
+                // Derniere revue : derniere decision du Comite sur un membre du vivier (RevuesComiteService).
+                revues = revuesComiteService.parVivier(selection.trimestre(), viviers.membres());
             } catch (RessourceIntrouvableException | DonneesIncompletesException e) {
                 model.addAttribute("erreur", e.getMessage());
             }
         }
         model.addAttribute("syntheses", syntheses);
+        model.addAttribute("revues", revues);
         model.addAttribute("activePage", "viviers");
         return "viviers";
     }
@@ -154,13 +164,30 @@ public class PagesController {
         return "postes-critiques";
     }
 
+    /**
+     * Le Comite Talent et ses decisions (saisie : ComiteDecisionsController).
+     *
+     * @param confirmer           matricule d'un talent dont "Ne pas retenir" attend confirmation
+     * @param confirmerSuccession "PosteID:matricule" d'une succession dont "Ne pas retenir" attend confirmation
+     * @param modifier            matricule d'un talent decide dont on rouvre les boutons
+     * @param modifierSuccession  "PosteID:matricule" d'une succession decidee dont on rouvre les boutons
+     */
     @GetMapping("/comite-talent")
     public String comiteTalent(@RequestParam(required = false) String trimestre,
                                @RequestParam(required = false) String statut,
+                               @RequestParam(required = false) String confirmer,
+                               @RequestParam(required = false) String confirmerSuccession,
+                               @RequestParam(required = false) String modifier,
+                               @RequestParam(required = false) String modifierSuccession,
                                Model model) {
         TrimestreCourantService.Selection selection = trimestreCourant.selectionner(trimestre);
         selection.exposer(model);
         model.addAttribute("vue", comiteTalentViewService.build(selection, statut));
+        model.addAttribute("statutFiltre", statut);
+        model.addAttribute("confirmer", confirmer);
+        model.addAttribute("confirmerSuccession", confirmerSuccession);
+        model.addAttribute("modifier", modifier);
+        model.addAttribute("modifierSuccession", modifierSuccession);
         model.addAttribute("activePage", "comite-talent");
         return "comite-talent";
     }

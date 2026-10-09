@@ -10,7 +10,13 @@ import java.util.List;
  * @param directions             les directions, dans l'ordre de l'organigramme
  * @param indicateursDisponibles faux si les reglages du trimestre manquent (talents et alertes non calcules)
  */
-public record Organigramme(List<Direction> directions, boolean indicateursDisponibles) {
+public record Organigramme(List<Direction> directions, boolean indicateursDisponibles, int nbSansDirection) {
+
+    /** Sans collaborateur hors organigramme. */
+    public Organigramme(List<Direction> directions, boolean indicateursDisponibles) {
+        this(directions, indicateursDisponibles, 0);
+    }
+
 
     /**
      * @param branche   la direction (fusionnee avec ses enfants uniques) et ses departements

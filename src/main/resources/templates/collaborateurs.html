@@ -72,7 +72,7 @@
                 <tr th:each="e : ${vue.lignes}" th:attr="data-href=@{/fiche-collaborateur(matricule=${e.matricule}, trimestre=${trimestre.valeur})}">
                     <td class="mono" th:text="${e.matricule}">BP001</td>
                     <td><a th:href="@{/fiche-collaborateur(matricule=${e.matricule}, trimestre=${trimestre.valeur})}" th:text="${e.nomComplet}">Nom</a></td>
-                    <td th:text="${e.direction} ?: '—'">Direction</td>
+                    <td th:text="${e.direction} ?: 'Sans direction'">Direction</td>
                     <td><a th:if="${e.entite != null}" th:href="@{/entites(code=${e.entite.code}, trimestre=${trimestre.valeur})}"
                            th:text="${e.entite.libelle}">Agence</a><th:block th:if="${e.entite == null}">—</th:block></td>
                     <td><a th:if="${e.manager != null}" th:href="@{/managers/{m}(m=${e.manager.matricule}, trimestre=${trimestre.valeur})}"

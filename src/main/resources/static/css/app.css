@@ -57,6 +57,7 @@ label.case { display:flex; align-items:center; gap:8px; font-size:12.5px; color:
 .organigramme-recherche input { width: 100%; }
 .organigramme-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; }
 .organigramme-carte { background: #fff; border: 1px solid var(--line); }
+.organigramme-sans-direction { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; border-style: dashed; }
 .organigramme-carte > summary { list-style: none; cursor: pointer; padding: 14px 16px; transition: background .12s ease; }
 .organigramme-carte > summary::-webkit-details-marker { display: none; }
 .organigramme-carte > summary:hover { background: #F7F8F6; }
@@ -105,9 +106,13 @@ label.case { display:flex; align-items:center; gap:8px; font-size:12.5px; color:
 
 /* Fonctions du prototype pas encore disponibles (decisions du comite, interrupteurs de notification) :
    meme balisage, grise, "En cours de developpement" au survol. */
-.indispo, .kpi-indispo { opacity: .45; }
-.indispo .dbtn:disabled { cursor: not-allowed; }
-.indispo .dbtn:disabled:hover { background: #fff; border-color: var(--line); }
+/* Comite Talent : decisions (fragments/comite.html). Le formulaire passe sous le nom sur un ecran etroit. */
+.decision-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.decision-commentaire { font: inherit; font-size: 11.5px; padding: 5px 8px; border: 1px solid var(--line); min-width: 180px; max-width: 100%; }
+.decision-saisie { font-size: 11px; color: var(--muted); }
+a.dbtn { text-decoration: none; display: inline-block; }
+.succ-row .confirmation { flex-basis: 100%; margin: 4px 0 0; }
+.succ-row .confirmation .decision-form { margin-top: 8px; }
 
 /* Barres du prototype (.bar-track / .bar-fill / .cov-bar) : apparition en croissance depuis la gauche.
    Ajout a prototype.css (le prototype n'anime pas ses barres). Largeur = la valeur du moteur. */

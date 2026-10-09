@@ -9,7 +9,11 @@ import com.talent360bank.talent360bank.ui.service.ProfilsService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Pour toutes les pages (controleurs de ui.controller, jamais l'API) :
@@ -31,6 +36,8 @@ import java.util.List;
  */
 @ControllerAdvice(basePackages = "com.talent360bank.talent360bank.ui.controller")
 public class ProfilsAdvice {
+
+    private static final Logger log = LoggerFactory.getLogger(ProfilsAdvice.class);
 
     private final ObjectProvider<ProfilsService> profilsService;
 
@@ -82,6 +89,31 @@ public class ProfilsAdvice {
             throw e;
         }
         return pageIntrouvable(e.getReason(), model, reponse);
+    }
+
+    /**
+     * Erreur inattendue d'un ecran : page "Une erreur est survenue" (erreur/500), statut 500, sans
+     * aucun detail technique ; l'exception complete va au journal avec une reference courte, affichee
+     * a l'utilisateur pour retrouver la ligne du journal. Les erreurs qui portent deja leur statut
+     * (parametre manquant 400, methode 405, ressource 404...) et les refus d'acces suivent leur
+     * chemin habituel.
+     */
+    @ExceptionHandler(Exception.class)
+    public String erreurInattendue(Exception e, HttpServletRequest requete, Model model,
+                                   HttpServletResponse reponse) throws Exception {
+        if (e instanceof ErrorResponse || e instanceof AccessDeniedException) {
+            throw e;
+        }
+        String reference = reference();
+        log.error("Erreur inattendue [ref {}] sur {} {}", reference, requete.getMethod(), requete.getRequestURI(), e);
+        reponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        model.addAttribute("reference", reference);
+        return "erreur/500";
+    }
+
+    /** 8 caracteres, assez pour retrouver l'erreur dans le journal. */
+    static String reference() {
+        return UUID.randomUUID().toString().substring(0, 8).toUpperCase(java.util.Locale.ROOT);
     }
 
     private static String pageIntrouvable(String message, Model model, HttpServletResponse reponse) {

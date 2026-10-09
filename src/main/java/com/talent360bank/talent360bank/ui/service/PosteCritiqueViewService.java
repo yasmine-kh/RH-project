@@ -21,9 +21,12 @@ import java.util.List;
 public class PosteCritiqueViewService {
 
     private final PosteCritiqueService posteCritiqueService;
+    private final com.talent360bank.talent360bank.service.RevuesComiteService revuesComiteService;
 
-    public PosteCritiqueViewService(PosteCritiqueService posteCritiqueService) {
+    public PosteCritiqueViewService(PosteCritiqueService posteCritiqueService,
+                                    com.talent360bank.talent360bank.service.RevuesComiteService revuesComiteService) {
         this.posteCritiqueService = posteCritiqueService;
+        this.revuesComiteService = revuesComiteService;
     }
 
     /**
@@ -44,6 +47,7 @@ public class PosteCritiqueViewService {
             return lignes;
         }
 
+        java.util.Map<String, java.time.LocalDate> revues = revuesComiteService.parPoste(trimestre);
         for (CouverturePoste couverture : couvertures) {
             ResultatMatching meilleur = couverture.meilleurSuccesseur();
             String candidatPotentiel = meilleur == null ? "-" : meilleur.candidat().getNomComplet();
@@ -59,7 +63,8 @@ public class PosteCritiqueViewService {
                     couverture.meilleurMatching(),
                     couverture.niveau().getLibelle(),
                     couverture.estEnAlerte(),
-                    couverture.successeurs().stream().map(PosteCritiqueViewService::successeur).toList()
+                    couverture.successeurs().stream().map(PosteCritiqueViewService::successeur).toList(),
+                    revues.get(couverture.poste().getPosteId())
             ));
         }
 

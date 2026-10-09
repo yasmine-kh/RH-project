@@ -68,7 +68,8 @@ class FinitionsAuditTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"/", "/collaborateurs", "/9box", "/viviers", "/postes-critiques", "/competences",
-            "/alertes", "/notifications", "/campagne", "/managers", "/entites", "/import", "/parametres"})
+            "/alertes", "/notifications", "/campagne", "/managers", "/entites", "/import", "/parametres",
+            "/comite-talent"})
     void aucune_autre_page_n_est_en_cours_de_developpement(String url) throws Exception {
         assertThat(page(url).toLowerCase()).doesNotContain("en cours de développement", "en cours de developpement");
     }

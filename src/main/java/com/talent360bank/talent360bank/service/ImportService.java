@@ -156,7 +156,8 @@ public class ImportService {
         log.info("Simulation {} pour T{} {} : {}, {} ligne(s), {} erreur(s), {} desactivation(s)", nomFichier,
                 numero, annee, statut, rapport.nbLignes(), rapport.nbErreurs(), rapport.desactives().size());
         return new ResultatImport(null, nomFichier, annee, numero, true, statut, rapport.nbLignes(),
-                rapport.bilans(), rapport.erreurs(), rapport.desactives(), rapport.reactives(), message(rapport));
+                rapport.bilans(), rapport.erreurs(), rapport.desactives(), rapport.reactives(), message(rapport),
+                rapport.decisionsConservees());
     }
 
     /**
@@ -193,7 +194,7 @@ public class ImportService {
                 rapport.desactives().size(), rapport.reactives().size());
         return new ResultatImport(journal.getIdImport(), nomFichier, annee, numero, false, statut,
                 rapport.nbLignes(), rapport.bilans(), rapport.erreurs(), rapport.desactives(), rapport.reactives(),
-                message);
+                message, rapport.decisionsConservees());
     }
 
     private static StatutImport statut(RapportImport rapport) {

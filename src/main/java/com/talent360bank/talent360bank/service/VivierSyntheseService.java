@@ -66,12 +66,36 @@ public class VivierSyntheseService {
      */
     @Transactional(readOnly = true)
     public List<SyntheseVivier> synthese(Trimestre trimestre) {
+        return syntheseEtMembres(trimestre).syntheses();
+    }
+
+    /**
+     * Les syntheses de {@link #synthese(Trimestre)} et, pour chaque vivier (code), les matricules de
+     * ses membres (derniere revue du Comite, RevuesComiteService), calcules une seule fois.
+     */
+    public record ViviersDuTrimestre(List<SyntheseVivier> syntheses, Map<String, Set<String>> membres) {
+    }
+
+    /** Voir {@link #synthese(Trimestre)} ; memes exceptions. */
+    @Transactional(readOnly = true)
+    public ViviersDuTrimestre syntheseEtMembres(Trimestre trimestre) {
         Objects.requireNonNull(trimestre, "trimestre");
         List<CouverturePoste> couvertures = posteCritiqueService.listerPostesCritiques(trimestre);
-        List<SyntheseVivier> syntheses = new ArrayList<>(
-                resumerThematiques(vivierThematiqueService.getViviersThematiques(trimestre), couvertures));
-        syntheses.add(resumerReleve(talentService.getVivierReleve(trimestre), couvertures));
-        return List.copyOf(syntheses);
+        ResultatViviersThematiques thematiques = vivierThematiqueService.getViviersThematiques(trimestre);
+        List<MembreVivierReleve> releve = talentService.getVivierReleve(trimestre);
+        List<SyntheseVivier> syntheses = new ArrayList<>(resumerThematiques(thematiques, couvertures));
+        syntheses.add(resumerReleve(releve, couvertures));
+
+        Map<String, Set<String>> membres = new LinkedHashMap<>();
+        for (VivierThematique vivier : VivierThematique.values()) {
+            membres.put(vivier.getCode(), thematiques.membresDe(vivier).stream()
+                    .map(membre -> membre.score().getCollaborateur().getIdCollaborateur())
+                    .collect(Collectors.toUnmodifiableSet()));
+        }
+        membres.put(VivierReleveService.CODE_VIVIER_RELEVE, releve.stream()
+                .map(membre -> membre.score().getCollaborateur().getIdCollaborateur())
+                .collect(Collectors.toUnmodifiableSet()));
+        return new ViviersDuTrimestre(List.copyOf(syntheses), Map.copyOf(membres));
     }
 
     /**

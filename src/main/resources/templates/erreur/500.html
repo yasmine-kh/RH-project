@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>BP TALENT 360 — Erreur</title>
+    <th:block th:replace="~{fragments/prototype :: tete}"></th:block>
+</head>
+<body>
+
+<!--/*
+  Page autonome (sans sidebar, sans donnees : ce sont peut-etre elles qui ont echoue). Rendue par
+  ProfilsAdvice pour une erreur inattendue d'un ecran, et par error/5xx.html pour les autres (Spring,
+  /error). Aucun detail technique : ni message, ni exception, ni pile. La reference renvoie au journal.
+*/-->
+<main class="page-seule">
+    <div class="boite" style="max-width:560px;">
+        <div class="boite-tete marque"><span class="mark mark-logo"><img th:src="@{/images/BP-Logo-Complet.png}" alt="Banque Populaire" width="170" height="52"></span>
+            <div><h3>BP TALENT 360</h3><p>Vivier &amp; Succession — SIRH</p></div></div>
+        <div class="boite-corps">
+            <h3 style="font-size:16px; margin-bottom:10px;">Une erreur est survenue</h3>
+            <p style="font-size:12.8px;">La page n'a pas pu être affichée. Réessayez dans un instant ; si l'erreur se
+                reproduit, signalez-la à l'équipe technique avec l'heure et la page concernée.</p>
+            <p style="font-size:12.8px; color:var(--muted);" th:if="${reference != null}"
+               th:text="|Référence de l'erreur : ${reference}|">Référence de l'erreur : 7F3A2C1B</p>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;">
+                <a href="/" class="btn" style="text-decoration:none;">Tableau de bord RH</a>
+                <a href="/collaborateurs" class="btn ghost" style="text-decoration:none;">Collaborateurs</a>
+                <a href="/import" class="btn ghost" style="text-decoration:none;">Import</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>

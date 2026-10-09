@@ -56,7 +56,7 @@ public class Manager {
     }
 
     public Entite getEntiteGeree() {
-        return entiteGeree;
+        return EntiteExistante.ou(entiteGeree, "manager " + idManager);
     }
 
     public void setEntiteGeree(Entite entiteGeree) {

@@ -50,6 +50,13 @@
                             </th:block>
                         </div>
                     </details>
+                    <!--/* Collaborateurs sans entite connue (aucune, ou une cle vers une entite absente). */-->
+                    <div class="organigramme-carte organigramme-sans-direction" th:if="${organigramme.nbSansDirection > 0}"
+                         data-nom="Sans direction">
+                        <span class="organigramme-carte-titre">Sans direction</span>
+                        <span class="organigramme-chiffres"><span><strong th:text="${organigramme.nbSansDirection}">1</strong>
+                            collaborateur(s) sans entité connue</span></span>
+                    </div>
                 </div>
             </th:block>
         </section>

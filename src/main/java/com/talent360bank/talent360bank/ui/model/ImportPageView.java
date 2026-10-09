@@ -51,7 +51,7 @@ public record ImportPageView(Formulaire formulaire, Rapport rapport, String erre
                           String statut, int nbLignes, int nbErreurs, List<BilanFeuille> feuilles,
                           List<ErreurImport> erreurs, List<String> desactives, List<String> reactives,
                           String message, Calcul calcul, String erreurCalcul, LocalDate dateReference,
-                          boolean trimestreVide, String lienTableauDeBord) {
+                          boolean trimestreVide, String lienTableauDeBord, List<ErreurImport> decisionsConservees) {
 
         /** Reussi, Partiel ou Echec (le code reste dans {@link #statut()}). */
         public String statutLibelle() {

@@ -254,7 +254,8 @@ public class ImportPageService {
                 importation.nbErreurs(), importation.feuilles(), importation.erreurs(), importation.desactives(),
                 importation.reactives(), importation.message(), calcul(campagne.calcul()), campagne.erreurCalcul(),
                 ecrit ? dateReference : null, trimestreVide,
-                ecrit && campagne.calcul() != null ? "/?trimestre=" + valeur : null);
+                ecrit && campagne.calcul() != null ? "/?trimestre=" + valeur : null,
+                importation.decisionsConservees());
     }
 
     private static Calcul calcul(ResultatCalculTrimestre calcul) {

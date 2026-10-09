@@ -31,6 +31,7 @@ public class RapportImport {
     private final List<ErreurImport> erreurs = new ArrayList<>();
     private final List<String> desactives = new ArrayList<>();
     private final List<String> reactives = new ArrayList<>();
+    private final List<ErreurImport> decisionsConservees = new ArrayList<>();
 
     void feuilleLue(String feuille) {
         feuilles.put(feuille, new Compteur(true));
@@ -72,6 +73,21 @@ public class RapportImport {
     /** Collaborateur qui n'etait pas actif et que le fichier remet ACTIF. */
     void reactive(String idCollaborateur) {
         reactives.add(idCollaborateur);
+    }
+
+    /**
+     * Decision du Comite saisie dans l'application que le classeur contredit (ou ne porte plus) :
+     * elle est gardee telle quelle. Ni une erreur ni une ligne ecartee : le statut de l'import n'en
+     * depend pas.
+     *
+     * @param ligne ligne de la feuille, null si le collaborateur n'y figure plus
+     */
+    void decisionConservee(String feuille, Row ligne, String message) {
+        decisionsConservees.add(new ErreurImport(feuille, ligne == null ? null : ligne.getRowNum() + 1, message));
+    }
+
+    public List<ErreurImport> decisionsConservees() {
+        return List.copyOf(decisionsConservees);
     }
 
     public List<String> desactives() {

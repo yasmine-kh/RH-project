@@ -74,6 +74,14 @@ class ComiteTalentPageTest {
     private com.talent360bank.talent360bank.ui.service.ReponsesQuestionnaireViewService reponsesQuestionnaireViewService;
     @MockBean
     private ProfilsService profilsService;
+    @MockBean
+    private com.talent360bank.talent360bank.service.PosteCritiqueService posteCritiqueService;
+    @MockBean
+    private com.talent360bank.talent360bank.repository.ValidationComiteRepository validationComiteRepository;
+    @MockBean
+    private com.talent360bank.talent360bank.repository.ValidationSuccessionRepository validationSuccessionRepository;
+    @MockBean
+    private com.talent360bank.talent360bank.service.RevuesComiteService revuesComiteService;
 
     private Trimestre t3;
 

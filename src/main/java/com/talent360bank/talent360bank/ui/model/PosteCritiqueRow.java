@@ -23,6 +23,7 @@ public class PosteCritiqueRow {
     private final String statut;
     private final boolean enAlerte;
     private final List<SuccesseurRow> successeurs;
+    private final java.time.LocalDate derniereRevue;  // derniere decision du Comite sur ses successeurs, null sinon
 
     /**
      * Un successeur identifie evalue sur le poste.
@@ -39,6 +40,15 @@ public class PosteCritiqueRow {
     public PosteCritiqueRow(String posteId, String nomPoste, String direction, String criticite, String titulaire,
                             int nbSuccesseurs, String candidatPotentiel, BigDecimal scoreMatching,
                             String statut, boolean enAlerte, List<SuccesseurRow> successeurs) {
+        this(posteId, nomPoste, direction, criticite, titulaire, nbSuccesseurs, candidatPotentiel, scoreMatching,
+                statut, enAlerte, successeurs, null);
+    }
+
+    public PosteCritiqueRow(String posteId, String nomPoste, String direction, String criticite, String titulaire,
+                            int nbSuccesseurs, String candidatPotentiel, BigDecimal scoreMatching,
+                            String statut, boolean enAlerte, List<SuccesseurRow> successeurs,
+                            java.time.LocalDate derniereRevue) {
+        this.derniereRevue = derniereRevue;
         this.posteId = posteId;
         this.nomPoste = nomPoste;
         this.direction = direction;
@@ -95,5 +105,9 @@ public class PosteCritiqueRow {
 
     public List<SuccesseurRow> getSuccesseurs() {
         return successeurs;
+    }
+
+    public java.time.LocalDate getDerniereRevue() {
+        return derniereRevue;
     }
 }

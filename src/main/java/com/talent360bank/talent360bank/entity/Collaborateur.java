@@ -162,8 +162,17 @@ public class Collaborateur {
         this.dateEntree = dateEntree;
     }
 
-    public Entite getEntite() {
+    /**
+     * La reference telle qu'en base, sans la lire (Score.figerOrganisation : pas de requete par
+     * collaborateur). Peut pointer vers une entite absente : verifier son identifiant.
+     */
+    Entite referenceEntite() {
         return entite;
+    }
+
+    /** Entite du collaborateur ; null si inconnue ou si elle n'existe pas en base (EntiteExistante). */
+    public Entite getEntite() {
+        return EntiteExistante.ou(entite, "collaborateur " + idCollaborateur);
     }
 
     public void setEntite(Entite entite) {
@@ -173,22 +182,26 @@ public class Collaborateur {
     /** Libelle de la direction, en remontant depuis {@link #getEntite()} ; null si inconnue. */
     @Transient
     public String getDirection() {
-        return entite == null ? null : entite.libelleDe(TypeEntite.DIRECTION);
+        Entite connue = getEntite();
+        return connue == null ? null : connue.libelleDe(TypeEntite.DIRECTION);
     }
 
     @Transient
     public String getDepartement() {
-        return entite == null ? null : entite.libelleDe(TypeEntite.DEPARTEMENT);
+        Entite connue = getEntite();
+        return connue == null ? null : connue.libelleDe(TypeEntite.DEPARTEMENT);
     }
 
     @Transient
     public String getRegion() {
-        return entite == null ? null : entite.libelleDe(TypeEntite.REGION);
+        Entite connue = getEntite();
+        return connue == null ? null : connue.libelleDe(TypeEntite.REGION);
     }
 
     @Transient
     public String getAgence() {
-        return entite == null ? null : entite.libelleDe(TypeEntite.AGENCE);
+        Entite connue = getEntite();
+        return connue == null ? null : connue.libelleDe(TypeEntite.AGENCE);
     }
 
     public String getFonction() {
